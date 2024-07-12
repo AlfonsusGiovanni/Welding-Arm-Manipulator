@@ -1,5 +1,5 @@
 /*
-Author	: Alfonsus Giovanni
+Author	: Alfonsus Giovanni Mahendra Putra
 Date		: 22 October 2023
 */
 
@@ -56,6 +56,7 @@ Date		: 22 October 2023
 #define LCD_MOVERIGHT 0x04
 #define LCD_MOVELEFT 0x00
 
+
 /*---FUNCTION SET---*/
 #define LCD_4BITMODE 0x00
 #define LCD_8BITMODE 0x10
@@ -64,19 +65,35 @@ Date		: 22 October 2023
 #define LCD_FTYPE_5X8 0x00
 #define LCD_FTYPE_5X10 0x04
 
+
+/*---LCD STATUS TYPEDEF---*/
 typedef enum{
 	LCD_OK = 0x01U,
 	LCD_ERR = 0x02U
 }lcd_status;
 
-lcd_status send_string(char data);
+// LCD COMMAND SEND
 lcd_status send_cmd(char data);
 
+// LCD DATA SEND
+lcd_status send_data(char data);
+
+// LCD INITIALIZE
 void lcd_init(I2C_HandleTypeDef *set_i2c);
+
+// LCD SET CURSOR LOCATION
 void lcd_set_cursor(int8_t col, int8_t row);
+
+// LCD PRINT STRING VARIABLE
 void lcd_printstr(char *string);
+
+// LCD PRINT INTEGER VARIABLE
 void lcd_printint(int input);
+
+// LCD PRINT FLOAT VARIABLE
 void lcd_printfloat(float input);
+
+// LCD CLEAR
 void lcd_clear(void);
 
 #endif

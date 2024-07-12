@@ -1,3 +1,8 @@
+/*
+Author	: Alfonsus Giovanni Mahendra Putra
+Date		: 10 Juli 2024
+*/
+
 #include "RS232_Driver.h"
 
 static UART_HandleTypeDef* huart;
@@ -13,6 +18,3 @@ static uint8_t checksum_generator(uint8_t* arr, uint8_t size){
 	for(uint8_t i = 0; i < size; i++) chksm += arr[i];
 	return (chksm & 0xFF);
 }
-
-/*SEND CONTROL MODE COMMAND*/
-void Send_ctrl_mode(Ctrl_Mode_t mode);

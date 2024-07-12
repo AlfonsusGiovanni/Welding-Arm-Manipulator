@@ -1,3 +1,8 @@
+/*
+Author	: Alfonsus Giovanni Mahendra Putra
+Date		: 10 Juli 2024
+*/
+
 #ifndef RS3232_DRIVER_H
 #define RS3232_DRIVER_H
 
@@ -6,7 +11,6 @@
 
 #define HEADER1 0xFF
 #define HEADER2 0xEE
-
 
 #define SEND_CTRL_MODE			0x01
 #define SEND_RUN_MODE				0x02

@@ -424,9 +424,14 @@
               <FilePath>.\LCD_I2C.c</FilePath>
             </File>
             <File>
-              <FileName>FlashMem_Driver.c</FileName>
+              <FileName>RS232_Driver.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\FlashMem_Driver.c</FilePath>
+              <FilePath>.\RS232_Driver.c</FilePath>
+            </File>
+            <File>
+              <FileName>Keypad_Driver.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Keypad_Driver.c</FilePath>
             </File>
             <File>
               <FileName>stm32f1xx_hal_gpio_ex.c</FileName>
@@ -502,16 +507,6 @@
               <FileName>stm32f1xx_hal_uart.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_uart.c</FilePath>
-            </File>
-            <File>
-              <FileName>RS232_Driver.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\RS232_Driver.h</FilePath>
-            </File>
-            <File>
-              <FileName>RS232_Driver.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\RS232_Driver.c</FilePath>
             </File>
           </Files>
         </Group>

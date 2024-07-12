@@ -23,13 +23,14 @@
 /* USER CODE BEGIN Includes */
 #include "LCD_I2C.h"
 #include "EEPROM_lib.h"
+#include "Keypad_Driver.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
 //--- EEPROM PAGE TYPEDEF ---//
-//////////////////////////
+///////////////////////////////
 typedef enum{
 	PATTERN1_XPOS_PAGE,
 	PATTERN1_YPOS_PAGE,
@@ -50,12 +51,18 @@ typedef enum{
 	ANGLE5_PAGE,
 	ANGLE6_PAGE,
 }EEPROM_page_t;
-//////////////////////////
+///////////////////////////////
 
 
 //--- EEPROM TYPEDEF ---//
 //////////////////////////
 EEPROM_t eeprom;
+//////////////////////////
+
+
+//--- KEYPAD TYPEDEF ---//
+//////////////////////////
+Keypad_t keypad;
 //////////////////////////
 
 /* USER CODE END PTD */
@@ -93,8 +100,28 @@ static void MX_USART1_UART_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-// EEPROM CONNFIG
+//EEPROM ADDRESS SETTING
+//-------------------------
 #define EEPROM_ADDRESS 0xA0
+//-------------------------
+
+
+//KEYPAD KEY SETTING
+//-------------------------------
+const uint8_t
+num_rows = 5, 
+num_cols = 4;
+
+char key[num_rows][num_cols] = {
+	{'Q', 'W', 'R', 'T'},
+	{'1', '2', '3', 'U'},
+	{'4', '5', '6', 'D'},
+	{'7', '8', '9', '*'},
+	{'<', '0', '>', '#'}
+};
+
+char keys;
+//-------------------------------
 
 /* USER CODE END 0 */
 
@@ -141,12 +168,29 @@ int main(void)
 	EEPROM_Init(&hi2c1, &eeprom, MEM_SIZE_256Kb, EEPROM_ADDRESS);
 	//-----------------------------------------------------------
 	
+	/*KEYPAD CONFIGURATION*/	
+	//--------------------------------
+	keypad.row_port[0] = GPIOA, keypad.row_pin[0] = GPIO_PIN_1;
+	keypad.row_port[1] = GPIOA, keypad.row_pin[1] = GPIO_PIN_2;
+	keypad.row_port[2] = GPIOA, keypad.row_pin[2] = GPIO_PIN_3;
+	keypad.row_port[3] = GPIOA, keypad.row_pin[3] = GPIO_PIN_4;
+	keypad.row_port[4] = GPIOA, keypad.row_pin[4] = GPIO_PIN_5;
+	
+	keypad.col_port[0] = GPIOC, keypad.col_pin[0] = GPIO_PIN_13;
+	keypad.col_port[1] = GPIOC, keypad.col_pin[1] = GPIO_PIN_14;
+	keypad.col_port[2] = GPIOC, keypad.col_pin[2] = GPIO_PIN_15;
+	keypad.col_port[3] = GPIOA, keypad.col_pin[3] = GPIO_PIN_0;
+	
+	Keypad_Init(&keypad, makeKeymap(key), num_rows, num_cols);
+	//--------------------------------
+	
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+		
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -191,10 +235,6 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-
-  /** Enables the Clock Security System
-  */
-  HAL_RCC_EnableCSS();
 }
 
 /**
@@ -305,13 +345,30 @@ static void MX_USART1_UART_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
 /* USER CODE BEGIN MX_GPIO_Init_1 */
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : PA7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_7;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_15;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
