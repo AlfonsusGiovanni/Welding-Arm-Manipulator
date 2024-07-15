@@ -22,23 +22,29 @@ Date		: 10 Juli 2024
 #define SEND_REQ_ANGLE			0x08
 
 
-//--- CONTROL MODE TYPEDEF ---//
-////////////////////////////////
+//--- MANUAL CONTROL MODE TYPEDEF ---//
+///////////////////////////////////////
 typedef enum{
 	POSITION_CTRL,
 	ANGLE_CTRL,
 }Ctrl_Mode_t;
-////////////////////////////////
+///////////////////////////////////////
 
 
 //--- RUNNING MODE TYPEDEF ---//
 ////////////////////////////////
 typedef enum{
-	HOMING_MODE,
+	POSITION_MAPPING_MODE,
 	PATTERN_MODE,
-	REPEAT_MODE,
 }Run_Mode_t;
 ////////////////////////////////
+
+
+typedef enum{
+	PATTERN1,
+	PATTERN2,
+	PATTERN3,
+}Memory_Pattern_t;
 
 
 //--- MOTOR STATE TYPEDEF ---//
@@ -73,6 +79,8 @@ typedef struct{
 	motor5_angle,
 	motor6_angle;
 	
+	uint8_t running_speed;
+	
 	Ctrl_Mode_t control_mode;
 	Run_Mode_t running_mode;
 	Motor_State_t motor_state;
@@ -87,17 +95,31 @@ void RS232_Init(UART_HandleTypeDef* huart_handler);
 static uint8_t checksum_generator(uint8_t* arr, uint8_t size);
 
 /*TRANSMITING COMMAND*/
+//------------------------------------------------------------------
+void Send_auto_home(void);
+
 void Send_ctrl_mode(Ctrl_Mode_t mode);
-void Send_run_mode(Run_Mode_t mode);
+void Send_mapping_mode(void);
+
+void Send_start(Memory_Pattern_t pattern_select, uint8_t speed);
+void Send_stop(void);
+void Send_pause(void);
+void Send_continue(void);
+
 void Send_motor_state(uint8_t state);
 void Send_welder_state(uint8_t state);
+
 void Send_position(double* position);
 void Send_angle(double* angle);
+
 void Req_position(void);
 void Req_angle(void);
+//------------------------------------------------------------------
 
 /*RECIEVING COMMAND*/
+//---------------------------------
 void Start_get_command(void);
 void Get_command(Data_Get_t* get);
+//---------------------------------
 
 #endif

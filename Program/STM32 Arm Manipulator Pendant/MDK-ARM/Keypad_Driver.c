@@ -10,6 +10,8 @@ row_number, col_number;
 
 static const unsigned long debounce_time = 10;
 static unsigned long prev_tick;
+static bool
+keypad_status, prev_keypad_status;
 
 // KEYPAD INITIALIZE
 void Keypad_Init(Keypad_t *keypad, char *userKeymap, uint8_t row_num, uint8_t col_num){
@@ -62,7 +64,7 @@ void Keypad_Scan(Keypad_t *keypad){
 		HAL_GPIO_WritePin(keypad->col_port[c], keypad->col_pin[c], GPIO_PIN_RESET);
 		
 		for(int r=0; r<row_number; r++){
-			//READ EACH ROW&COLUMN INPUT
+			//READ EACH ROW & COLUMN INPUT
 			keypad->pressed[r][c] = !HAL_GPIO_ReadPin(keypad->row_port[r], keypad->row_pin[r]);
 			if(keypad->pressed[r][c] == true) keypad->stored_key = keypad->listed_key[(r*col_number)+c];
 		}

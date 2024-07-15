@@ -64,9 +64,9 @@ void lcd_init(I2C_HandleTypeDef *set_i2c){
 // LCD SET CURSOR LOCATION
 void lcd_set_cursor(int8_t col, int8_t row){
 	uint8_t cmd;
+	uint16_t row_offsets[4] = {ROW_ADDR_1, ROW_ADDR_2, ROW_ADDR_3, ROW_ADDR_4};
 	
-	if(row == 0) cmd = ROW_ADDR_TOP | col;
-	else if(row == 1) cmd = ROW_ADDR_BOTTOM | col;
+	cmd = LCD_SETDDRAM_ADDR | (col + row_offsets[row]);
 	
 	send_cmd(cmd);
 }
@@ -86,8 +86,8 @@ void lcd_printint(int input){
 
 // LCD PRINT FLOAT VARIABLE
 void lcd_printfloat(float input){
-	char strbuffer[50];
-	sprintf(strbuffer, "%.2f", input);
+	char strbuffer[20];
+	sprintf(strbuffer, "%.3f", input);
 	
 	lcd_printstr(strbuffer);
 }

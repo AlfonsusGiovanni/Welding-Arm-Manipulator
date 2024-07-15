@@ -54,6 +54,20 @@ typedef enum{
 ///////////////////////////////
 
 
+//--- LCD MENU TYPEDEF ---//
+////////////////////////////
+typedef enum{
+	BOOTING_MENU,
+	HOME_MENU,
+	PREP_MENU,
+	RUNNING_MENU_1,
+	RUNNING_MENU_2,
+	RUNNING_MENU_3,
+	PAUSE_MENU,
+}LCD_Menu_t;
+////////////////////////////
+
+
 //--- EEPROM TYPEDEF ---//
 //////////////////////////
 EEPROM_t eeprom;
@@ -81,9 +95,58 @@ Keypad_t keypad;
 I2C_HandleTypeDef hi2c1;
 I2C_HandleTypeDef hi2c2;
 
+TIM_HandleTypeDef htim2;
+
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
+
+/*PENDANT GLOBAL VARIABLE*/
+////////////////////////////
+bool 
+booting_menu 	= false,
+home_menu 		= false,
+running 			= false,
+stop 					= false;
+
+float
+A1, A2, A3, A4, A5, A6,
+moveX, moveY, moveZ,
+distance_val;
+
+char string_distance[] = "";
+/////////////////////////////
+
+
+/*MENU MODE VARIABLE*/
+///////////////////////////////////
+char
+pos_ctrl[] 				= "POS",
+angle_ctrl[] 			= "ANG",
+
+cont_change[] 		= "CONT",
+dist_change[] 		= "DIST",
+step_change[] 		= "STEP",
+
+pattern_mode[] 		= "PATTERN",
+repeat_mode[] 		= "REPEAT",
+
+low_speed[] 			= "LOW",
+med_speed[] 			= "MED",
+high_speed[] 			= "HIGH";
+
+uint8_t 
+ctrl_mode_counter 					= 0x00,
+change_value_counter  			= 0x00,
+move_var_counter						= 0x00,
+run_mode_counter      			= 0x00,
+speed_mode_counter					= 0x00;
+
+char num_keys[] = {
+'1', '2', '3', '4', '5',
+'6', '7', '8', '9', '0'
+};
+///////////////////////////////////
 
 /* USER CODE END PV */
 
@@ -93,20 +156,34 @@ static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
+
+void show_menu(LCD_Menu_t menu);
+void ui_handler(void);
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-//EEPROM ADDRESS SETTING
+/*EEPROM ADDRESS SETTING*/
 //-------------------------
 #define EEPROM_ADDRESS 0xA0
 //-------------------------
 
 
-//KEYPAD KEY SETTING
+/*LCD MENU SETTING*/
+//------------------------------------------------------------
+uint8_t select_menu;
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+	if(htim->Instance == TIM2) show_menu(select_menu);
+}
+//------------------------------------------------------------
+
+
+/*KEYPAD SETTING*/
 //-------------------------------
 const uint8_t
 num_rows = 5, 
@@ -114,13 +191,15 @@ num_cols = 4;
 
 char key[num_rows][num_cols] = {
 	{'Q', 'W', 'R', 'T'},
-	{'1', '2', '3', 'U'},
+	{'1', '2', '3', 'U'}, 
 	{'4', '5', '6', 'D'},
-	{'7', '8', '9', '*'},
+	{'7', '8', '9', '.'},
 	{'<', '0', '>', '#'}
 };
 
-char keys;
+char 
+prev_keys,
+keys;
 //-------------------------------
 
 /* USER CODE END 0 */
@@ -156,12 +235,16 @@ int main(void)
   MX_I2C1_Init();
   MX_I2C2_Init();
   MX_USART1_UART_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 	
 	/*LCD CONFIGURATION*/
-	//-------------------
+	//----------------------------
 	lcd_init(&hi2c2);
-	//-------------------
+	select_menu = HOME_MENU;
+	home_menu = true;
+	HAL_TIM_Base_Start_IT(&htim2);
+	//----------------------------
 	
 	/*EEPROM CONFIGURATION*/
 	//-----------------------------------------------------------
@@ -169,7 +252,7 @@ int main(void)
 	//-----------------------------------------------------------
 	
 	/*KEYPAD CONFIGURATION*/	
-	//--------------------------------
+	//----------------------------------------------------------
 	keypad.row_port[0] = GPIOA, keypad.row_pin[0] = GPIO_PIN_1;
 	keypad.row_port[1] = GPIOA, keypad.row_pin[1] = GPIO_PIN_2;
 	keypad.row_port[2] = GPIOA, keypad.row_pin[2] = GPIO_PIN_3;
@@ -182,15 +265,14 @@ int main(void)
 	keypad.col_port[3] = GPIOA, keypad.col_pin[3] = GPIO_PIN_0;
 	
 	Keypad_Init(&keypad, makeKeymap(key), num_rows, num_cols);
-	//--------------------------------
-	
+	//----------------------------------------------------------
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-		
+		ui_handler();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -306,6 +388,51 @@ static void MX_I2C2_Init(void)
 }
 
 /**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 287;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 62499;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
+
+}
+
+/**
   * @brief USART1 Initialization Function
   * @param None
   * @retval None
@@ -345,36 +472,170 @@ static void MX_USART1_UART_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
 /* USER CODE BEGIN MX_GPIO_Init_1 */
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin : PA7 */
-  GPIO_InitStruct.Pin = GPIO_PIN_7;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : PB15 */
-  GPIO_InitStruct.Pin = GPIO_PIN_15;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  __HAL_RCC_GPIOA_CLK_ENABLE();
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
+
+void ui_handler(void){
+	keys = Keypad_Read(&keypad);
+	if(keys != prev_keys && keys != 0x00) lcd_clear();
+	
+	if(select_menu == HOME_MENU){
+		// F1 KEYPAD BUTTON
+		if(keys == 'Q' && prev_keys != keys){
+			
+		}
+		
+		// F2 KEYPAD BUTTON
+		if(keys == 'W' && prev_keys != keys){
+			ctrl_mode_counter+=1;
+			if(ctrl_mode_counter >= 2) ctrl_mode_counter = 0;
+		}
+		
+		// F3 KEYPAD BUTTON
+		if(keys == 'R' && prev_keys != keys){
+			move_var_counter+=1;
+			if(ctrl_mode_counter == 0 && move_var_counter > 2) move_var_counter = 0;
+			else if(ctrl_mode_counter == 1 && move_var_counter > 5) move_var_counter = 0;
+		}
+		
+		// F4 KEYPAD BUTTON
+		if(keys == 'T' && prev_keys != keys){
+			change_value_counter+=1;
+			if(change_value_counter == 1){
+				uint8_t add_row;
+				
+				while(1){
+					keys = Keypad_Read(&keypad);
+					if(keys != prev_keys && keys != 0x00) lcd_clear();
+					
+					for(int i=0; i<sizeof(num_keys); i++) if(keys == num_keys[i] && prev_keys != keys){
+						add_row++;
+						string_distance[add_row] = keys;
+					}
+					if(keys == '<' && prev_keys != keys){
+						string_distance[add_row] = keys;
+						add_row--;
+					}
+					
+					if((keys == '>') && prev_keys != keys) break;
+					
+					prev_keys = keys;
+				}
+			}
+			if(change_value_counter > 2) change_value_counter = 0;
+		}
+	}
+	
+	else if(select_menu == PREP_MENU){
+	}
+	
+	prev_keys = keys;
+}
+
+
+/*--- LCD MENU ---*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void show_menu(LCD_Menu_t menu){
+	if(menu == BOOTING_MENU){
+		
+	}
+	
+	else if(menu == HOME_MENU){		
+		if(ctrl_mode_counter == 0){
+			lcd_set_cursor(10, move_var_counter);
+			lcd_printstr("<");
+			
+			lcd_set_cursor(0, 0);	
+			lcd_printstr("XPOS:");
+			lcd_printfloat(moveX);
+			lcd_set_cursor(0, 1);
+			lcd_printstr("YPOS:");
+			lcd_printfloat(moveY);
+			lcd_set_cursor(0, 2);
+			lcd_printstr("ZPOS:");
+			lcd_printfloat(moveZ);
+			
+			lcd_set_cursor(17, 3);
+			lcd_printstr(pos_ctrl);
+		}
+		
+		else if(ctrl_mode_counter == 1){
+			if(move_var_counter < 3){
+				lcd_set_cursor(8, move_var_counter);
+				lcd_printstr("<");
+			}
+			
+			else if(move_var_counter > 2){
+				lcd_set_cursor(18, move_var_counter-3);
+				lcd_printstr("<");
+			}
+			
+			lcd_set_cursor(0, 0);			
+			lcd_printstr("A1:");			
+			lcd_printfloat(A1);				
+			lcd_set_cursor(0, 1);			
+			lcd_printstr("A2:");			
+			lcd_printfloat(A2);				
+			lcd_set_cursor(0, 2);			
+			lcd_printstr("A3:");			
+			lcd_printfloat(A3);				
+			
+			lcd_set_cursor(10, 0);
+			lcd_printstr("A4:");
+			lcd_printfloat(A4);
+			lcd_set_cursor(10, 1);
+			lcd_printstr("A5:");
+			lcd_printfloat(A5);
+			lcd_set_cursor(10, 2);
+			lcd_printstr("A6:");
+			lcd_printfloat(A6);
+			
+			lcd_set_cursor(17, 3);
+			lcd_printstr(angle_ctrl);
+		}
+		
+		lcd_set_cursor(0, 3);	
+		if(change_value_counter == 0x00) lcd_printstr(cont_change);
+		if(change_value_counter == 0x01){
+			lcd_printstr(dist_change);
+			lcd_set_cursor(5, 3);	
+			lcd_printstr(string_distance);
+		}
+		if(change_value_counter == 0x02) lcd_printstr(step_change);
+	}
+	
+	else if(menu == PREP_MENU){
+		lcd_set_cursor(0, 0);
+		lcd_printstr("Memory");
+		lcd_set_cursor(0, 1);
+		lcd_printstr("Speed");
+		
+		lcd_set_cursor(0, 3);
+		if(run_mode_counter == 0) lcd_printstr(pattern_mode);
+		if(run_mode_counter == 1) lcd_printstr(repeat_mode);
+	}
+	
+	else if(menu == RUNNING_MENU_1){
+	}
+	
+	else if(menu == RUNNING_MENU_2){
+	}
+	
+	else if(menu == RUNNING_MENU_3){
+	}
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 /* USER CODE END 4 */
 
