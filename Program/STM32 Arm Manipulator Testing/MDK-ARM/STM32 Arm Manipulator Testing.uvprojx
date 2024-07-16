@@ -419,6 +419,11 @@
               <FilePath>.\DWT_Delay.c</FilePath>
             </File>
             <File>
+              <FileName>RS232_Driver.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\RS232_Driver.c</FilePath>
+            </File>
+            <File>
               <FileName>stm32f1xx_hal_gpio_ex.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_gpio_ex.c</FilePath>

@@ -36,7 +36,8 @@ typedef enum{
 }EEPROM_Status_t;
 
 typedef struct{
-	uint16_t page;
+	uint16_t 
+	page;
 	
 	uint8_t
 	page_size,

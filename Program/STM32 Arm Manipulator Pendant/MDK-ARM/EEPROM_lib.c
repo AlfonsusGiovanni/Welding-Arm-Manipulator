@@ -41,28 +41,32 @@ void EEPROM_PageReset(EEPROM_t* mem, uint16_t page){
 
 void EEPROM_ByteWrite(EEPROM_t* mem, uint16_t page, uint8_t start_addr, uint8_t data, uint16_t size){
 	uint8_t dev_addr = mem->address | WRITE_MEM;
+	uint8_t page_addr = (start_addr << 8) | page;
 	
-	if(HAL_I2C_Mem_Write(mem->hi2c, dev_addr, page, I2C_MEMADD_SIZE_16BIT, &data, size, I2C_Timeout) == HAL_OK) mem->status = EEPROM_OK;
+	if(HAL_I2C_Mem_Write(mem->hi2c, dev_addr, page_addr, I2C_MEMADD_SIZE_16BIT, &data, size, I2C_Timeout) == HAL_OK) mem->status = EEPROM_OK;
 	else mem->status = EEPROM_TIMEOUT;
 }
 
 void EEPROM_ByteRead(EEPROM_t* mem, uint16_t page, uint8_t start_addr, uint8_t* data, uint16_t data_count){
 	uint8_t dev_addr = mem->address | READ_MEM;
+	uint8_t page_addr = (start_addr << 8) | page;
 	
-	if(HAL_I2C_Mem_Read(mem->hi2c, dev_addr, page, I2C_MEMADD_SIZE_16BIT, data, data_count, I2C_Timeout) == HAL_OK) mem->status = EEPROM_OK;
+	if(HAL_I2C_Mem_Read(mem->hi2c, dev_addr, page_addr, I2C_MEMADD_SIZE_16BIT, data, data_count, I2C_Timeout) == HAL_OK) mem->status = EEPROM_OK;
 	else mem->status = EEPROM_TIMEOUT;
 }
 
 void EEPROM_PageWrite(EEPROM_t* mem, uint16_t page, uint8_t start_addr, uint8_t* data, uint16_t size){
 	uint8_t dev_addr = mem->address | WRITE_MEM;
+	uint8_t page_addr = (start_addr << 8) | page;
 	
-	if(HAL_I2C_Mem_Write(mem->hi2c, dev_addr, page, I2C_MEMADD_SIZE_16BIT, data, size, I2C_Timeout) == HAL_OK) mem->status = EEPROM_OK;
+	if(HAL_I2C_Mem_Write(mem->hi2c, dev_addr, page_addr, I2C_MEMADD_SIZE_16BIT, data, size, I2C_Timeout) == HAL_OK) mem->status = EEPROM_OK;
 	else mem->status = EEPROM_TIMEOUT;
 }
 
 void EEPROM_PageRead(EEPROM_t* mem, uint16_t page, uint8_t start_addr, uint8_t* data, uint16_t data_count){
 	uint8_t dev_addr = mem->address | READ_MEM;
+	uint8_t page_addr = (start_addr << 8) | page;
 	
-	if(HAL_I2C_Mem_Read(mem->hi2c, dev_addr, page, I2C_MEMADD_SIZE_16BIT, data, data_count, I2C_Timeout) == HAL_OK) mem->status = EEPROM_OK;
+	if(HAL_I2C_Mem_Read(mem->hi2c, dev_addr, page_addr, I2C_MEMADD_SIZE_16BIT, data, data_count, I2C_Timeout) == HAL_OK) mem->status = EEPROM_OK;
 	else mem->status = EEPROM_TIMEOUT;
 }

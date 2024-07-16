@@ -4,6 +4,7 @@
 "stm32 arm manipulator testing\stm32f1xx_it.o"
 "stm32 arm manipulator testing\stm32f1xx_hal_msp.o"
 "stm32 arm manipulator testing\dwt_delay.o"
+"stm32 arm manipulator testing\rs232_driver.o"
 "stm32 arm manipulator testing\stm32f1xx_hal_gpio_ex.o"
 "stm32 arm manipulator testing\stm32f1xx_hal_tim.o"
 "stm32 arm manipulator testing\stm32f1xx_hal_tim_ex.o"

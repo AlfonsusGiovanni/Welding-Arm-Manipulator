@@ -102,7 +102,7 @@ UART_HandleTypeDef huart1;
 /* USER CODE BEGIN PV */
 
 /*PENDANT GLOBAL VARIABLE*/
-////////////////////////////
+//////////////////////////////
 bool 
 booting_menu 	= false,
 home_menu 		= false,
@@ -114,8 +114,9 @@ A1, A2, A3, A4, A5, A6,
 moveX, moveY, moveZ,
 distance_val;
 
-char string_distance[] = "";
-/////////////////////////////
+char
+string_distance[20] = "0.000";
+//////////////////////////////
 
 
 /*MENU MODE VARIABLE*/
@@ -144,7 +145,8 @@ speed_mode_counter					= 0x00;
 
 char num_keys[] = {
 '1', '2', '3', '4', '5',
-'6', '7', '8', '9', '0'
+'6', '7', '8', '9', '0',
+'.'
 };
 ///////////////////////////////////
 
@@ -335,7 +337,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 400000;
+  hi2c1.Init.ClockSpeed = 100000;
   hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
@@ -513,22 +515,27 @@ void ui_handler(void){
 		if(keys == 'T' && prev_keys != keys){
 			change_value_counter+=1;
 			if(change_value_counter == 1){
-				uint8_t add_row;
+				uint8_t add_col = 0;
 				
 				while(1){
 					keys = Keypad_Read(&keypad);
 					if(keys != prev_keys && keys != 0x00) lcd_clear();
 					
-					for(int i=0; i<sizeof(num_keys); i++) if(keys == num_keys[i] && prev_keys != keys){
-						add_row++;
-						string_distance[add_row] = keys;
+					for(int i=0; i<sizeof(num_keys); i++){
+						if(keys == num_keys[i] && prev_keys != keys){
+							string_distance[add_col] = keys;
+							add_col+=1;
+						}
 					}
 					if(keys == '<' && prev_keys != keys){
-						string_distance[add_row] = keys;
-						add_row--;
+						add_col-=1;
+						string_distance[add_col] = '0';
 					}
 					
-					if((keys == '>') && prev_keys != keys) break;
+					if((keys == '>') && prev_keys != keys){
+						sscanf(string_distance, "%f", &distance_val);
+						break;
+					}
 					
 					prev_keys = keys;
 				}

@@ -22,37 +22,12 @@ Dialog DLL:      TCM.DLL V1.53.0.0
  
 <h2>Project:</h2>
 D:\Data Udin\Kuliah\7. TUGAS AKHIR\Arm Manipulator\Program\STM32 Arm Manipulator Testing\MDK-ARM\STM32 Arm Manipulator Testing.uvprojx
-Project File Date:  07/10/2024
+Project File Date:  07/17/2024
 
 <h2>Output:</h2>
 *** Using Compiler 'V5.06 update 7 (build 960)', folder: 'C:\Keil_v5\ARM\ARMCC\Bin'
 Build target 'STM32 Arm Manipulator Testing'
-compiling EEPROM_lib.c...
-EEPROM_lib.h(48): error:  #20: identifier "I2C_HandleTypeDef" is undefined
-  	I2C_HandleTypeDef* hi2c;
-EEPROM_lib.h(52): error:  #20: identifier "I2C_HandleTypeDef" is undefined
-  void EEPROM_Init(I2C_HandleTypeDef* I2C_handler, EEPROM_t* mem, Memory_Size_t mem_model, uint8_t addr);
-EEPROM_lib.c(8): error:  #20: identifier "I2C_HandleTypeDef" is undefined
-  void EEPROM_Init(I2C_HandleTypeDef* I2C_handler, EEPROM_t* mem, Memory_Size_t mem_model, uint8_t addr){
-EEPROM_lib.c(38): warning:  #223-D: function "HAL_I2C_Mem_Write" declared implicitly
-  	if(HAL_I2C_Mem_Write(mem->hi2c, dev_addr, page, I2C_MEMADD_SIZE_16BIT, data_reset, mem->page_size, I2C_Timeout) == HAL_OK) mem->status = EEPROM_OK;
-EEPROM_lib.c(38): error:  #20: identifier "I2C_MEMADD_SIZE_16BIT" is undefined
-  	if(HAL_I2C_Mem_Write(mem->hi2c, dev_addr, page, I2C_MEMADD_SIZE_16BIT, data_reset, mem->page_size, I2C_Timeout) == HAL_OK) mem->status = EEPROM_OK;
-EEPROM_lib.c(45): warning:  #223-D: function "HAL_I2C_Mem_Write" declared implicitly
-  	if(HAL_I2C_Mem_Write(mem->hi2c, dev_addr, page, I2C_MEMADD_SIZE_16BIT, &data, size, I2C_Timeout) == HAL_OK) mem->status = EEPROM_OK;
-EEPROM_lib.c(45): error:  #20: identifier "I2C_MEMADD_SIZE_16BIT" is undefined
-  	if(HAL_I2C_Mem_Write(mem->hi2c, dev_addr, page, I2C_MEMADD_SIZE_16BIT, &data, size, I2C_Timeout) == HAL_OK) mem->status = EEPROM_OK;
-EEPROM_lib.c(52): warning:  #223-D: function "HAL_I2C_Mem_Read" declared implicitly
-  	if(HAL_I2C_Mem_Read(mem->hi2c, dev_addr, page, I2C_MEMADD_SIZE_16BIT, data, data_count, I2C_Timeout) == HAL_OK) mem->status = EEPROM_OK;
-EEPROM_lib.c(52): error:  #20: identifier "I2C_MEMADD_SIZE_16BIT" is undefined
-  	if(HAL_I2C_Mem_Read(mem->hi2c, dev_addr, page, I2C_MEMADD_SIZE_16BIT, data, data_count, I2C_Timeout) == HAL_OK) mem->status = EEPROM_OK;
-EEPROM_lib.c(57): warning:  #177-D: variable "dev_addr"  was declared but never referenced
-  	uint8_t dev_addr = mem->address | WRITE_MEM;
-EEPROM_lib.c(61): warning:  #177-D: variable "dev_addr"  was declared but never referenced
-  	uint8_t dev_addr = mem->address | READ_MEM;
-EEPROM_lib.c: 5 warnings, 6 errors
-compiling main.c...
-"STM32 Arm Manipulator Testing\STM32 Arm Manipulator Testing.axf" - 6 Error(s), 5 Warning(s).
+"STM32 Arm Manipulator Testing\STM32 Arm Manipulator Testing.axf" - 0 Error(s), 0 Warning(s).
 
 <h2>Software Packages used:</h2>
 
@@ -76,8 +51,7 @@ Package Vendor: Keil
 
    * Component: ARM::CMSIS:CORE:5.6.0
       Include file:  CMSIS\Core\Include\tz_context.h
-Target not created.
-Build Time Elapsed:  00:00:01
+Build Time Elapsed:  00:00:00
 </pre>
 </body>
 </html>

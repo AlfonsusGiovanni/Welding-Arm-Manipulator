@@ -88,9 +88,29 @@ void stepper_run(uint16_t input_pos, uint16_t speed);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+//VARIABLE TESTING EEPROM
 double var1 = 0.005;
 uint8_t var2[8];
 double var3;
+
+//VARIABLE TESTING RS232
+float
+posX = 15.255,
+posY = 0.125,
+posZ = 120.25,
+send_position[3];
+
+uint32_t receive_position[3];
+
+void HAL_UART_RXCpltCallback(UART_HandleTypeDef *huart){
+	if(huart->Instance == USART1){
+		
+	}
+	if(huart->Instance == USART2){
+		
+	}
+}
 
 /* USER CODE END 0 */
 
@@ -101,7 +121,7 @@ double var3;
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	memcpy(var2, &var1, sizeof(double)); 
+	
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -126,8 +146,10 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-//	HAL_GPIO_WritePin(ENA_GPIO_Port, ENA_Pin, GPIO_PIN_SET);
-//	HAL_Delay(2000);
+	
+	send_position[0] = posX;
+	send_position[1] = posY;
+	send_position[2] = posZ;
 	
   /* USER CODE END 2 */
 
@@ -135,16 +157,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-//		stepper_run(180, 1000);
-//		HAL_Delay(2000);
-//		stepper_run(90, 1000);
-//		HAL_Delay(2000);
 		
-//		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
-//		HAL_Delay(100);
-		
-//		HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_SET);
-//		HAL_GPIO_WritePin(STEP_GPIO_Port, STEP_Pin, GPIO_PIN_SET);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -211,7 +224,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
+  huart1.Init.BaudRate = 38400;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
@@ -244,7 +257,7 @@ static void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 115200;
+  huart2.Init.BaudRate = 38400;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;
