@@ -10,8 +10,6 @@ row_number, col_number;
 
 static const unsigned long debounce_time = 10;
 static unsigned long prev_tick;
-static bool
-keypad_status, prev_keypad_status;
 
 // KEYPAD INITIALIZE
 void Keypad_Init(Keypad_t *keypad, char *userKeymap, uint8_t row_num, uint8_t col_num){

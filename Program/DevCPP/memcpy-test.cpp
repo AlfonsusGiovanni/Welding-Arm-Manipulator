@@ -3,7 +3,7 @@
 #include <cstring> // For memcpy
 
 int main() {
-    double var1 = 0.005; // Example double variable
+    double var1 = 12.34; // Example double variable
 
     // Create a uint8_t array with enough space to hold the double variable
     uint8_t var2[8];

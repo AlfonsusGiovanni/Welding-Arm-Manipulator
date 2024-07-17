@@ -63,7 +63,4 @@ void EEPROM_ByteRead(EEPROM_t* mem, uint16_t page, uint8_t start_addr, uint8_t* 
 void EEPROM_PageWrite(EEPROM_t* mem, uint16_t page, uint8_t start_addr, uint8_t* data, uint16_t size);
 void EEPROM_PageRead(EEPROM_t* mem, uint16_t page, uint8_t start_addr, uint8_t* data, uint16_t data_count);
 
-/*EEPROM WRITE & READ FLOAT VARIABLE*/
-void EEPROM_WriteFloat(EEPROM_t* mem, uint16_t page, uint8_t start_addr, uint8_t* data, uint16_t size);
-void EEPROM_ReadFloat(EEPROM_t* mem, uint16_t page, uint8_t start_addr, uint8_t* data, uint16_t data_count);
 #endif

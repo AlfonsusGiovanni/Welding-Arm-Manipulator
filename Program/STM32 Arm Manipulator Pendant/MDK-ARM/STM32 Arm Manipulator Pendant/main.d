@@ -34,5 +34,5 @@ stm32 arm manipulator pendant\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdboo
 stm32 arm manipulator pendant\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
 stm32 arm manipulator pendant\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
 stm32 arm manipulator pendant\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
-stm32 arm manipulator pendant\main.o: ../MDK-ARM/EEPROM_lib.h
 stm32 arm manipulator pendant\main.o: ../MDK-ARM/Keypad_Driver.h
+stm32 arm manipulator pendant\main.o: ../MDK-ARM/RS232_Driver.h

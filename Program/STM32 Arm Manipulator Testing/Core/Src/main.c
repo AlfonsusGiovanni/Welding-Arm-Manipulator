@@ -84,6 +84,7 @@ static void MX_USART1_UART_Init(void);
 static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
 void stepper_run(uint16_t input_pos, uint16_t speed);
+void Save_Pattern_Position(double* pos_data, uint8_t size);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -93,9 +94,10 @@ void stepper_run(uint16_t input_pos, uint16_t speed);
 double var1 = 0.005;
 uint8_t var2[8];
 double var3;
+double pos_array[3];
 
 //VARIABLE TESTING RS232
-float
+double
 posX = 15.255,
 posY = 0.125,
 posZ = 120.25,
@@ -157,7 +159,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-		
+		Save_Pattern_Position(send_position, sizeof(send_position));
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -379,6 +381,13 @@ void stepper_run(uint16_t input_pos, uint16_t speed){
 	}
 	
 	prev_pos = input_pos;
+}
+
+
+void Save_Pattern_Position(double* pos_data, uint8_t size){
+	for(int i=0; i<size; i++){
+		pos_array[i] = pos_data[i];
+	}
 }
 /* USER CODE END 4 */
 

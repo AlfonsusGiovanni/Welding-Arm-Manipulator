@@ -180,7 +180,7 @@
         <Ww>
           <count>0</count>
           <WinNumber>2</WinNumber>
-          <ItemText>rx_buff</ItemText>
+          <ItemText>pos_array</ItemText>
         </Ww>
       </WatchWindow2>
       <Tracepoint>

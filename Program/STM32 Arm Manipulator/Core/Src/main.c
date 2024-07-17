@@ -22,26 +22,55 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "TB6600_Driver.h"
+#include "EEPROM_lib.h"
+#include "RS232_Driver.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
+//--- EEPROM TYPEDEF ---//
+//////////////////////////
+EEPROM_t eeprom;
+//////////////////////////
+
+
 /*--- DRIVER STEPPER TYPEDEF ---*/
-//-------------------------------
+//////////////////////////////////
 Driver_t Stepper_Driver1;
 Driver_t Stepper_Driver2;
 Driver_t Stepper_Driver3;
 Driver_t Stepper_Driver4;
 Driver_t Stepper_Driver5;
 Driver_t Stepper_Driver6;
-//-------------------------------
-
+//////////////////////////////////
 
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+/*EEPROM ADDRESS SET*/
+//----------------------------------
+#define EEPROM_ADDRESS					0xA0
+
+#define PATTERN1_POS_PAGE_ADDR 	0x00
+#define PATTERN2_POS_PAGE_ADDR 	0x03
+#define PATTERN3_POS_PAGE_ADDR 	0x06
+
+#define PATTERN1_ANG_PAGE_ADDR 	0x09
+#define PATTERN2_ANG_PAGE_ADDR 	0x10
+#define PATTERN3_ANG_PAGE_ADDR 	0x25
+
+#define POINT1_BYTE_ADDR				0x00
+#define POINT2_BYTE_ADDR				0x07
+#define POINT3_BYTE_ADDR				0x0F
+#define POINT4_BYTE_ADDR				0x17
+#define POINT5_BYTE_ADDR				0x1F
+#define POINT6_BYTE_ADDR				0x27
+#define POINT7_BYTE_ADDR				0x2F
+#define POINT8_BYTE_ADDR				0x37
+//----------------------------------
 
 /* USER CODE END PD */
 
@@ -51,17 +80,60 @@ Driver_t Stepper_Driver6;
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
+
 UART_HandleTypeDef huart1;
+DMA_HandleTypeDef hdma_usart1_rx;
+DMA_HandleTypeDef hdma_usart1_tx;
 
 /* USER CODE BEGIN PV */
+
+/*EEPROM VARIABLE*/
+////////////////////////////////////////
+double 
+array_pos[3],
+array_angle[6];
+
+uint8_t
+saved_posX[8], read_saved_posX[8],
+saved_posY[8], read_saved_posY[8],
+saved_posZ[8], read_saved_posZ[8],
+
+saved_angle1[8], read_saved_angle1[8],
+saved_angle2[8], read_saved_angle2[8],
+saved_angle3[8], read_saved_angle3[8],
+saved_angle4[8], read_saved_angle4[8],
+saved_angle5[8], read_saved_angle5[8],
+saved_angle6[8], read_saved_angle6[8];
+////////////////////////////////////////
+
+
+/*MOVE VARIABLE*/
+///////////////////
+double
+move_position[3],
+prev_position[3],
+delta_move_pos[3],
+move_angle[6], 
+delta_move_ang[6],
+prev_angle[6];
+///////////////////
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
+
+/*EEPROM CUSTOM FUNCTION*/
+void Save_Pattern_Position(uint16_t page_select, uint8_t start_addr, double* pos_data, uint8_t size);
+void Read_Pattern_Position(uint16_t page_select, uint8_t start_addr, double* stored_data, uint8_t size);
+void Save_Pattern_Angle(uint16_t page_select, uint8_t start_addr, double* angle_data, uint8_t size);
+void Read_Pattern_Angle(uint16_t page_select, uint8_t start_addr, double* stored_data, uint8_t size);
 
 /* USER CODE END PFP */
 
@@ -155,7 +227,6 @@ int main(void)
 	Driver_set_power(&Stepper_Driver6, DRIVER_ENABLE);
 	//-------------------------------------------------
 	
-	
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -176,9 +247,27 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART1_UART_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 	
+	/*EEPROM CONFIGURATION*/
+	//-----------------------------------------------------------
+	EEPROM_Init(&hi2c1, &eeprom, MEM_SIZE_256Kb, EEPROM_ADDRESS);
+	//-----------------------------------------------------------
+	
+	double 
+	test_pos[3] = {40.96, 12.15, 37.42},
+	test_angle[6] = {125.6, 12.56, 1.256, 0.1245, 0.234, 2.34};
+	
+	Save_Pattern_Position(PATTERN1_POS_PAGE_ADDR, POINT1_BYTE_ADDR, test_pos, sizeof(test_pos));
+	Save_Pattern_Angle(PATTERN1_ANG_PAGE_ADDR, POINT1_BYTE_ADDR, test_angle, sizeof(test_angle));
+	
+	HAL_Delay(500);
+	
+	Read_Pattern_Position(PATTERN1_POS_PAGE_ADDR, POINT1_BYTE_ADDR, array_pos, sizeof(array_pos));
+	Read_Pattern_Angle(PATTERN1_ANG_PAGE_ADDR, POINT1_BYTE_ADDR, array_angle, sizeof(array_angle));
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -186,7 +275,7 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-		
+
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -236,6 +325,40 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 400000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
   * @brief USART1 Initialization Function
   * @param None
   * @retval None
@@ -251,7 +374,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
+  huart1.Init.BaudRate = 38400;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
@@ -265,6 +388,25 @@ static void MX_USART1_UART_Init(void)
   /* USER CODE BEGIN USART1_Init 2 */
 
   /* USER CODE END USART1_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Channel4_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
+  /* DMA1_Channel5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
 
 }
 
@@ -341,6 +483,109 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+/*--- SAVE PATTERN POSITION VALUE ---*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void Save_Pattern_Position(uint16_t page_select, uint8_t start_addr, double* pos_data, uint8_t size){
+	uint16_t
+	Xpos_page_addr = page_select,
+	Ypos_page_addr = page_select + 0x01,
+	Zpos_page_adrr = page_select + 0x02;
+	
+	memcpy(saved_posX, &pos_data[0], sizeof(double));
+	memcpy(saved_posY, &pos_data[1], sizeof(double));
+	memcpy(saved_posZ, &pos_data[2], sizeof(double));
+	
+	EEPROM_PageWrite(&eeprom, Xpos_page_addr, start_addr, saved_posX, 8);
+	HAL_Delay(5);
+	EEPROM_PageWrite(&eeprom, Ypos_page_addr, start_addr, saved_posY, 8);
+	HAL_Delay(5);
+	EEPROM_PageWrite(&eeprom, Zpos_page_adrr, start_addr, saved_posZ, 8);
+	HAL_Delay(5);
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*--- READ PATTERN POSITION VALUE ---*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void Read_Pattern_Position(uint16_t page_select, uint8_t start_addr, double* stored_data, uint8_t size){
+	uint16_t
+	Xpos_page_addr = page_select,
+	Ypos_page_addr = page_select + 0x01,
+	Zpos_page_adrr = page_select + 0x02;
+	
+	EEPROM_PageRead(&eeprom, Xpos_page_addr, start_addr, read_saved_posX, 8);
+	EEPROM_PageRead(&eeprom, Ypos_page_addr, start_addr, read_saved_posY, 8);
+	EEPROM_PageRead(&eeprom, Zpos_page_adrr, start_addr, read_saved_posZ, 8);
+	
+	memcpy(&stored_data[0], read_saved_posX, sizeof(double));
+	memcpy(&stored_data[1], read_saved_posY, sizeof(double));
+	memcpy(&stored_data[2], read_saved_posZ, sizeof(double));
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*--- SAVE PATTERN ANGLE VALUE ---*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void Save_Pattern_Angle(uint16_t page_select, uint8_t start_addr, double* angle_data, uint8_t size){
+	uint16_t
+	Angle1_page_addr = page_select,
+	Angle2_page_addr = page_select + 0x01,
+	Angle3_page_addr = page_select + 0x02,
+	Angle4_page_addr = page_select + 0x03,
+	Angle5_page_addr = page_select + 0x04,
+	Angle6_page_addr = page_select + 0x05;
+	
+	memcpy(saved_angle1, &angle_data[0], sizeof(double));
+	memcpy(saved_angle2, &angle_data[1], sizeof(double));
+	memcpy(saved_angle3, &angle_data[2], sizeof(double));
+	memcpy(saved_angle4, &angle_data[3], sizeof(double));
+	memcpy(saved_angle5, &angle_data[4], sizeof(double));
+	memcpy(saved_angle6, &angle_data[5], sizeof(double));
+	
+	EEPROM_PageWrite(&eeprom, Angle1_page_addr, start_addr, saved_angle1, sizeof(saved_angle1));
+	HAL_Delay(5);
+	EEPROM_PageWrite(&eeprom, Angle2_page_addr, start_addr, saved_angle2, sizeof(saved_angle2));
+	HAL_Delay(5);
+	EEPROM_PageWrite(&eeprom, Angle3_page_addr, start_addr, saved_angle3, sizeof(saved_angle3));
+	HAL_Delay(5);
+	EEPROM_PageWrite(&eeprom, Angle4_page_addr, start_addr, saved_angle4, sizeof(saved_angle4));
+	HAL_Delay(5);
+	EEPROM_PageWrite(&eeprom, Angle5_page_addr, start_addr, saved_angle5, sizeof(saved_angle5));
+	HAL_Delay(5);
+	EEPROM_PageWrite(&eeprom, Angle6_page_addr, start_addr, saved_angle6, sizeof(saved_angle6));
+	HAL_Delay(5);
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*--- SAVE PATTERN ANGLE VALUE ---*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void Read_Pattern_Angle(uint16_t page_select, uint8_t start_addr, double* stored_data, uint8_t size){
+	uint16_t
+	Angle1_page_addr = page_select,
+	Angle2_page_addr = page_select + 0x01,
+	Angle3_page_addr = page_select + 0x02,
+	Angle4_page_addr = page_select + 0x03,
+	Angle5_page_addr = page_select + 0x04,
+	Angle6_page_addr = page_select + 0x05;
+	
+	EEPROM_PageRead(&eeprom, Angle1_page_addr, start_addr, read_saved_angle1, sizeof(read_saved_angle1));
+	EEPROM_PageRead(&eeprom, Angle2_page_addr, start_addr, read_saved_angle2, sizeof(read_saved_angle2));
+	EEPROM_PageRead(&eeprom, Angle3_page_addr, start_addr, read_saved_angle3, sizeof(read_saved_angle3));
+	EEPROM_PageRead(&eeprom, Angle4_page_addr, start_addr, read_saved_angle4, sizeof(read_saved_angle4));
+	EEPROM_PageRead(&eeprom, Angle5_page_addr, start_addr, read_saved_angle5, sizeof(read_saved_angle5));
+	EEPROM_PageRead(&eeprom, Angle6_page_addr, start_addr, read_saved_angle6, sizeof(read_saved_angle6));
+	
+	memcpy(&stored_data[0], read_saved_angle1, sizeof(double));
+	memcpy(&stored_data[1], read_saved_angle2, sizeof(double));
+	memcpy(&stored_data[2], read_saved_angle3, sizeof(double));
+	memcpy(&stored_data[3], read_saved_angle4, sizeof(double));
+	memcpy(&stored_data[4], read_saved_angle5, sizeof(double));
+	memcpy(&stored_data[5], read_saved_angle6, sizeof(double));
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 
 /* USER CODE END 4 */
 

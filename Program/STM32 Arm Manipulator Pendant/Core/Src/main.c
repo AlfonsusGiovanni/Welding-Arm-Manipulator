@@ -22,37 +22,12 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "LCD_I2C.h"
-#include "EEPROM_lib.h"
 #include "Keypad_Driver.h"
+#include "RS232_Driver.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
-//--- EEPROM PAGE TYPEDEF ---//
-///////////////////////////////
-typedef enum{
-	PATTERN1_XPOS_PAGE,
-	PATTERN1_YPOS_PAGE,
-	PATTERN1_ZPOS_PAGE,
-
-	PATTERN2_XPOS_PAGE,
-	PATTERN2_YPOS_PAGE,
-	PATTERN2_ZPOS_PAGE,
-	
-	PATTERN3_XPOS_PAGE,
-	PATTERN3_YPOS_PAGE,
-	PATTERN3_ZPOS_PAGE,
-	
-	ANGLE1_PAGE,
-	ANGLE2_PAGE,
-	ANGLE3_PAGE,
-	ANGLE4_PAGE,
-	ANGLE5_PAGE,
-	ANGLE6_PAGE,
-}EEPROM_page_t;
-///////////////////////////////
-
 
 //--- LCD MENU TYPEDEF ---//
 ////////////////////////////
@@ -66,12 +41,6 @@ typedef enum{
 	PAUSE_MENU,
 }LCD_Menu_t;
 ////////////////////////////
-
-
-//--- EEPROM TYPEDEF ---//
-//////////////////////////
-EEPROM_t eeprom;
-//////////////////////////
 
 
 //--- KEYPAD TYPEDEF ---//
@@ -98,6 +67,8 @@ I2C_HandleTypeDef hi2c2;
 TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart1;
+DMA_HandleTypeDef hdma_usart1_rx;
+DMA_HandleTypeDef hdma_usart1_tx;
 
 /* USER CODE BEGIN PV */
 
@@ -155,6 +126,7 @@ char num_keys[] = {
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_USART1_UART_Init(void);
@@ -168,12 +140,6 @@ void ui_handler(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-/*EEPROM ADDRESS SETTING*/
-//-------------------------
-#define EEPROM_ADDRESS 0xA0
-//-------------------------
-
 
 /*LCD MENU SETTING*/
 //------------------------------------------------------------
@@ -234,6 +200,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_I2C1_Init();
   MX_I2C2_Init();
   MX_USART1_UART_Init();
@@ -248,10 +215,6 @@ int main(void)
 	HAL_TIM_Base_Start_IT(&htim2);
 	//----------------------------
 	
-	/*EEPROM CONFIGURATION*/
-	//-----------------------------------------------------------
-	EEPROM_Init(&hi2c1, &eeprom, MEM_SIZE_256Kb, EEPROM_ADDRESS);
-	//-----------------------------------------------------------
 	
 	/*KEYPAD CONFIGURATION*/	
 	//----------------------------------------------------------
@@ -450,7 +413,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
+  huart1.Init.BaudRate = 38400;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
@@ -464,6 +427,25 @@ static void MX_USART1_UART_Init(void)
   /* USER CODE BEGIN USART1_Init 2 */
 
   /* USER CODE END USART1_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Channel4_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
+  /* DMA1_Channel5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
 
 }
 
@@ -488,6 +470,8 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
+/*--- USER INTERFACE HANDLER ---*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void ui_handler(void){
 	keys = Keypad_Read(&keypad);
 	if(keys != prev_keys && keys != 0x00) lcd_clear();
@@ -549,6 +533,7 @@ void ui_handler(void){
 	
 	prev_keys = keys;
 }
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 /*--- LCD MENU ---*/

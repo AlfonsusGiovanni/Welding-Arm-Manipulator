@@ -115,6 +115,10 @@ void Error_Handler(void);
 #define RS323_TXD_GPIO_Port GPIOB
 #define RS232_RXD_Pin GPIO_PIN_7
 #define RS232_RXD_GPIO_Port GPIOB
+#define EEPROM_SCL_Pin GPIO_PIN_8
+#define EEPROM_SCL_GPIO_Port GPIOB
+#define EEPROM_SDA_Pin GPIO_PIN_9
+#define EEPROM_SDA_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

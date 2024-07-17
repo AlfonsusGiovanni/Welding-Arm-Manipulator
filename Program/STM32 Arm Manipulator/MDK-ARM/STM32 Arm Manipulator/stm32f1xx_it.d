@@ -24,6 +24,7 @@ stm32 arm manipulator\stm32f1xx_it.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f
 stm32 arm manipulator\stm32f1xx_it.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_cortex.h
 stm32 arm manipulator\stm32f1xx_it.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash.h
 stm32 arm manipulator\stm32f1xx_it.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash_ex.h
+stm32 arm manipulator\stm32f1xx_it.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_i2c.h
 stm32 arm manipulator\stm32f1xx_it.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h
 stm32 arm manipulator\stm32f1xx_it.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h
 stm32 arm manipulator\stm32f1xx_it.o: ../Core/Inc/stm32f1xx_it.h
