@@ -35,6 +35,12 @@ EEPROM_t eeprom;
 //////////////////////////
 
 
+//--- RS232 TYPEDEF ---//
+//////////////////////////
+Data_Get_t command;
+//////////////////////////
+
+
 /*--- DRIVER STEPPER TYPEDEF ---*/
 //////////////////////////////////
 Driver_t Stepper_Driver1;
@@ -49,6 +55,14 @@ Driver_t Stepper_Driver6;
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+/*SYSTEM CONFIGURATION*/
+//----------------------
+#define USE_EEPROM
+#define USE_RS232
+#define USE_STEPPER
+//----------------------
+
 
 /*EEPROM ADDRESS SET*/
 //----------------------------------
@@ -72,6 +86,14 @@ Driver_t Stepper_Driver6;
 #define POINT8_BYTE_ADDR				0x37
 //----------------------------------
 
+
+/*ROBOT TEST SET*/
+//-------------------
+//#define EEPROM_TEST
+#define RS232_TEST
+//#define STEPPER_TEST
+//-------------------
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -84,7 +106,6 @@ I2C_HandleTypeDef hi2c1;
 
 UART_HandleTypeDef huart1;
 DMA_HandleTypeDef hdma_usart1_rx;
-DMA_HandleTypeDef hdma_usart1_tx;
 
 /* USER CODE BEGIN PV */
 
@@ -140,6 +161,16 @@ void Read_Pattern_Angle(uint16_t page_select, uint8_t start_addr, double* stored
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+/*RS232 CONFIGURATION*/
+//------------------------------------------------------
+uint32_t RS232_state, RS232_err_status;
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
+	Get_command(&command);
+	RS232_state = check_state();
+	RS232_err_status = check_error();
+}
+//------------------------------------------------------
+
 /* USER CODE END 0 */
 
 /**
@@ -150,6 +181,7 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
 	
+	#ifdef USE_STEPPER
 	/*--- COFIGURATION FOR STEPPER DRIVER 1 ---*/
 	//-------------------------------------------------
 	Stepper_Driver1.DIR_PORT = DIR_1_GPIO_Port;
@@ -226,6 +258,7 @@ int main(void)
 	Stepper_Driver6.driver_step = 200;
 	Driver_set_power(&Stepper_Driver6, DRIVER_ENABLE);
 	//-------------------------------------------------
+	#endif
 	
   /* USER CODE END 1 */
 
@@ -254,9 +287,25 @@ int main(void)
 	
 	/*EEPROM CONFIGURATION*/
 	//-----------------------------------------------------------
+	#ifdef USE_EEPROM
 	EEPROM_Init(&hi2c1, &eeprom, MEM_SIZE_256Kb, EEPROM_ADDRESS);
+	#endif
 	//-----------------------------------------------------------
 	
+	
+	/*RS232 COM CONFIGURATION*/
+	//-------------------------
+	#ifdef USE_RS232
+	RS232_Init(&huart1);
+	Start_get_command();
+	Get_command(&command);
+	//-------------------------
+	#endif
+	
+	
+	/*EEPROM TEST*/
+	//---------------------------------------------------------------------------------------------
+	#ifdef EEPROM_TEST
 	double 
 	test_pos[3] = {40.96, 12.15, 37.42},
 	test_angle[6] = {125.6, 12.56, 1.256, 0.1245, 0.234, 2.34};
@@ -268,12 +317,24 @@ int main(void)
 	
 	Read_Pattern_Position(PATTERN1_POS_PAGE_ADDR, POINT1_BYTE_ADDR, array_pos, sizeof(array_pos));
 	Read_Pattern_Angle(PATTERN1_ANG_PAGE_ADDR, POINT1_BYTE_ADDR, array_angle, sizeof(array_angle));
+  #endif
+	//---------------------------------------------------------------------------------------------
+	
+	
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+		#ifdef RS232_TEST
+		if(command.type == AUTO_HOME){
+			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+			Send_feedback(AUTO_HOME_DONE);
+		}
+		
+		else HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+		#endif
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -401,9 +462,6 @@ static void MX_DMA_Init(void)
   __HAL_RCC_DMA1_CLK_ENABLE();
 
   /* DMA interrupt init */
-  /* DMA1_Channel4_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
   /* DMA1_Channel5_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
@@ -428,8 +486,9 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, ENA_A_Pin|ENA_B_Pin|ENABLE_Pin|PULSE_1_Pin
-                          |DIR_1_Pin|PULSE_2_Pin|PULSE_6_Pin|DIR_6_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, ENA_A_Pin|ENA_B_Pin|LED_Pin|ENABLE_Pin
+                          |PULSE_1_Pin|DIR_1_Pin|PULSE_2_Pin|PULSE_6_Pin
+                          |DIR_6_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, DIR_2_Pin|PULSE_3_Pin|DIR_3_Pin|PULSE_4_Pin
@@ -449,10 +508,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : ENA_A_Pin ENA_B_Pin ENABLE_Pin PULSE_1_Pin
-                           DIR_1_Pin PULSE_2_Pin PULSE_6_Pin DIR_6_Pin */
-  GPIO_InitStruct.Pin = ENA_A_Pin|ENA_B_Pin|ENABLE_Pin|PULSE_1_Pin
-                          |DIR_1_Pin|PULSE_2_Pin|PULSE_6_Pin|DIR_6_Pin;
+  /*Configure GPIO pins : ENA_A_Pin ENA_B_Pin LED_Pin ENABLE_Pin
+                           PULSE_1_Pin DIR_1_Pin PULSE_2_Pin PULSE_6_Pin
+                           DIR_6_Pin */
+  GPIO_InitStruct.Pin = ENA_A_Pin|ENA_B_Pin|LED_Pin|ENABLE_Pin
+                          |PULSE_1_Pin|DIR_1_Pin|PULSE_2_Pin|PULSE_6_Pin
+                          |DIR_6_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

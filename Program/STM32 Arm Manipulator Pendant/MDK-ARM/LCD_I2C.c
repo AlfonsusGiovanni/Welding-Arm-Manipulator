@@ -85,9 +85,11 @@ void lcd_printint(int input){
 }
 
 // LCD PRINT FLOAT VARIABLE
-void lcd_printfloat(float input){
+void lcd_printfloat(float input, uint8_t precision){
 	char strbuffer[20];
-	sprintf(strbuffer, "%.3f", input);
+	if(precision == 1) sprintf(strbuffer, "%.1f", input);
+	if(precision == 2) sprintf(strbuffer, "%.2f", input);
+	if(precision == 3) sprintf(strbuffer, "%.3f", input);
 	
 	lcd_printstr(strbuffer);
 }

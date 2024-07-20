@@ -24,6 +24,7 @@
 #include "LCD_I2C.h"
 #include "Keypad_Driver.h"
 #include "RS232_Driver.h"
+#include "EEPROM_lib.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -33,12 +34,14 @@
 ////////////////////////////
 typedef enum{
 	BOOTING_MENU,
+	AUTO_HOME_MENU,
 	HOME_MENU,
 	PREP_MENU,
 	RUNNING_MENU_1,
 	RUNNING_MENU_2,
 	RUNNING_MENU_3,
 	PAUSE_MENU,
+	ERROR_MENU,
 }LCD_Menu_t;
 ////////////////////////////
 
@@ -46,6 +49,18 @@ typedef enum{
 //--- KEYPAD TYPEDEF ---//
 //////////////////////////
 Keypad_t keypad;
+//////////////////////////
+
+
+//--- EEPROM TYPEDEF ---//
+//////////////////////////
+EEPROM_t eeprom;
+//////////////////////////
+
+
+//--- RS232 TYPEDEF ---//
+//////////////////////////
+Data_Get_t command;
 //////////////////////////
 
 /* USER CODE END PTD */
@@ -68,7 +83,6 @@ TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart1;
 DMA_HandleTypeDef hdma_usart1_rx;
-DMA_HandleTypeDef hdma_usart1_tx;
 
 /* USER CODE BEGIN PV */
 
@@ -81,17 +95,23 @@ running 			= false,
 stop 					= false;
 
 float
+angle_value[6], angle_limit,
+pos_value[3], pos_limit,
 A1, A2, A3, A4, A5, A6,
 moveX, moveY, moveZ,
-distance_val;
+distance_val,
+max_distance = 300;
 
 char
-string_distance[20] = "0.000";
+string_distance[20] = "0";
 //////////////////////////////
 
 
 /*MENU MODE VARIABLE*/
 ///////////////////////////////////
+float
+increase_decrease_value = 2.5;
+
 char
 pos_ctrl[] 				= "POS",
 angle_ctrl[] 			= "ANG",
@@ -108,11 +128,12 @@ med_speed[] 			= "MED",
 high_speed[] 			= "HIGH";
 
 uint8_t 
-ctrl_mode_counter 					= 0x00,
-change_value_counter  			= 0x00,
-move_var_counter						= 0x00,
-run_mode_counter      			= 0x00,
-speed_mode_counter					= 0x00;
+ctrl_mode_counter,
+change_value_counter,
+move_var_counter,
+run_mode_counter,
+speed_mode_counter,
+add_col;
 
 char num_keys[] = {
 '1', '2', '3', '4', '5',
@@ -135,15 +156,20 @@ static void MX_TIM2_Init(void);
 
 void show_menu(LCD_Menu_t menu);
 void ui_handler(void);
+bool check_numkeys_pressed(void);
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-/*LCD MENU SETTING*/
+/*LCD MENU CONFIGURATION*/
 //------------------------------------------------------------
-uint8_t select_menu;
+uint8_t 
+prev_select_menu,
+select_menu,
+prev_sub_menu,
+sub_menu;
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if(htim->Instance == TIM2) show_menu(select_menu);
@@ -151,8 +177,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 //------------------------------------------------------------
 
 
-/*KEYPAD SETTING*/
+/*KEYPAD CONFIGURATION*/
 //-------------------------------
+unsigned long 
+prev_tick,
+debounce = 200;
+
 const uint8_t
 num_rows = 5, 
 num_cols = 4;
@@ -169,6 +199,17 @@ char
 prev_keys,
 keys;
 //-------------------------------
+
+
+/*RS232 CONFIGURATION*/
+//------------------------------------------------------
+uint32_t RS232_state, RS232_err_status;
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
+	Get_command(&command);
+	RS232_state = check_state();
+	RS232_err_status = check_error();
+}
+//------------------------------------------------------
 
 /* USER CODE END 0 */
 
@@ -210,10 +251,26 @@ int main(void)
 	/*LCD CONFIGURATION*/
 	//----------------------------
 	lcd_init(&hi2c2);
-	select_menu = HOME_MENU;
-	home_menu = true;
+	select_menu = BOOTING_MENU;
 	HAL_TIM_Base_Start_IT(&htim2);
+	HAL_Delay(500);
 	//----------------------------
+	
+	
+	/*EEPROM CONFIGURATION*/
+	//-------------------------------------------------
+	EEPROM_Init(&hi2c1, &eeprom, MEM_SIZE_256Kb, 0xA0);
+	HAL_Delay(500);
+	//-------------------------------------------------
+	
+	
+	/*RS232 COM CONFIGURATION*/
+	//-------------------------
+	RS232_Init(&huart1);
+	Start_get_command();
+	Get_command(&command);
+	HAL_Delay(500);
+	//-------------------------
 	
 	
 	/*KEYPAD CONFIGURATION*/	
@@ -230,7 +287,16 @@ int main(void)
 	keypad.col_port[3] = GPIOA, keypad.col_pin[3] = GPIO_PIN_0;
 	
 	Keypad_Init(&keypad, makeKeymap(key), num_rows, num_cols);
+	HAL_Delay(500);
 	//----------------------------------------------------------
+	
+	
+	/*ALL PREPARATION COMPLETED - BOOTING DONE*/
+	//------------------------------------------
+	select_menu = HOME_MENU;
+	lcd_clear();
+	//------------------------------------------
+	
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -373,7 +439,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 287;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 62499;
+  htim2.Init.Period = 49999;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -440,9 +506,6 @@ static void MX_DMA_Init(void)
   __HAL_RCC_DMA1_CLK_ENABLE();
 
   /* DMA interrupt init */
-  /* DMA1_Channel4_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
   /* DMA1_Channel5_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
@@ -456,6 +519,7 @@ static void MX_DMA_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
 /* USER CODE BEGIN MX_GPIO_Init_1 */
 /* USER CODE END MX_GPIO_Init_1 */
 
@@ -463,6 +527,16 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : LED_Pin */
+  GPIO_InitStruct.Pin = LED_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
@@ -476,62 +550,140 @@ void ui_handler(void){
 	keys = Keypad_Read(&keypad);
 	if(keys != prev_keys && keys != 0x00) lcd_clear();
 	
-	if(select_menu == HOME_MENU){
-		// F1 KEYPAD BUTTON
-		if(keys == 'Q' && prev_keys != keys){
-			
+	if(select_menu == AUTO_HOME_MENU){
+		while(1){
+			keys = Keypad_Read(&keypad);
+			if(keys == '#' && prev_keys != keys){
+				lcd_clear();
+				break;
+			}
 		}
 		
-		// F2 KEYPAD BUTTON
+		while(1){
+			Send_auto_home();
+			select_menu = HOME_MENU;
+			if(command.feedback == AUTO_HOME_DONE){
+				HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+				break;
+			}
+		}
+	}
+	
+	else if(select_menu == HOME_MENU){
+		// AUTO HOME
+		if(keys == 'Q' && prev_keys != keys){
+			select_menu = AUTO_HOME_MENU;
+		}
+		
+		// CHANGE MOVE CONTROL
 		if(keys == 'W' && prev_keys != keys){
 			ctrl_mode_counter+=1;
-			if(ctrl_mode_counter >= 2) ctrl_mode_counter = 0;
+			if(ctrl_mode_counter > 1) ctrl_mode_counter = 0;
 		}
 		
-		// F3 KEYPAD BUTTON
+		// SELECT MOVE VARIABLE
 		if(keys == 'R' && prev_keys != keys){
 			move_var_counter+=1;
 			if(ctrl_mode_counter == 0 && move_var_counter > 2) move_var_counter = 0;
 			else if(ctrl_mode_counter == 1 && move_var_counter > 5) move_var_counter = 0;
 		}
 		
-		// F4 KEYPAD BUTTON
+		// SELECT MOVE VALUE
 		if(keys == 'T' && prev_keys != keys){
 			change_value_counter+=1;
-			if(change_value_counter == 1){
-				uint8_t add_col = 0;
+			if(change_value_counter > 2) change_value_counter = 0;
+		}
+		
+		// MOVE VALUE BY DISTANCE
+		if((change_value_counter == 1 && check_numkeys_pressed() == true) || keys == '<'){				
+			while(1){
+				if(keys != prev_keys && keys != 0x00) lcd_clear();
 				
-				while(1){
-					keys = Keypad_Read(&keypad);
-					if(keys != prev_keys && keys != 0x00) lcd_clear();
+				// INSERT VALUE
+				if(check_numkeys_pressed() == true && prev_keys != keys){
+					string_distance[add_col] = keys;
+					add_col+=1;
+				}
+				
+				// DELETE VALUE
+				if(keys == '<' && prev_keys != keys){
+					if(add_col > 0) add_col-=1;
 					
-					for(int i=0; i<sizeof(num_keys); i++){
-						if(keys == num_keys[i] && prev_keys != keys){
-							string_distance[add_col] = keys;
-							add_col+=1;
-						}
+					if(add_col == 0) string_distance[add_col] = '0';
+					else string_distance[add_col] = ' ';
+				}
+				
+				// SAVE VALUE
+				if((keys == '>') && prev_keys != keys){
+					sscanf(string_distance, "%f", &distance_val);
+					if(distance_val >= max_distance || distance_val <= -max_distance){
+						char max_dist[] = "300";
+						memcpy(string_distance, max_dist, sizeof(max_dist));
+						distance_val = max_distance;
 					}
-					if(keys == '<' && prev_keys != keys){
-						add_col-=1;
-						string_distance[add_col] = '0';
-					}
-					
-					if((keys == '>') && prev_keys != keys){
-						sscanf(string_distance, "%f", &distance_val);
-						break;
-					}
-					
-					prev_keys = keys;
+					break;
+				}
+	
+				prev_keys = keys;
+			}
+		}
+		
+		// MOVE VALUE BY STEP
+		else if(change_value_counter == 2) increase_decrease_value = 0.5;
+		
+		// MOVE VALUE CONTINUOUS
+		else increase_decrease_value = 2.5;
+		
+		// INCLREASE VALUE
+		if(keys == 'U' && HAL_GetTick() - prev_tick > debounce){
+			if(ctrl_mode_counter == 0){
+				for(int i=0; i<3; i++) if(move_var_counter == i){
+					if(change_value_counter != 1) pos_value[i] += increase_decrease_value;
+					else pos_value[i] += distance_val;
 				}
 			}
-			if(change_value_counter > 2) change_value_counter = 0;
+			else{
+				for(int i=0; i<6; i++) if(move_var_counter == i){
+					if(change_value_counter != 1) angle_value[i] += increase_decrease_value;
+					else angle_value[i] += distance_val;
+				}
+			}
+			prev_tick = HAL_GetTick();
+		}
+		
+		// DECREASE VALUE
+		if(keys == 'D' && HAL_GetTick() - prev_tick > debounce){
+			if(ctrl_mode_counter == 0){
+				for(int i=0; i<3; i++) if(move_var_counter == i){
+					if(change_value_counter != 1) pos_value[i] -= increase_decrease_value;
+					else pos_value[i] -= distance_val;
+				}
+			}
+			else{
+				for(int i=0; i<6; i++) if(move_var_counter == i){
+					if(change_value_counter != 1) angle_value[i] -= increase_decrease_value;
+					else angle_value[i] -= distance_val;
+				}
+			}
+			prev_tick = HAL_GetTick();
+		}
+		
+		// MOVE TO PREPARATION MENU
+		if(keys == '#' && prev_keys != keys){
+			select_menu = PREP_MENU;
 		}
 	}
 	
 	else if(select_menu == PREP_MENU){
+		// BACT TO HOME MENU
+		if(keys == '.' && prev_keys != keys){
+			select_menu = HOME_MENU;
+		}
 	}
 	
 	prev_keys = keys;
+	prev_select_menu = select_menu;
+	prev_sub_menu = sub_menu;
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -540,58 +692,72 @@ void ui_handler(void){
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void show_menu(LCD_Menu_t menu){
 	if(menu == BOOTING_MENU){
-		
+		lcd_set_cursor(3, 1);
+		lcd_printstr("SYSTEM BOOTING");
+		lcd_set_cursor(4, 2);
+		lcd_printstr("PLEASE  WAIT");
+	}
+	
+	else if(menu == AUTO_HOME_MENU){
+		lcd_set_cursor(3, 1);
+		lcd_printstr("PRESS  ENTER");
+		lcd_set_cursor(1, 2);
+		lcd_printstr("TO START AUTO HOME");
 	}
 	
 	else if(menu == HOME_MENU){		
 		if(ctrl_mode_counter == 0){
-			lcd_set_cursor(10, move_var_counter);
+			sub_menu = 2;
+			
+			lcd_set_cursor(9, move_var_counter);
 			lcd_printstr("<");
 			
 			lcd_set_cursor(0, 0);	
-			lcd_printstr("XPOS:");
-			lcd_printfloat(moveX);
+			lcd_printstr("XP:");
+			lcd_printfloat(pos_value[0], 1);
 			lcd_set_cursor(0, 1);
-			lcd_printstr("YPOS:");
-			lcd_printfloat(moveY);
+			lcd_printstr("YP:");
+			lcd_printfloat(pos_value[1], 1);
 			lcd_set_cursor(0, 2);
-			lcd_printstr("ZPOS:");
-			lcd_printfloat(moveZ);
+			lcd_printstr("ZP:");
+			lcd_printfloat(pos_value[2], 1);
 			
 			lcd_set_cursor(17, 3);
 			lcd_printstr(pos_ctrl);
 		}
 		
 		else if(ctrl_mode_counter == 1){
+			sub_menu = 3;
+			
 			if(move_var_counter < 3){
-				lcd_set_cursor(8, move_var_counter);
+				lcd_set_cursor(9, move_var_counter);
 				lcd_printstr("<");
 			}
 			
 			else if(move_var_counter > 2){
-				lcd_set_cursor(18, move_var_counter-3);
+				lcd_set_cursor(19, move_var_counter-3);
 				lcd_printstr("<");
 			}
 			
 			lcd_set_cursor(0, 0);			
 			lcd_printstr("A1:");			
-			lcd_printfloat(A1);				
+			lcd_printfloat(angle_value[0], 1);				
 			lcd_set_cursor(0, 1);			
 			lcd_printstr("A2:");			
-			lcd_printfloat(A2);				
+			lcd_printfloat(angle_value[1], 1);				
 			lcd_set_cursor(0, 2);			
 			lcd_printstr("A3:");			
-			lcd_printfloat(A3);				
+			lcd_printfloat(angle_value[2], 1);				
 			
 			lcd_set_cursor(10, 0);
 			lcd_printstr("A4:");
-			lcd_printfloat(A4);
+			lcd_printfloat(angle_value[3], 1);
 			lcd_set_cursor(10, 1);
 			lcd_printstr("A5:");
-			lcd_printfloat(A5);
+			lcd_printfloat(angle_value[4], 1);
 			lcd_set_cursor(10, 2);
 			lcd_printstr("A6:");
-			lcd_printfloat(A6);
+			lcd_printfloat(angle_value[5], 1);
 			
 			lcd_set_cursor(17, 3);
 			lcd_printstr(angle_ctrl);
@@ -605,9 +771,14 @@ void show_menu(LCD_Menu_t menu){
 			lcd_printstr(string_distance);
 		}
 		if(change_value_counter == 0x02) lcd_printstr(step_change);
+		
+		lcd_set_cursor(8, 3);
+		if(change_value_counter != 0x01) lcd_printstr("HOME");
 	}
 	
 	else if(menu == PREP_MENU){
+		sub_menu = 4;
+		
 		lcd_set_cursor(0, 0);
 		lcd_printstr("Memory");
 		lcd_set_cursor(0, 1);
@@ -626,6 +797,16 @@ void show_menu(LCD_Menu_t menu){
 	
 	else if(menu == RUNNING_MENU_3){
 	}
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+/*--- CHECK PRESSED NUMKEYS ---*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+bool check_numkeys_pressed(void){
+	keys = Keypad_Read(&keypad);
+	
+	for(int i=0; i<sizeof(num_keys); i++) if(keys == num_keys[i]) return true;
+	return false;
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 

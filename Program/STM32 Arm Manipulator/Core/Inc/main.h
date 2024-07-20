@@ -85,6 +85,8 @@ void Error_Handler(void);
 #define ENA_B_GPIO_Port GPIOB
 #define PHASE_B6_Pin GPIO_PIN_10
 #define PHASE_B6_GPIO_Port GPIOB
+#define LED_Pin GPIO_PIN_11
+#define LED_GPIO_Port GPIOB
 #define ENABLE_Pin GPIO_PIN_12
 #define ENABLE_GPIO_Port GPIOB
 #define PULSE_1_Pin GPIO_PIN_13

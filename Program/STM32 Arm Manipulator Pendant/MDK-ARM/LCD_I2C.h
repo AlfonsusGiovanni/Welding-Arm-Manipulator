@@ -94,7 +94,7 @@ void lcd_printstr(char *string);
 void lcd_printint(int input);
 
 // LCD PRINT FLOAT VARIABLE
-void lcd_printfloat(float input);
+void lcd_printfloat(float input, uint8_t precision);
 
 // LCD CLEAR
 void lcd_clear(void);
