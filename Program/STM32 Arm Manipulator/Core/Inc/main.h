@@ -57,32 +57,18 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define PHASE_A1_Pin GPIO_PIN_13
-#define PHASE_A1_GPIO_Port GPIOC
-#define PHASE_B1_Pin GPIO_PIN_14
-#define PHASE_B1_GPIO_Port GPIOC
-#define PHASE_A2_Pin GPIO_PIN_15
-#define PHASE_A2_GPIO_Port GPIOC
-#define PHASE_B2_Pin GPIO_PIN_0
-#define PHASE_B2_GPIO_Port GPIOA
-#define PHASE_A3_Pin GPIO_PIN_1
-#define PHASE_A3_GPIO_Port GPIOA
-#define PHASE_B3_Pin GPIO_PIN_2
-#define PHASE_B3_GPIO_Port GPIOA
-#define PHASE_A4_Pin GPIO_PIN_3
-#define PHASE_A4_GPIO_Port GPIOA
-#define PHASE_B4_Pin GPIO_PIN_4
-#define PHASE_B4_GPIO_Port GPIOA
-#define PHASE_A5_Pin GPIO_PIN_5
-#define PHASE_A5_GPIO_Port GPIOA
-#define PHASE_B5_Pin GPIO_PIN_6
-#define PHASE_B5_GPIO_Port GPIOA
-#define PHASE_A6_Pin GPIO_PIN_7
-#define PHASE_A6_GPIO_Port GPIOA
-#define ENA_A_Pin GPIO_PIN_0
-#define ENA_A_GPIO_Port GPIOB
-#define ENA_B_Pin GPIO_PIN_1
-#define ENA_B_GPIO_Port GPIOB
+#define ENC_A_Pin GPIO_PIN_13
+#define ENC_A_GPIO_Port GPIOC
+#define ENC_B_Pin GPIO_PIN_14
+#define ENC_B_GPIO_Port GPIOC
+#define SD_SS_Pin GPIO_PIN_4
+#define SD_SS_GPIO_Port GPIOA
+#define SD_SCK_Pin GPIO_PIN_5
+#define SD_SCK_GPIO_Port GPIOA
+#define SD_MISO_Pin GPIO_PIN_6
+#define SD_MISO_GPIO_Port GPIOA
+#define SD_MOSI_Pin GPIO_PIN_7
+#define SD_MOSI_GPIO_Port GPIOA
 #define PHASE_B6_Pin GPIO_PIN_10
 #define PHASE_B6_GPIO_Port GPIOB
 #define LED_Pin GPIO_PIN_11

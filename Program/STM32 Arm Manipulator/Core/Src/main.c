@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "fatfs.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -36,9 +37,9 @@ EEPROM_t eeprom;
 
 
 //--- RS232 TYPEDEF ---//
-//////////////////////////
+/////////////////////////
 Data_Get_t command;
-//////////////////////////
+/////////////////////////
 
 
 /*--- DRIVER STEPPER TYPEDEF ---*/
@@ -65,31 +66,32 @@ Driver_t Stepper_Driver6;
 
 
 /*EEPROM ADDRESS SET*/
-//----------------------------------
+//-----------------------------------
 #define EEPROM_ADDRESS					0xA0
 
-#define PATTERN1_POS_PAGE_ADDR 	0x00
-#define PATTERN2_POS_PAGE_ADDR 	0x03
-#define PATTERN3_POS_PAGE_ADDR 	0x06
+#define START_POINT_BYTE_ADDR		0x00
+#define END_POINT_BYTE_ADDR			0x18
+#define PATTERN_BYTE_ADDR				0x30
 
-#define PATTERN1_ANG_PAGE_ADDR 	0x09
-#define PATTERN2_ANG_PAGE_ADDR 	0x10
-#define PATTERN3_ANG_PAGE_ADDR 	0x25
+#define POS_STARTBYTE_ADDR			0x000
+#define POS_ENDBYTE_ADDR				0x0FF
+#define ANG_STARTBYTE_ADDR			0x100
+#define ANG_ENDBYTE_ADDR				0x1FF
+//-----------------------------------
 
-#define POINT1_BYTE_ADDR				0x00
-#define POINT2_BYTE_ADDR				0x07
-#define POINT3_BYTE_ADDR				0x0F
-#define POINT4_BYTE_ADDR				0x17
-#define POINT5_BYTE_ADDR				0x1F
-#define POINT6_BYTE_ADDR				0x27
-#define POINT7_BYTE_ADDR				0x2F
-#define POINT8_BYTE_ADDR				0x37
-//----------------------------------
+
+/*EEPROM PATTERN SET*/
+//-----------------------------------
+#define LINEAR_PATTERN					0x01
+#define CIRCULAR_PATTERN				0x02
+#define ZIGZAG_PATTERN					0x03
+//-----------------------------------
+
 
 
 /*ROBOT TEST SET*/
 //-------------------
-//#define EEPROM_TEST
+#define EEPROM_TEST
 #define RS232_TEST
 //#define STEPPER_TEST
 //-------------------
@@ -104,6 +106,8 @@ Driver_t Stepper_Driver6;
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 
+SPI_HandleTypeDef hspi1;
+
 UART_HandleTypeDef huart1;
 DMA_HandleTypeDef hdma_usart1_rx;
 
@@ -112,20 +116,26 @@ DMA_HandleTypeDef hdma_usart1_rx;
 /*EEPROM VARIABLE*/
 ////////////////////////////////////////
 double 
-array_pos[3],
+array_pos_start[3],
+array_pos_end[3],
 array_angle[6];
 
 uint8_t
-saved_posX[8], read_saved_posX[8],
-saved_posY[8], read_saved_posY[8],
-saved_posZ[8], read_saved_posZ[8],
+saved_pos[24], read_saved_pos[24],
+read_saved_posX[8],
+read_saved_posY[8],
+read_saved_posZ[8],
 
-saved_angle1[8], read_saved_angle1[8],
-saved_angle2[8], read_saved_angle2[8],
-saved_angle3[8], read_saved_angle3[8],
-saved_angle4[8], read_saved_angle4[8],
-saved_angle5[8], read_saved_angle5[8],
-saved_angle6[8], read_saved_angle6[8];
+saved_angle[48], read_saved_angle[48],
+read_saved_angle1[8],
+read_saved_angle2[8],
+read_saved_angle3[8],
+read_saved_angle4[8],
+read_saved_angle5[8],
+read_saved_angle6[8],
+
+welding_pattern,
+read_saved_pattern[1];
 ////////////////////////////////////////
 
 
@@ -140,6 +150,17 @@ delta_move_ang[6],
 prev_angle[6];
 ///////////////////
 
+
+/*RS232 VARIABLE*/
+///////////////////
+uint8_t
+rx_savepoint,
+rx_patterntype[200],
+rx_pointtype,
+rx_rotate_mode,
+rx_rotate_value[8];
+///////////////////
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -148,13 +169,20 @@ static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_SPI1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /*EEPROM CUSTOM FUNCTION*/
-void Save_Pattern_Position(uint16_t page_select, uint8_t start_addr, double* pos_data, uint8_t size);
-void Read_Pattern_Position(uint16_t page_select, uint8_t start_addr, double* stored_data, uint8_t size);
-void Save_Pattern_Angle(uint16_t page_select, uint8_t start_addr, double* angle_data, uint8_t size);
-void Read_Pattern_Angle(uint16_t page_select, uint8_t start_addr, double* stored_data, uint8_t size);
+//----------------------------------------------------------------------------------------------------------
+void Save_WeldingPoint_Position(uint16_t page_select, uint8_t start_addr, double* pos_data, size_t size);
+void Read_WeldingPoint_Position(uint16_t page_select, uint8_t start_addr, double* stored_data, size_t size);
+
+void Save_WeldingPoint_Angle(uint16_t page_select, uint8_t start_addr, double* angle_data, size_t size);
+void Read_WeldingPoint_Angle(uint16_t page_select, uint8_t start_addr, double* stored_data, size_t size);
+
+void Save_WeldingPoint_Pattern(uint16_t page_select, uint8_t select_pattern);
+void Read_WeldingPoint_Pattern(uint16_t page_select, uint8_t store_pattern);
+//----------------------------------------------------------------------------------------------------------
 
 /* USER CODE END PFP */
 
@@ -283,6 +311,8 @@ int main(void)
   MX_DMA_Init();
   MX_USART1_UART_Init();
   MX_I2C1_Init();
+  MX_SPI1_Init();
+  MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
 	
 	/*EEPROM CONFIGURATION*/
@@ -306,17 +336,25 @@ int main(void)
 	/*EEPROM TEST*/
 	//---------------------------------------------------------------------------------------------
 	#ifdef EEPROM_TEST
-	double 
-	test_pos[3] = {40.96, 12.15, 37.42},
-	test_angle[6] = {125.6, 12.56, 1.256, 0.1245, 0.234, 2.34};
-	
-	Save_Pattern_Position(PATTERN1_POS_PAGE_ADDR, POINT1_BYTE_ADDR, test_pos, sizeof(test_pos));
-	Save_Pattern_Angle(PATTERN1_ANG_PAGE_ADDR, POINT1_BYTE_ADDR, test_angle, sizeof(test_angle));
-	
+	EEPROM_PageReset(&eeprom, 0x000);
+	HAL_Delay(500);
+	EEPROM_PageReset(&eeprom, 0x100);
 	HAL_Delay(500);
 	
-	Read_Pattern_Position(PATTERN1_POS_PAGE_ADDR, POINT1_BYTE_ADDR, array_pos, sizeof(array_pos));
-	Read_Pattern_Angle(PATTERN1_ANG_PAGE_ADDR, POINT1_BYTE_ADDR, array_angle, sizeof(array_angle));
+	double 
+	test_pos_start[3] = {-40.96, 12.15, -37.42},
+	test_pos_end[3] = {-20.96, 2.15, -37.42},
+	test_angle_start[6] = {70.55, -45.5, 90.58, 150.45, 55.17, 178.77};
+	
+//	Save_WeldingPoint_Position(0x00, START_POINT_BYTE_ADDR, test_pos_start, sizeof(test_pos_start));
+//	Save_WeldingPoint_Position(0x00, END_POINT_BYTE_ADDR, test_pos_end, sizeof(test_pos_end));
+//	Save_WeldingPoint_Angle(0x00, START_POINT_BYTE_ADDR, test_angle_start, sizeof(test_angle_start));
+//	Save_WeldingPoint_Pattern(0x00, LINEAR_PATTERN);
+	HAL_Delay(500);
+	Read_WeldingPoint_Position(0x00, START_POINT_BYTE_ADDR, array_pos_start, sizeof(array_pos_start));
+	Read_WeldingPoint_Position(0x00, END_POINT_BYTE_ADDR, array_pos_end, sizeof(array_pos_end));
+	Read_WeldingPoint_Angle(0x00, START_POINT_BYTE_ADDR, array_angle, sizeof(array_angle));
+	Read_WeldingPoint_Pattern(0x00, welding_pattern);
   #endif
 	//---------------------------------------------------------------------------------------------
 	
@@ -330,7 +368,31 @@ int main(void)
 		#ifdef RS232_TEST
 		if(command.type == AUTO_HOME){
 			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-			Send_feedback(AUTO_HOME_DONE);
+			HAL_Delay(250);
+			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+			HAL_Delay(1250);
+			
+			for(int i=0; i<50; i++){
+				Send_feedback(AUTO_HOME_DONE);
+				HAL_Delay(10);
+			}
+			command.type = NONE;
+		}
+		
+		else if(command.type == MAPPING){
+			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+			rx_savepoint = command.point_num;
+			rx_patterntype[rx_savepoint] = command.pattern_type;
+			
+			if(command.point_type == START_POINT){
+				rx_pointtype = START_POINT_BYTE_ADDR;
+				Save_WeldingPoint_Position(rx_savepoint, rx_pointtype, test_pos_start, sizeof(test_pos_start));
+				Save_WeldingPoint_Angle(rx_savepoint, rx_pointtype, test_angle_start, sizeof(test_angle_start));
+			}
+			else if(command.point_type == END_POINT){
+				rx_pointtype = END_POINT_BYTE_ADDR;
+				Save_WeldingPoint_Position(rx_savepoint, rx_pointtype, test_pos_end, sizeof(test_pos_end));
+			}
 		}
 		
 		else HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
@@ -420,6 +482,44 @@ static void MX_I2C1_Init(void)
 }
 
 /**
+  * @brief SPI1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI1_Init(void)
+{
+
+  /* USER CODE BEGIN SPI1_Init 0 */
+
+  /* USER CODE END SPI1_Init 0 */
+
+  /* USER CODE BEGIN SPI1_Init 1 */
+
+  /* USER CODE END SPI1_Init 1 */
+  /* SPI1 parameter configuration*/
+  hspi1.Instance = SPI1;
+  hspi1.Init.Mode = SPI_MODE_MASTER;
+  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi1.Init.NSS = SPI_NSS_SOFT;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi1.Init.CRCPolynomial = 10;
+  if (HAL_SPI_Init(&hspi1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI1_Init 2 */
+
+  /* USER CODE END SPI1_Init 2 */
+
+}
+
+/**
   * @brief USART1 Initialization Function
   * @param None
   * @retval None
@@ -486,38 +586,27 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, ENA_A_Pin|ENA_B_Pin|LED_Pin|ENABLE_Pin
-                          |PULSE_1_Pin|DIR_1_Pin|PULSE_2_Pin|PULSE_6_Pin
-                          |DIR_6_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, SD_SS_Pin|DIR_2_Pin|PULSE_3_Pin|DIR_3_Pin
+                          |PULSE_4_Pin|DIR_4_Pin|PULSE_5_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, DIR_2_Pin|PULSE_3_Pin|DIR_3_Pin|PULSE_4_Pin
-                          |DIR_4_Pin|PULSE_5_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, LED_Pin|ENABLE_Pin|PULSE_1_Pin|DIR_1_Pin
+                          |PULSE_2_Pin|PULSE_6_Pin|DIR_6_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : PHASE_A1_Pin PHASE_B1_Pin PHASE_A2_Pin */
-  GPIO_InitStruct.Pin = PHASE_A1_Pin|PHASE_B1_Pin|PHASE_A2_Pin;
+  /*Configure GPIO pins : ENC_A_Pin ENC_B_Pin */
+  GPIO_InitStruct.Pin = ENC_A_Pin|ENC_B_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PHASE_B2_Pin PHASE_A3_Pin PHASE_B3_Pin PHASE_A4_Pin
-                           PHASE_B4_Pin PHASE_A5_Pin PHASE_B5_Pin PHASE_A6_Pin */
-  GPIO_InitStruct.Pin = PHASE_B2_Pin|PHASE_A3_Pin|PHASE_B3_Pin|PHASE_A4_Pin
-                          |PHASE_B4_Pin|PHASE_A5_Pin|PHASE_B5_Pin|PHASE_A6_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : ENA_A_Pin ENA_B_Pin LED_Pin ENABLE_Pin
-                           PULSE_1_Pin DIR_1_Pin PULSE_2_Pin PULSE_6_Pin
-                           DIR_6_Pin */
-  GPIO_InitStruct.Pin = ENA_A_Pin|ENA_B_Pin|LED_Pin|ENABLE_Pin
-                          |PULSE_1_Pin|DIR_1_Pin|PULSE_2_Pin|PULSE_6_Pin
-                          |DIR_6_Pin;
+  /*Configure GPIO pins : SD_SS_Pin DIR_2_Pin PULSE_3_Pin DIR_3_Pin
+                           PULSE_4_Pin DIR_4_Pin PULSE_5_Pin */
+  GPIO_InitStruct.Pin = SD_SS_Pin|DIR_2_Pin|PULSE_3_Pin|DIR_3_Pin
+                          |PULSE_4_Pin|DIR_4_Pin|PULSE_5_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PHASE_B6_Pin */
   GPIO_InitStruct.Pin = PHASE_B6_Pin;
@@ -525,14 +614,14 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(PHASE_B6_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : DIR_2_Pin PULSE_3_Pin DIR_3_Pin PULSE_4_Pin
-                           DIR_4_Pin PULSE_5_Pin */
-  GPIO_InitStruct.Pin = DIR_2_Pin|PULSE_3_Pin|DIR_3_Pin|PULSE_4_Pin
-                          |DIR_4_Pin|PULSE_5_Pin;
+  /*Configure GPIO pins : LED_Pin ENABLE_Pin PULSE_1_Pin DIR_1_Pin
+                           PULSE_2_Pin PULSE_6_Pin DIR_6_Pin */
+  GPIO_InitStruct.Pin = LED_Pin|ENABLE_Pin|PULSE_1_Pin|DIR_1_Pin
+                          |PULSE_2_Pin|PULSE_6_Pin|DIR_6_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : DIR_5_Pin */
   GPIO_InitStruct.Pin = DIR_5_Pin;
@@ -545,98 +634,72 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-/*--- SAVE PATTERN POSITION VALUE ---*/
+/*--- SAVE WELDING POINT POSITION VALUE ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void Save_Pattern_Position(uint16_t page_select, uint8_t start_addr, double* pos_data, uint8_t size){
-	uint16_t
-	Xpos_page_addr = page_select,
-	Ypos_page_addr = page_select + 0x01,
-	Zpos_page_adrr = page_select + 0x02;
+void Save_WeldingPoint_Position(uint16_t page_select, uint8_t start_addr, double* pos_data, size_t size){
+	if(page_select > POS_ENDBYTE_ADDR) page_select = POS_ENDBYTE_ADDR;
+	for(int i=0; i<24; i++) saved_pos[i] = 0;
+	for(size_t i=0; i<size; i++) memcpy(&saved_pos[i*8], &pos_data[i], sizeof(double));
 	
-	memcpy(saved_posX, &pos_data[0], sizeof(double));
-	memcpy(saved_posY, &pos_data[1], sizeof(double));
-	memcpy(saved_posZ, &pos_data[2], sizeof(double));
-	
-	EEPROM_PageWrite(&eeprom, Xpos_page_addr, start_addr, saved_posX, 8);
-	HAL_Delay(5);
-	EEPROM_PageWrite(&eeprom, Ypos_page_addr, start_addr, saved_posY, 8);
-	HAL_Delay(5);
-	EEPROM_PageWrite(&eeprom, Zpos_page_adrr, start_addr, saved_posZ, 8);
-	HAL_Delay(5);
+	EEPROM_PageWrite(&eeprom, page_select | POS_STARTBYTE_ADDR, start_addr, saved_pos, sizeof(saved_pos));
+	HAL_Delay(10);
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-/*--- READ PATTERN POSITION VALUE ---*/
+/*--- READ WELDING POINT POSITION VALUE ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void Read_Pattern_Position(uint16_t page_select, uint8_t start_addr, double* stored_data, uint8_t size){
-	uint16_t
-	Xpos_page_addr = page_select,
-	Ypos_page_addr = page_select + 0x01,
-	Zpos_page_adrr = page_select + 0x02;
+void Read_WeldingPoint_Position(uint16_t page_select, uint8_t start_addr, double* stored_data, size_t size){
+	if(page_select > POS_ENDBYTE_ADDR) page_select = POS_ENDBYTE_ADDR;
+	for(int i=0; i<24; i++) read_saved_pos[i] = 0;
+	for(size_t i=0; i<size; i++) stored_data[i] = 0;
 	
-	EEPROM_PageRead(&eeprom, Xpos_page_addr, start_addr, read_saved_posX, 8);
-	EEPROM_PageRead(&eeprom, Ypos_page_addr, start_addr, read_saved_posY, 8);
-	EEPROM_PageRead(&eeprom, Zpos_page_adrr, start_addr, read_saved_posZ, 8);
+	EEPROM_PageRead(&eeprom, page_select | POS_STARTBYTE_ADDR, start_addr, read_saved_pos, sizeof(read_saved_pos));
+	
+	for(int i=0; i<8; i++){
+		read_saved_posX[i] = read_saved_pos[i];
+		read_saved_posY[i] = read_saved_pos[i+8];
+		read_saved_posZ[i] = read_saved_pos[i+16];
+	}
 	
 	memcpy(&stored_data[0], read_saved_posX, sizeof(double));
 	memcpy(&stored_data[1], read_saved_posY, sizeof(double));
 	memcpy(&stored_data[2], read_saved_posZ, sizeof(double));
+	HAL_Delay(10);
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-/*--- SAVE PATTERN ANGLE VALUE ---*/
+/*--- SAVE WELDING POINT ANGLE VALUE ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void Save_Pattern_Angle(uint16_t page_select, uint8_t start_addr, double* angle_data, uint8_t size){
-	uint16_t
-	Angle1_page_addr = page_select,
-	Angle2_page_addr = page_select + 0x01,
-	Angle3_page_addr = page_select + 0x02,
-	Angle4_page_addr = page_select + 0x03,
-	Angle5_page_addr = page_select + 0x04,
-	Angle6_page_addr = page_select + 0x05;
+void Save_WeldingPoint_Angle(uint16_t page_select, uint8_t start_addr, double* angle_data, size_t size){
+	if(page_select > ANG_ENDBYTE_ADDR) page_select = ANG_ENDBYTE_ADDR;
+	for(int i=0; i<24; i++) saved_angle[i] = 0;
+	for(size_t i=0; i<size; i++) memcpy(&saved_angle[i*8], &angle_data[i], sizeof(double));
 	
-	memcpy(saved_angle1, &angle_data[0], sizeof(double));
-	memcpy(saved_angle2, &angle_data[1], sizeof(double));
-	memcpy(saved_angle3, &angle_data[2], sizeof(double));
-	memcpy(saved_angle4, &angle_data[3], sizeof(double));
-	memcpy(saved_angle5, &angle_data[4], sizeof(double));
-	memcpy(saved_angle6, &angle_data[5], sizeof(double));
-	
-	EEPROM_PageWrite(&eeprom, Angle1_page_addr, start_addr, saved_angle1, sizeof(saved_angle1));
-	HAL_Delay(5);
-	EEPROM_PageWrite(&eeprom, Angle2_page_addr, start_addr, saved_angle2, sizeof(saved_angle2));
-	HAL_Delay(5);
-	EEPROM_PageWrite(&eeprom, Angle3_page_addr, start_addr, saved_angle3, sizeof(saved_angle3));
-	HAL_Delay(5);
-	EEPROM_PageWrite(&eeprom, Angle4_page_addr, start_addr, saved_angle4, sizeof(saved_angle4));
-	HAL_Delay(5);
-	EEPROM_PageWrite(&eeprom, Angle5_page_addr, start_addr, saved_angle5, sizeof(saved_angle5));
-	HAL_Delay(5);
-	EEPROM_PageWrite(&eeprom, Angle6_page_addr, start_addr, saved_angle6, sizeof(saved_angle6));
-	HAL_Delay(5);
+	EEPROM_PageWrite(&eeprom, page_select | ANG_STARTBYTE_ADDR, start_addr, saved_angle, sizeof(saved_angle));
+	HAL_Delay(10);
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-/*--- SAVE PATTERN ANGLE VALUE ---*/
+/*--- SAVE WELDING POINT ANGLE VALUE ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void Read_Pattern_Angle(uint16_t page_select, uint8_t start_addr, double* stored_data, uint8_t size){
-	uint16_t
-	Angle1_page_addr = page_select,
-	Angle2_page_addr = page_select + 0x01,
-	Angle3_page_addr = page_select + 0x02,
-	Angle4_page_addr = page_select + 0x03,
-	Angle5_page_addr = page_select + 0x04,
-	Angle6_page_addr = page_select + 0x05;
+void Read_WeldingPoint_Angle(uint16_t page_select, uint8_t start_addr, double* stored_data, size_t size){
+	if(page_select > ANG_ENDBYTE_ADDR) page_select = ANG_ENDBYTE_ADDR;
+	for(int i=0; i<24; i++) read_saved_angle[i] = 0;
+	for(size_t i=0; i<size; i++) stored_data[i] = 0;
 	
-	EEPROM_PageRead(&eeprom, Angle1_page_addr, start_addr, read_saved_angle1, sizeof(read_saved_angle1));
-	EEPROM_PageRead(&eeprom, Angle2_page_addr, start_addr, read_saved_angle2, sizeof(read_saved_angle2));
-	EEPROM_PageRead(&eeprom, Angle3_page_addr, start_addr, read_saved_angle3, sizeof(read_saved_angle3));
-	EEPROM_PageRead(&eeprom, Angle4_page_addr, start_addr, read_saved_angle4, sizeof(read_saved_angle4));
-	EEPROM_PageRead(&eeprom, Angle5_page_addr, start_addr, read_saved_angle5, sizeof(read_saved_angle5));
-	EEPROM_PageRead(&eeprom, Angle6_page_addr, start_addr, read_saved_angle6, sizeof(read_saved_angle6));
+	EEPROM_PageRead(&eeprom, page_select | ANG_STARTBYTE_ADDR, start_addr, read_saved_angle, sizeof(read_saved_angle));
+	
+	for(int i=0; i<8; i++){
+		read_saved_angle1[i] = read_saved_angle[i];
+		read_saved_angle2[i] = read_saved_angle[i+8];
+		read_saved_angle3[i] = read_saved_angle[i+16];
+		read_saved_angle4[i] = read_saved_angle[i+24];
+		read_saved_angle5[i] = read_saved_angle[i+32];
+		read_saved_angle6[i] = read_saved_angle[i+40];
+	}
 	
 	memcpy(&stored_data[0], read_saved_angle1, sizeof(double));
 	memcpy(&stored_data[1], read_saved_angle2, sizeof(double));
@@ -644,9 +707,26 @@ void Read_Pattern_Angle(uint16_t page_select, uint8_t start_addr, double* stored
 	memcpy(&stored_data[3], read_saved_angle4, sizeof(double));
 	memcpy(&stored_data[4], read_saved_angle5, sizeof(double));
 	memcpy(&stored_data[5], read_saved_angle6, sizeof(double));
+	HAL_Delay(10);
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+
+/*--- SAVE WELDING POINT PATTERN ---*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void Save_WeldingPoint_Pattern(uint16_t page_select, uint8_t select_pattern){
+	EEPROM_ByteWrite(&eeprom, page_select, PATTERN_BYTE_ADDR, select_pattern, sizeof(select_pattern));
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*--- READ WELDING POINT PATTERN ---*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void Read_WeldingPoint_Pattern(uint16_t page_select, uint8_t store_pattern){
+	EEPROM_ByteRead(&eeprom, page_select, PATTERN_BYTE_ADDR, read_saved_pattern, sizeof(store_pattern));
+	welding_pattern = read_saved_pattern[0]; 
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 /* USER CODE END 4 */
 

@@ -38,7 +38,7 @@ void EEPROM_PageReset(EEPROM_t* mem, uint16_t page){
 	page_addr = (page << 6) | 0x00;
 	
 	uint8_t data_reset[mem->page_size];
-	memset(data_reset, 0xFF, mem->page_size);
+	memset(data_reset, 0x00, mem->page_size);
 	
 	if(HAL_I2C_Mem_Write(mem->hi2c, dev_addr, page_addr, I2C_MEMADD_SIZE_16BIT, data_reset, mem->page_size, I2C_Timeout) == HAL_OK) mem->status = EEPROM_OK;
 	else mem->status = EEPROM_TIMEOUT;

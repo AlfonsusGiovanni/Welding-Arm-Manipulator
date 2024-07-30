@@ -9,25 +9,32 @@ Date		: 10 Juli 2024
 #include "main.h"
 #include "string.h"
 
+/*RS232 COM HEADER*/
 #define HEADER1 0xFF
 #define HEADER2 0xFF
 
+/*RS232 COM BUFFER SIZE*/
 #define BUFF_SIZE 64
+
+/*RS232 COM TIMEOUT*/
 #define RS232_TIMEOUT 100
 
+/*RS232 COM COMMAND*/
 #define AUTO_HOME_CMD				0x01
 #define MAPPING_MODE_CMD		0x02
 #define MOVE_POSITION_CMD		0x03
 #define RUNNING_CMD					0x04
 #define REQ_POS_CMD					0x05
 #define REQ_ANG_CMD					0x06
-#define SEND_REQ_CMD				0x07
-#define MOTOR_STATE_CMD			0x08
-#define WELDER_STATE_CMD		0x09
-#define FEEDBACK_CMD				0x0A
+#define REQ_MAP_CMD					0x07
+#define SEND_REQ_CMD				0x08
+#define MOTOR_STATE_CMD			0x09
+#define WELDER_STATE_CMD		0x0A
+#define FEEDBACK_CMD				0x0B
 
 
 //--- COMMAND TYPE TYPEDEF ---//
+////////////////////////////////
 typedef enum{
 	AUTO_HOME = 0x01,
 	MAPPING,
@@ -35,11 +42,14 @@ typedef enum{
 	RUN,
 	REQ_POS,
 	REQ_ANG,
+	REQ_MAP,
 	SEND_REQ,
 	MOTOR_STATE,
 	WELDER_STATE,
 	FEEDBACK,
+	NONE,
 }Command_t;
+////////////////////////////////
 
 
 //--- MANUAL CONTROL MODE TYPEDEF ---//
@@ -74,25 +84,19 @@ typedef enum{
 //--- MEMORY TYPEDEF ---//
 ////////////////////////////////
 typedef enum{
-	PATTERN1 = 0x01,
-	PATTERN2,
-	PATTERN3,
-}Memory_Pattern_t;
+	LINEAR = 0x01,
+	CIRCULAR,
+	WAVE,
+}Welding_Pattern_t;
 ////////////////////////////////
 
 
 //--- POINT COORDINATE TYPDEF ---//
 ///////////////////////////////////
 typedef enum{
-	POINT1 = 0x01,
-	POINT2,
-	POINT3,
-	POINT4,
-	POINT5,
-	POINT6,
-	POINT7,
-	POINT8
-}Point_Pattern_t;
+	START_POINT =  0x01,
+	END_POINT
+}Welding_Point_t;
 ///////////////////////////////////
 
 
@@ -101,6 +105,7 @@ typedef enum{
 typedef enum{
 	SEND_POSITION = 0x01,
 	SEND_ANGLE,
+	SEND_MAPPED_POINT,
 }Req_t;
 ////////////////////////////////
 
@@ -121,16 +126,6 @@ typedef enum{
 	WELDER_ON,
 }Welder_State_t;
 ////////////////////////////////
-
-
-//--- SPEED TYPEDEF ---//
-/////////////////////////
-typedef enum{
-	LOW_SPEED = 0x01, 
-	MEDIUM_SPEED,
-	HIGH_SPEED,
-}Speed_t;
-/////////////////////////
 
 
 //--- COMMAND FEEDBACK TYPEDEF ---//
@@ -156,16 +151,20 @@ typedef struct{
 	motor4_angle, motor4_angle_req,
 	motor5_angle, motor5_angle_req,
 	motor6_angle, motor6_angle_req;
+	
+	uint8_t
+	point_num,
+	move_speed;
 
 	Command_t type;
 	Ctrl_Mode_t control_mode;
-	Run_State_t state;
+	Run_State_t running_state;
 	Run_Mode_t running_mode;
-	Point_Pattern_t point;
+	Welding_Pattern_t pattern_type;
+	Welding_Point_t point_type;
 	Req_t requested_variable;
 	Motor_State_t motor_state;
 	Welder_State_t welder_state;
-	Speed_t running_speed;
 	Feedback_t feedback;
 }Data_Get_t;
 //////////////////////////////////////
@@ -175,21 +174,22 @@ typedef struct{
 void RS232_Init(UART_HandleTypeDef* huart_handler);
 
 /*CHECKSUM FUNCTION*/
-static uint16_t checksum_generator(uint8_t* arr, uint16_t size);
+static uint16_t checksum_generator(uint8_t* arr, size_t size);
 
 /*TRANSMITING COMMAND*/
 //----------------------------------------------------------------------------------------------------
 void Send_auto_home(void);
-void Send_mapping_mode(Memory_Pattern_t pattern_select);
-void Send_mapping_data(Point_Pattern_t point_num);
+void Send_mapping(uint16_t point_num, Welding_Point_t point_type, Welding_Pattern_t pattern_type, uint8_t speed);
+void Send_preview(uint16_t point_num);
 
-void Send_move(Ctrl_Mode_t control_mode, double* value);
-void Send_running(Run_State_t state, Run_Mode_t mode, Memory_Pattern_t pattern_select, Speed_t speed);
+void Send_move(Ctrl_Mode_t control_mode, double* value, size_t size);
+void Send_running(Run_State_t state, Run_Mode_t mode);
 
 void Req_position(void);
 void Req_angle(void);
+void Req_mapped(void);
 
-void Send_req(Req_t req_var, double* value);
+void Send_req(Req_t req_var, double* value, uint16_t *mapped_point, size_t size);
 
 void Send_motor_state(Motor_State_t state);
 void Send_welder_state(Welder_State_t state);

@@ -35,14 +35,18 @@
 typedef enum{
 	BOOTING_MENU,
 	AUTO_HOME_MENU,
+	HOMING_MENU,
 	HOME_MENU,
 	PREP_MENU,
-	RUNNING_MENU_1,
-	RUNNING_MENU_2,
-	RUNNING_MENU_3,
+	MAPPING_MENU,
+	PREVIEW_MENU,
+	WELDING_MENU,
 	PAUSE_MENU,
+	SAVED_MENU,
 	ERROR_MENU,
 }LCD_Menu_t;
+
+LCD_Menu_t select_menu;
 ////////////////////////////
 
 
@@ -80,6 +84,7 @@ I2C_HandleTypeDef hi2c1;
 I2C_HandleTypeDef hi2c2;
 
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart1;
 DMA_HandleTypeDef hdma_usart1_rx;
@@ -89,10 +94,25 @@ DMA_HandleTypeDef hdma_usart1_rx;
 /*PENDANT GLOBAL VARIABLE*/
 //////////////////////////////
 bool 
-booting_menu 	= false,
-home_menu 		= false,
-running 			= false,
-stop 					= false;
+saved_dist    = true,
+saved_prev		= true,
+state_booting = false,
+state_home 		= false,
+state_running = false,
+stop 					= false,
+mapped_start_array[250],
+mapped_end_array[250];
+
+uint8_t
+running_speed,
+mapped_array[250];
+
+uint16_t 
+mapped_points[250],
+total_mapped_points,
+preview_point,
+preview_pattern,
+max_welding_point = 250;
 
 float
 angle_value[6], angle_limit,
@@ -103,7 +123,8 @@ distance_val,
 max_distance = 300;
 
 char
-string_distance[20] = "0";
+string_distance[20] = "0",
+string_preview[20] = "0";
 //////////////////////////////
 
 
@@ -113,27 +134,48 @@ float
 increase_decrease_value = 2.5;
 
 char
-pos_ctrl[] 				= "POS",
-angle_ctrl[] 			= "ANG",
+home_menu[]				= "(HOME)",	
+preparation[]     = "(PREP)",
+mapping_menu[]    = "(MAP)",
+running_menu[]		= "(RUN)",
+mem_menu[]        = "(MEM)",
 
-cont_change[] 		= "CONT",
-dist_change[] 		= "DIST",
-step_change[] 		= "STEP",
+pos_ctrl[] 				= "(POS)",
+angle_ctrl[] 			= "(ANG)",
 
-pattern_mode[] 		= "PATTERN",
-repeat_mode[] 		= "REPEAT",
+cont_change[] 		= "(CON)",
+dist_change[] 		= "(DIS)",
+step_change[] 		= "(STP)",
+
+mapping_mode[]		= "(MAPPING)",
+welding_mode[] 		= "(WELDING)",
+preview_mode[] 		= "(PREVIEW)",
 
 low_speed[] 			= "LOW",
 med_speed[] 			= "MED",
-high_speed[] 			= "HIGH";
+high_speed[] 			= "HIGH",
 
-uint8_t 
+linear_mode[]			= "LINEAR",
+circular_mode[] 	= "CIRCULAR",
+wave_mode[] 			= "WAVE",
+
+max_dist[] 				= "300      ",
+max_prev_point[] 	= "250      ";
+
+int16_t 
 ctrl_mode_counter,
 change_value_counter,
 move_var_counter,
 run_mode_counter,
 speed_mode_counter,
-add_col;
+mapping_menu_counter,
+mapped_point_counter,
+start_point_counter,
+end_point_counter,
+pattern_sel_counter,
+mapped_array_counter,
+add_col,
+add_col2;
 
 char num_keys[] = {
 '1', '2', '3', '4', '5',
@@ -152,6 +194,7 @@ static void MX_I2C1_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 
 void show_menu(LCD_Menu_t menu);
@@ -165,12 +208,6 @@ bool check_numkeys_pressed(void);
 
 /*LCD MENU CONFIGURATION*/
 //------------------------------------------------------------
-uint8_t 
-prev_select_menu,
-select_menu,
-prev_sub_menu,
-sub_menu;
-
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if(htim->Instance == TIM2) show_menu(select_menu);
 }
@@ -246,6 +283,7 @@ int main(void)
   MX_I2C2_Init();
   MX_USART1_UART_Init();
   MX_TIM2_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 	
 	/*LCD CONFIGURATION*/
@@ -464,6 +502,55 @@ static void MX_TIM2_Init(void)
 }
 
 /**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_Encoder_InitTypeDef sConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 0;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 65535;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  sConfig.EncoderMode = TIM_ENCODERMODE_TI12;
+  sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC1Filter = 0;
+  sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC2Filter = 0;
+  if (HAL_TIM_Encoder_Init(&htim3, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
+
+}
+
+/**
   * @brief USART1 Initialization Function
   * @param None
   * @retval None
@@ -525,8 +612,8 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
@@ -550,59 +637,84 @@ void ui_handler(void){
 	keys = Keypad_Read(&keypad);
 	if(keys != prev_keys && keys != 0x00) lcd_clear();
 	
+	/* AUTO HOME MENU HANDLER */////////////////////////////////////////////
 	if(select_menu == AUTO_HOME_MENU){
 		while(1){
 			keys = Keypad_Read(&keypad);
 			if(keys == '#' && prev_keys != keys){
 				lcd_clear();
+				while(1){
+					Send_auto_home();
+					if(command.feedback == AUTO_HOME_DONE){
+						lcd_clear();
+						select_menu = HOME_MENU;
+						HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+						HAL_Delay(100);
+						HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+						break;
+					}
+					else select_menu = HOMING_MENU;
+				}
 				break;
 			}
-		}
-		
-		while(1){
-			Send_auto_home();
-			select_menu = HOME_MENU;
-			if(command.feedback == AUTO_HOME_DONE){
-				HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+			else if(keys == '.' && prev_keys != keys){
+				lcd_clear();
+				select_menu = HOME_MENU;
 				break;
 			}
 		}
 	}
+	////////////////////////////////////////////////////////////////////////
 	
+	
+	/* HOME MENU HANDLER */////////////////////////////////////////////////////////////////
 	else if(select_menu == HOME_MENU){
-		// AUTO HOME
+		// AUTO HOME ************************
 		if(keys == 'Q' && prev_keys != keys){
 			select_menu = AUTO_HOME_MENU;
 		}
+		// **********************************
 		
-		// CHANGE MOVE CONTROL
-		if(keys == 'W' && prev_keys != keys){
-			ctrl_mode_counter+=1;
+		
+		// CHANGE MOVE CONTROL ***************************
+		else if(keys == 'W' && prev_keys != keys){
+			move_var_counter = 0;
+			ctrl_mode_counter++;
 			if(ctrl_mode_counter > 1) ctrl_mode_counter = 0;
 		}
+		// ***********************************************
 		
-		// SELECT MOVE VARIABLE
-		if(keys == 'R' && prev_keys != keys){
-			move_var_counter+=1;
+		
+		// CHANGE CURSOR **************************************************************
+		else if(keys == 'R' && prev_keys != keys){
+			move_var_counter++;
 			if(ctrl_mode_counter == 0 && move_var_counter > 2) move_var_counter = 0;
 			else if(ctrl_mode_counter == 1 && move_var_counter > 5) move_var_counter = 0;
 		}
+		// ****************************************************************************
 		
-		// SELECT MOVE VALUE
-		if(keys == 'T' && prev_keys != keys){
-			change_value_counter+=1;
+		
+		// SELECT MOVE VALUE ***********************************
+		else if(keys == 'T' && prev_keys != keys){
+			change_value_counter++;
 			if(change_value_counter > 2) change_value_counter = 0;
 		}
+		// *****************************************************
 		
-		// MOVE VALUE BY DISTANCE
-		if((change_value_counter == 1 && check_numkeys_pressed() == true) || keys == '<'){				
+		
+		// MOVE VALUE BY DISTANCE *************************************************************
+		else if((change_value_counter == 1 && check_numkeys_pressed() == true) || keys == '<'){
+			add_col = 0;
+			*string_distance = '0';
+			
 			while(1){
+				saved_dist = false;
 				if(keys != prev_keys && keys != 0x00) lcd_clear();
 				
 				// INSERT VALUE
 				if(check_numkeys_pressed() == true && prev_keys != keys){
 					string_distance[add_col] = keys;
-					add_col+=1;
+					add_col++;
 				}
 				
 				// DELETE VALUE
@@ -614,27 +726,33 @@ void ui_handler(void){
 				}
 				
 				// SAVE VALUE
-				if((keys == '>') && prev_keys != keys){
+				if(keys == '>' && prev_keys != keys){
 					sscanf(string_distance, "%f", &distance_val);
-					if(distance_val >= max_distance || distance_val <= -max_distance){
-						char max_dist[] = "300";
+					if(distance_val >= max_distance){
 						memcpy(string_distance, max_dist, sizeof(max_dist));
 						distance_val = max_distance;
 					}
+					saved_dist = true;
 					break;
 				}
 	
 				prev_keys = keys;
 			}
 		}
+		// ************************************************************************************
 		
-		// MOVE VALUE BY STEP
-		else if(change_value_counter == 2) increase_decrease_value = 0.5;
 		
-		// MOVE VALUE CONTINUOUS
+		// MOVE VALUE BY STEP *******************************************
+		else if(change_value_counter == 2) increase_decrease_value = 0.1;
+		// **************************************************************
+		
+		
+		// MOVE VALUE CONTINUOUS **********
 		else increase_decrease_value = 2.5;
+		// ********************************
 		
-		// INCLREASE VALUE
+		
+		// INCLREASE VALUE **********************************************************
 		if(keys == 'U' && HAL_GetTick() - prev_tick > debounce){
 			if(ctrl_mode_counter == 0){
 				for(int i=0; i<3; i++) if(move_var_counter == i){
@@ -650,9 +768,11 @@ void ui_handler(void){
 			}
 			prev_tick = HAL_GetTick();
 		}
+		// ***************************************************************************
 		
-		// DECREASE VALUE
-		if(keys == 'D' && HAL_GetTick() - prev_tick > debounce){
+		
+		// DECREASE VALUE ************************************************************
+		else if(keys == 'D' && HAL_GetTick() - prev_tick > debounce){
 			if(ctrl_mode_counter == 0){
 				for(int i=0; i<3; i++) if(move_var_counter == i){
 					if(change_value_counter != 1) pos_value[i] -= increase_decrease_value;
@@ -667,23 +787,336 @@ void ui_handler(void){
 			}
 			prev_tick = HAL_GetTick();
 		}
+		// ***************************************************************************
 		
-		// MOVE TO PREPARATION MENU
+		
+		// MOVE TO PREPARATION MENU *********
 		if(keys == '#' && prev_keys != keys){
+			run_mode_counter = 0;
 			select_menu = PREP_MENU;
 		}
+		// **********************************
 	}
+	///////////////////////////////////////////////////////////////////////////////////////
 	
+	
+	/* PREPARATION MENU HANDLER *////////////////////////////////////////////////////////////////
 	else if(select_menu == PREP_MENU){
-		// BACT TO HOME MENU
+		// BACT TO HOME MENU *****************
 		if(keys == '.' && prev_keys != keys){
 			select_menu = HOME_MENU;
 		}
+		// ***********************************
+		
+		
+		// CHANGE RUNNING MODE *************************
+		else if(keys == 'Q' && prev_keys != keys){
+			run_mode_counter++;
+			if(run_mode_counter > 2) run_mode_counter = 0;
+		}
+		// *********************************************
+		
+		
+		// MAPPING PREPARATION MENU ***************************************************************
+		if(run_mode_counter == 0){
+			// CHECK NEXT MAPPED POINT
+			if(keys == 'U' && prev_keys != keys){
+				mapped_point_counter++;
+				if(mapped_point_counter >= max_welding_point) mapped_point_counter = max_welding_point;
+			}
+			
+			// CHECK PREVIOUS MAPPED POINT
+			else if(keys == 'D' && prev_keys != keys){
+				mapped_point_counter--;
+				if(mapped_point_counter <= 0) mapped_point_counter = 0;
+			}
+			
+			// MAPPING RUN
+			else if(keys == '#' && prev_keys != keys){
+				select_menu = MAPPING_MENU;
+				mapping_menu_counter = 0;
+			}
+		}
+		// ****************************************************************************************
+		
+		
+		// PREVIEW PREPARATION MENU ****************************************************
+		else if(run_mode_counter == 1){
+			// CHECK FIRST NUMKEY INPUT
+			if(check_numkeys_pressed() == true || keys == '<'){
+				add_col2 = 0;
+				*string_preview = '0';
+				
+				while(1){
+					if(keys != prev_keys && keys != 0x00) lcd_clear();
+					saved_prev = false;
+					
+					// INSERT VALUE
+					if(check_numkeys_pressed() == true && prev_keys != keys && add_col2 < 3){
+						string_preview[add_col2] = keys;
+						add_col2++;
+					}
+					
+					// SAVE VALUE
+					else if((keys == '>') && prev_keys != keys){
+						preview_point = atoi(string_preview);
+						if(preview_point > max_welding_point){
+							memcpy(string_preview, max_prev_point, sizeof(max_prev_point));
+							preview_point = max_welding_point;
+						}
+						saved_prev = true;
+						break;
+					}
+					
+					// DELETE VALUE
+					else if(keys == '<' && prev_keys != keys){
+						if(add_col2 > 0) add_col2-=1;
+						
+						if(add_col2 == 0) string_preview[add_col2] = '0';
+						else string_preview[add_col2] = ' ';
+					}
+					prev_keys = keys;
+				}
+			}
+			
+			// PREVIEW RUN
+			else if(keys == '#' && prev_keys != keys){
+				select_menu = PREVIEW_MENU;
+				mapping_menu_counter = 0;
+			}
+		}
+		// **********************************************************************
+		
+		
+		// WELDING PREPARATION MENU ***************************
+		else if(run_mode_counter == 2){
+			// CHANGE RUNNING SPEED
+			if(keys == 'W' && prev_keys != keys){
+				speed_mode_counter++;
+				if(speed_mode_counter > 2) speed_mode_counter = 0;
+			}
+			
+			// WELDING RUN
+			else if(keys == '#' && prev_keys != keys){
+				select_menu = WELDING_MENU;
+				mapping_menu_counter = 0;
+			}
+		}
+		// ****************************************************		
+	}
+	/////////////////////////////////////////////////////////////////////////////////////////////
+	
+	
+	/* MAPPING MENU UI HANDLER *////////////////////////////////////////////////////////////////////////
+	else if(select_menu == MAPPING_MENU){
+		// MOVE TO PREPARATION MENU *********
+		if(keys == '.' && prev_keys != keys){
+			run_mode_counter = 0;
+			select_menu = PREP_MENU;
+		}
+		// **********************************
+		
+		
+		// CHANGE MAPPING MENU *********************************
+		else if(keys == 'Q' && prev_keys != keys){
+			mapping_menu_counter++;
+			if(mapping_menu_counter > 2) mapping_menu_counter = 0;
+		}
+		// *****************************************************
+		
+		
+		// MAPPING MENU 1 ************************************************************************ 
+		if(mapping_menu_counter == 0){
+			// CHANGE MOVE CONTROL
+			if(keys == 'W' && prev_keys != keys){
+				move_var_counter = 0;
+				ctrl_mode_counter++;
+				if(ctrl_mode_counter > 1) ctrl_mode_counter = 0;
+			}
+			
+			// CHANGE CURSOR FOR SELECT MOVE VARIABLE
+			else if(keys == 'R' && prev_keys != keys){
+				move_var_counter++;
+				if(ctrl_mode_counter == 0 && move_var_counter > 2) move_var_counter = 0;
+				else if(ctrl_mode_counter == 1 && move_var_counter > 5) move_var_counter = 0;
+			}
+			
+			// SELECT MOVE VALUE
+			else if(keys == 'T' && prev_keys != keys){
+				change_value_counter++;
+				if(change_value_counter > 2) change_value_counter = 0;
+			}
+			
+			// MOVE VALUE BY DISTANCE
+			else if((change_value_counter == 1 && check_numkeys_pressed() == true) || keys == '<'){
+				add_col = 0;
+				*string_distance = '0';
+				
+				while(1){
+					saved_dist = false;
+					if(keys != prev_keys && keys != 0x00) lcd_clear();
+					
+					// INSERT VALUE
+					if(check_numkeys_pressed() == true && prev_keys != keys){
+						string_distance[add_col] = keys;
+						add_col++;
+					}
+					
+					// SAVE VALUE
+					else if(keys == '>' && prev_keys != keys){
+						sscanf(string_distance, "%f", &distance_val);
+						if(distance_val >= max_distance){
+							memcpy(string_distance, max_dist, sizeof(max_dist));
+							distance_val = max_distance;
+						}
+						saved_dist = true;
+						break;
+					}
+					
+					// DELETE VALUE
+					else if(keys == '<' && prev_keys != keys){
+						if(add_col > 0) add_col-=1;
+						
+						if(add_col == 0) string_distance[add_col] = '0';
+						else string_distance[add_col] = ' ';
+					}
+		
+					prev_keys = keys;
+				}
+			}
+			
+			// MOVE VALUE BY STEP
+			else if(change_value_counter == 2) increase_decrease_value = 0.1;
+			
+			// MOVE VALUE CONTINUOUS
+			else increase_decrease_value = 2.5;
+			
+			// INCLREASE VALUE
+			if(keys == 'U' && HAL_GetTick() - prev_tick > debounce){
+				if(ctrl_mode_counter == 0){
+					for(int i=0; i<3; i++) if(move_var_counter == i){
+						if(change_value_counter != 1) pos_value[i] += increase_decrease_value;
+						else pos_value[i] += distance_val;
+					}
+				}
+				
+				else{
+					for(int i=0; i<6; i++) if(move_var_counter == i){
+						if(change_value_counter != 1) angle_value[i] += increase_decrease_value;
+						else angle_value[i] += distance_val;
+					}
+				}
+				prev_tick = HAL_GetTick();
+			}
+			
+			// DECREASE VALUE
+			else if(keys == 'D' && HAL_GetTick() - prev_tick > debounce){
+				if(ctrl_mode_counter == 0){
+					for(int i=0; i<3; i++) if(move_var_counter == i){
+						if(change_value_counter != 1) pos_value[i] -= increase_decrease_value;
+						else pos_value[i] -= distance_val;
+					}
+				}
+				
+				else{
+					for(int i=0; i<6; i++) if(move_var_counter == i){
+						if(change_value_counter != 1) angle_value[i] -= increase_decrease_value;
+						else angle_value[i] -= distance_val;
+					}
+				}
+				prev_tick = HAL_GetTick();
+			}
+		}
+		// ***************************************************************************************
+		
+		
+		// MAPPING MENU 2 *******************************************************************
+		else if(mapping_menu_counter == 1){
+			// CHANGE CURSOR FOR SELECT WELDING POINT
+			if(keys == 'R' && prev_keys != keys){
+				move_var_counter++;
+				if(move_var_counter > 1) move_var_counter = 0;
+			}
+			
+			// INCLREASE VALUE
+			if(keys == 'U' && HAL_GetTick() - prev_tick > debounce){
+				if(move_var_counter == 0){
+					start_point_counter++;
+					if(start_point_counter > max_welding_point) start_point_counter = 0;
+				}
+				
+				else if(move_var_counter ==1){
+					end_point_counter++;
+					if(end_point_counter > max_welding_point) end_point_counter = 0;
+				}
+				prev_tick = HAL_GetTick();
+			}
+			
+			// DECREASE VALUE
+			else if(keys == 'D' && HAL_GetTick() - prev_tick > debounce){
+				if(move_var_counter == 0){
+					start_point_counter--;
+					if(start_point_counter < 0) start_point_counter = max_welding_point;
+				}
+				
+				else if(move_var_counter ==1){
+					end_point_counter--;
+					if(end_point_counter < 0) end_point_counter = max_welding_point;
+				}
+				prev_tick = HAL_GetTick();
+			}
+			
+			// SAVE MAPPING POINT 
+			else if(keys == '>' && prev_keys != keys){
+				total_mapped_points = 0;
+				
+				if(move_var_counter == 0){
+					mapped_start_array[start_point_counter] = true;
+				}
+				else if(move_var_counter == 1){
+					mapped_end_array[end_point_counter] = true;
+				}
+				
+				for(int i=0; i<max_welding_point; i++){
+					if((mapped_start_array[i] & mapped_end_array[i]) == true) mapped_points[i] = i;
+					total_mapped_points += mapped_start_array[i] & mapped_end_array[i];
+				}
+			}
+			
+			// DELETE MAPPING POINT
+			else if(keys == '<' && prev_keys != keys){
+				if(move_var_counter == 0){
+					mapped_start_array[start_point_counter] = false;
+				}
+				else if(move_var_counter == 1){
+					mapped_end_array[end_point_counter] = false;
+				}
+			}
+		}
+		// **********************************************************************************
+		
+		// MAPPING MENU 3
+		else if(mapping_menu_counter == 2){
+			// CHANGE PATTERN
+			if(keys == 'W' && prev_keys != keys){
+				pattern_sel_counter++;
+				if(pattern_sel_counter > 2) pattern_sel_counter = 0;
+			}
+			
+			
+		}
+	}
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	
+	
+	
+	else if(select_menu == PREVIEW_MENU){
+	}
+	
+	else if(select_menu == WELDING_MENU){
 	}
 	
 	prev_keys = keys;
-	prev_select_menu = select_menu;
-	prev_sub_menu = sub_menu;
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -691,24 +1124,48 @@ void ui_handler(void){
 /*--- LCD MENU ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void show_menu(LCD_Menu_t menu){
+	/* BOOTING MENU *////////////////
 	if(menu == BOOTING_MENU){
 		lcd_set_cursor(3, 1);
 		lcd_printstr("SYSTEM BOOTING");
 		lcd_set_cursor(4, 2);
 		lcd_printstr("PLEASE  WAIT");
 	}
+	/////////////////////////////////
 	
+	
+	/* AUTO HOME MENU *//////////////////
 	else if(menu == AUTO_HOME_MENU){
 		lcd_set_cursor(3, 1);
 		lcd_printstr("PRESS  ENTER");
 		lcd_set_cursor(1, 2);
 		lcd_printstr("TO START AUTO HOME");
 	}
+	/////////////////////////////////////
 	
-	else if(menu == HOME_MENU){		
-		if(ctrl_mode_counter == 0){
-			sub_menu = 2;
+	
+	/* HOMING MENU *//////////////
+	else if(menu == HOMING_MENU){
+		lcd_set_cursor(0, 0);	
+			lcd_printstr("XP:HOMING");
+			lcd_set_cursor(0, 1);
+			lcd_printstr("YP:HOMING");
+			lcd_set_cursor(0, 2);
+			lcd_printstr("ZP:HOMING");
 			
+			lcd_set_cursor(7, 3);
+			lcd_printstr(home_menu);
+		
+			lcd_set_cursor(15, 3);
+			lcd_printstr(pos_ctrl);
+	}
+	//////////////////////////////
+	
+	
+	/* HOME MENU *//////////////////////////////////////////////////
+	else if(menu == HOME_MENU){		
+		// SHOW POS CTRL *********************
+		if(ctrl_mode_counter == 0){
 			lcd_set_cursor(9, move_var_counter);
 			lcd_printstr("<");
 			
@@ -722,13 +1179,14 @@ void show_menu(LCD_Menu_t menu){
 			lcd_printstr("ZP:");
 			lcd_printfloat(pos_value[2], 1);
 			
-			lcd_set_cursor(17, 3);
+			lcd_set_cursor(15, 3);
 			lcd_printstr(pos_ctrl);
 		}
+		// ***********************************
 		
+		
+		// SHOW ANGLE CTRL **************************
 		else if(ctrl_mode_counter == 1){
-			sub_menu = 3;
-			
 			if(move_var_counter < 3){
 				lcd_set_cursor(9, move_var_counter);
 				lcd_printstr("<");
@@ -759,43 +1217,306 @@ void show_menu(LCD_Menu_t menu){
 			lcd_printstr("A6:");
 			lcd_printfloat(angle_value[5], 1);
 			
-			lcd_set_cursor(17, 3);
+			lcd_set_cursor(15, 3);
 			lcd_printstr(angle_ctrl);
 		}
+		// ******************************************
 		
+		
+		// CONTINUES MOVE **************************************
 		lcd_set_cursor(0, 3);	
-		if(change_value_counter == 0x00) lcd_printstr(cont_change);
-		if(change_value_counter == 0x01){
-			lcd_printstr(dist_change);
-			lcd_set_cursor(5, 3);	
-			lcd_printstr(string_distance);
-		}
-		if(change_value_counter == 0x02) lcd_printstr(step_change);
+		if(change_value_counter == 0) lcd_printstr(cont_change);
+		// *****************************************************
 		
-		lcd_set_cursor(8, 3);
-		if(change_value_counter != 0x01) lcd_printstr("HOME");
+		
+		// DISTANCE MOVE ***********************
+		else if(change_value_counter == 1){
+			lcd_printstr(dist_change);
+			lcd_set_cursor(6, 3);	
+			lcd_printstr(string_distance);
+			
+			if(!saved_dist && add_col != 0){
+				lcd_set_cursor(6+add_col, 3);	
+				lcd_printstr("* ");
+			} 
+			else if(!saved_dist && add_col == 0){
+				lcd_set_cursor(7, 3);	
+				lcd_printstr("* ");
+			}
+		}
+		// *************************************
+		
+		
+		// STEP MOVE ************************************************
+		else if(change_value_counter == 2) lcd_printstr(step_change);
+		// **********************************************************
+		
+		
+		// SHOW CURRENT MENU **********************************
+		lcd_set_cursor(7, 3);
+		if(change_value_counter != 1) lcd_printstr(home_menu);
+		// ****************************************************
 	}
+	///////////////////////////////////////////////////////////////
 	
+	
+	/* PREPARATION MENU */////////////////////////////////////
 	else if(menu == PREP_MENU){
-		sub_menu = 4;
+		// MAPPING PREP *****************
+		if(run_mode_counter == 0){
+			lcd_set_cursor(0, 0);
+			lcd_printstr("Mapped Points");
+			lcd_set_cursor(17, 0);
+			if(mapped_points[mapped_point_counter] == 0){
+				lcd_printstr("-");
+				}
+			else lcd_printint(mapped_points[mapped_point_counter]);
+			
+			lcd_set_cursor(0, 3);
+			lcd_printstr(mapping_mode);
+		}
+		// ******************************
+		
+		
+		// PREVIEW PREP *************************
+		if(run_mode_counter == 1){
+			lcd_set_cursor(0, 0);
+			lcd_printstr("Select Point");
+			if(!saved_prev) lcd_printstr("*");
+			else lcd_printstr(" ");
+				
+			lcd_set_cursor(17, 0); 
+			lcd_printstr(string_preview);
+			
+			lcd_set_cursor(0, 3);
+			lcd_printstr(preview_mode);
+		}
+		// **************************************
+		
+		
+		// WELDING PREP ****************************************
+		if(run_mode_counter == 2){
+			lcd_set_cursor(0, 0);
+			lcd_printstr("Set Speed");
+			lcd_set_cursor(17, 0);
+			if(speed_mode_counter == 0) lcd_printstr(low_speed);
+			else if(speed_mode_counter == 1) lcd_printstr(med_speed);
+			else if(speed_mode_counter == 2){
+				lcd_set_cursor(16, 0);
+				lcd_printstr(high_speed);
+			}
+			
+			lcd_set_cursor(0, 1);
+			lcd_printstr("Total Mapped");
+			lcd_set_cursor(17, 1);
+			lcd_printint(total_mapped_points);
+			
+			lcd_set_cursor(0, 3);
+			lcd_printstr(welding_mode);
+		}
+		// *****************************************************
+		
+		
+		// SHOW CURRENT MENU ******
+		lcd_set_cursor(14, 3);
+		lcd_printstr(preparation);
+		// ************************
+	}
+	//////////////////////////////////////////////////////////
+	
+	
+	/* MAPPING MENU 1 *////////////////////////////////////////////
+	else if(menu == MAPPING_MENU && mapping_menu_counter == 0){
+		// SHOW CARTESIAN COORDINATE **********
+		if(ctrl_mode_counter == 0){
+			lcd_set_cursor(9, move_var_counter);
+			lcd_printstr("<");
+			
+			lcd_set_cursor(0, 0);	
+			lcd_printstr("XP:");
+			lcd_printfloat(pos_value[0], 1);
+			lcd_set_cursor(0, 1);
+			lcd_printstr("YP:");
+			lcd_printfloat(pos_value[1], 1);
+			lcd_set_cursor(0, 2);
+			lcd_printstr("ZP:");
+			lcd_printfloat(pos_value[2], 1);
+			
+			lcd_set_cursor(15, 3);
+			lcd_printstr(pos_ctrl);
+		}
+		// ************************************
+		
+		
+		// SHOW JOINT ANGLE ***********************
+		else if(ctrl_mode_counter == 1){
+			if(move_var_counter < 3){
+				lcd_set_cursor(9, move_var_counter);
+				lcd_printstr("<");
+			}
+			
+			else if(move_var_counter > 2){
+				lcd_set_cursor(19, move_var_counter-3);
+				lcd_printstr("<");
+			}
+		
+			lcd_set_cursor(0, 0);			
+			lcd_printstr("A1:");			
+			lcd_printfloat(angle_value[0], 1);				
+			lcd_set_cursor(0, 1);			
+			lcd_printstr("A2:");			
+			lcd_printfloat(angle_value[1], 1);				
+			lcd_set_cursor(0, 2);			
+			lcd_printstr("A3:");			
+			lcd_printfloat(angle_value[2], 1);				
+			
+			lcd_set_cursor(10, 0);
+			lcd_printstr("A4:");
+			lcd_printfloat(angle_value[3], 1);
+			lcd_set_cursor(10, 1);
+			lcd_printstr("A5:");
+			lcd_printfloat(angle_value[4], 1);
+			lcd_set_cursor(10, 2);
+			lcd_printstr("A6:");
+			lcd_printfloat(angle_value[5], 1);
+			
+			lcd_set_cursor(15, 3);
+			lcd_printstr(angle_ctrl);
+		}
+		// ****************************************
+		
+		
+		// CONTINUES MOVE **************************************
+		lcd_set_cursor(0, 3);	
+		if(change_value_counter == 0) lcd_printstr(cont_change);
+		
+		else if(change_value_counter == 1){
+			lcd_printstr(dist_change);
+			lcd_set_cursor(6, 3);	
+			lcd_printstr(string_distance);
+			
+			if(!saved_dist && add_col != 0){
+				lcd_set_cursor(6+add_col, 3);	
+				lcd_printstr("* ");
+			} 
+			else if(!saved_dist && add_col == 0){
+				lcd_set_cursor(7, 3);	
+				lcd_printstr("* ");
+			}
+		}
+		// *****************************************************
+		
+		
+		// STEP MOVE ************************************************
+		else if(change_value_counter == 2) lcd_printstr(step_change);
+		// **********************************************************
+		
+		// SHOW CURRENT MENU ************************************
+		lcd_set_cursor(7, 3); 
+		if(change_value_counter != 1) lcd_printstr(mapping_menu);
+		// ******************************************************
+	}
+	///////////////////////////////////////////////////////////////
+	
+	
+	/* MAPPING MENU 2 *//////////////////////////////////////////////
+	else if(menu == MAPPING_MENU && mapping_menu_counter == 1){
+		// SHOW CURRENT WELDING INFO **********************************
+		lcd_set_cursor(19, move_var_counter);
+		lcd_printstr("<");
 		
 		lcd_set_cursor(0, 0);
-		lcd_printstr("Memory");
+		lcd_printstr("Strt Point:");
+		if(start_point_counter != 0) lcd_printint(start_point_counter);
+		else lcd_printstr("-");
+		
 		lcd_set_cursor(0, 1);
-		lcd_printstr("Speed");
+		lcd_printstr("End Point :");
+		if(end_point_counter != 0)  lcd_printint(end_point_counter);
+		else lcd_printstr("-");
+		
+		lcd_set_cursor(0, 2);
+		lcd_printstr("Pattern   :");
+		if(pattern_sel_counter == 0) lcd_printstr(linear_mode);
+		else if(pattern_sel_counter == 1) lcd_printstr(circular_mode);
+		else if(pattern_sel_counter == 2) lcd_printstr(wave_mode);
 		
 		lcd_set_cursor(0, 3);
-		if(run_mode_counter == 0) lcd_printstr(pattern_mode);
-		if(run_mode_counter == 1) lcd_printstr(repeat_mode);
+		lcd_printstr(mapping_menu);
+		
+		lcd_set_cursor(15 , 3);
+		lcd_printstr(mem_menu);
+		// ************************************************************
 	}
+	/////////////////////////////////////////////////////////////////
 	
-	else if(menu == RUNNING_MENU_1){
+	
+	/* MAPPING MENU 3 *//////////////////////////////////////////////
+	else if(menu == MAPPING_MENU && mapping_menu_counter == 2){
+		// SHOW CURRENT WELDING INFO **********************************
+		lcd_set_cursor(19, move_var_counter);
+		lcd_printstr("<");
+		
+		lcd_set_cursor(0, 0);
+		lcd_printstr("Strt Point:");
+		if(start_point_counter != 0) lcd_printint(start_point_counter);
+		else lcd_printstr("-");
+		
+		lcd_set_cursor(0, 1);
+		lcd_printstr("End Point :");
+		if(end_point_counter != 0)  lcd_printint(end_point_counter);
+		else lcd_printstr("-");
+		
+		lcd_set_cursor(0, 2);
+		lcd_printstr("Pattern   :");
+		if(pattern_sel_counter == 0) lcd_printstr(linear_mode);
+		else if(pattern_sel_counter == 1) lcd_printstr(circular_mode);
+		else if(pattern_sel_counter == 2) lcd_printstr(wave_mode);
+		
+		lcd_set_cursor(0, 3);
+		lcd_printstr(mapping_menu);
+		
+		lcd_set_cursor(15 , 3);
+		lcd_printstr(mem_menu);
+		// ************************************************************
 	}
+	/////////////////////////////////////////////////////////////////
 	
-	else if(menu == RUNNING_MENU_2){
+	
+	/* PREVIEW MENU *///////////////////////////////////
+	else if(menu == PREVIEW_MENU){
+		lcd_set_cursor(0, 0);
+		lcd_printstr("Point Pos");
+		lcd_set_cursor(17, 0);
+		lcd_printint(preview_point);
+		
+		lcd_set_cursor(0, 1);
+		lcd_printstr("Welding Speed");
+		lcd_set_cursor(17, 1);
+		lcd_printint(running_speed);
+		
+		lcd_set_cursor(0, 3);
+		lcd_printstr(running_menu);
+		
+		if(preview_pattern == 0){
+			lcd_set_cursor(19 - sizeof(linear_mode), 3);
+			lcd_printstr("(");
+			lcd_printstr(linear_mode);
+			lcd_printstr(")");
+		}
+		else if(preview_pattern == 1){
+			lcd_set_cursor(17 - sizeof(circular_mode), 3);
+			lcd_printstr(circular_mode);
+		}
+		else if(preview_pattern == 2){
+			lcd_set_cursor(17 - sizeof(wave_mode), 3);
+			lcd_printstr(wave_mode);
+		}
 	}
+	///////////////////////////////////////////////////
 	
-	else if(menu == RUNNING_MENU_3){
+	/* WELDING MENU */
+	else if(menu == WELDING_MENU){
 	}
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

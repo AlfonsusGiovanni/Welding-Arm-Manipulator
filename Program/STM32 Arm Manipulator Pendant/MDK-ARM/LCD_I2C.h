@@ -10,10 +10,12 @@ Date		: 22 October 2023
 #include "stdbool.h"
 #include "string.h"
 #include "stdio.h"
+#include "stdlib.h"
 #include "math.h"
 
 
 /*---ADDRESS---*/
+#define I2C_EXPANDER_ADDR		0x27
 #define LCD_WRITE_ADDR 			0x4E
 #define LCD_READ_ADDR 			0x4F
 #define ROW_ADDR_1 					0x00
@@ -69,6 +71,11 @@ Date		: 22 October 2023
 #define LCD_FTYPE_5X10 	0x04
 
 
+/*---BACKLIGHT SET---*/
+#define BACKLIGHT_ON		0x08
+#define BACKLIGHT_OFF		0x00
+
+
 /*---LCD STATUS TYPEDEF---*/
 typedef enum{
 	LCD_OK = 0x01U,
@@ -98,5 +105,8 @@ void lcd_printfloat(float input, uint8_t precision);
 
 // LCD CLEAR
 void lcd_clear(void);
+
+// LCD BACKLIGHT SET
+void lcd_backlight(uint8_t state);
 
 #endif

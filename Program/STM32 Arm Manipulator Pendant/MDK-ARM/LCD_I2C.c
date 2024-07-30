@@ -99,3 +99,8 @@ void lcd_clear(){
 	send_cmd(LCD_CLEAR);
 	HAL_Delay(2);
 }
+
+// LCD BACKLIGHT SET
+void lcd_backlight(uint8_t state){
+	
+}

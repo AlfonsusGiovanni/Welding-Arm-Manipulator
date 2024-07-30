@@ -33,6 +33,7 @@ stm32 arm manipulator pendant\main.o: ../MDK-ARM/LCD_I2C.h
 stm32 arm manipulator pendant\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h
 stm32 arm manipulator pendant\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
 stm32 arm manipulator pendant\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+stm32 arm manipulator pendant\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h
 stm32 arm manipulator pendant\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
 stm32 arm manipulator pendant\main.o: ../MDK-ARM/Keypad_Driver.h
 stm32 arm manipulator pendant\main.o: ../MDK-ARM/RS232_Driver.h

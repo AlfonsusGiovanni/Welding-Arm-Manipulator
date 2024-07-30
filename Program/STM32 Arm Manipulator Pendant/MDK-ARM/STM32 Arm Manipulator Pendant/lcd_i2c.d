@@ -33,4 +33,5 @@ stm32 arm manipulator pendant\lcd_i2c.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm
 stm32 arm manipulator pendant\lcd_i2c.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h
 stm32 arm manipulator pendant\lcd_i2c.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
 stm32 arm manipulator pendant\lcd_i2c.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+stm32 arm manipulator pendant\lcd_i2c.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h
 stm32 arm manipulator pendant\lcd_i2c.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h

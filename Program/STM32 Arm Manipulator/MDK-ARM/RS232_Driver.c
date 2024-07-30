@@ -14,9 +14,9 @@ void RS232_Init(UART_HandleTypeDef* huart_handler){
 }
 
 /*CHECKSUM FUNCTION*/
-static uint16_t checksum_generator(uint8_t* arr, uint16_t size){
+static uint16_t checksum_generator(uint8_t* arr, size_t size){
 	uint16_t chksm = 0;
-	for(uint16_t i = 0; i < size; i++) chksm += arr[i];
+	for(uint16_t i=0; i<size; i++) chksm += arr[i];
 	return (chksm & 0xFFFF);
 }
 
@@ -32,37 +32,33 @@ void Send_auto_home(void){
 	chcksum_L = chcksum & 0xFF,
 	chcksum_H = (chcksum >> 8) & 0xFF;
 	
-	tx_buff[62] = chcksum_L;
-	tx_buff[63] = chcksum_H;
+	tx_buff[62] = chcksum_H;
+	tx_buff[63] = chcksum_L;
 	
 	HAL_UART_Transmit(huart, tx_buff, sizeof(tx_buff), RS232_TIMEOUT);
 }
 
-/*SEND MAPPING MODE COMMAND*/
-void Send_mapping_mode(Memory_Pattern_t pattern_select){
-	uint8_t mapping[BUFF_SIZE] = {HEADER1, HEADER2, MAPPING_MODE_CMD, pattern_select};
-	uint16_t chcksum = checksum_generator(mapping, sizeof(mapping));
+/*SEND MAPPING MODE DATA COMMAND*/
+void Send_mapping(uint16_t point_num, Welding_Point_t point_type, Welding_Pattern_t pattern_type, uint8_t speed){
+	uint8_t mapping_data[BUFF_SIZE] = {HEADER1, HEADER2, MAPPING_MODE_CMD, point_type, pattern_type, speed};
+	uint16_t chcksum = checksum_generator(mapping_data, sizeof(mapping_data));
 	
 	uint8_t
 	chcksum_L = chcksum & 0xFF,
 	chcksum_H = (chcksum >> 8) & 0xFF;
 	
-	mapping[62] = chcksum_L;
-	mapping[63] = chcksum_H;
+	mapping_data[62] = chcksum_H;
+	mapping_data[63] = chcksum_L;
 	
-	HAL_UART_Transmit(huart, mapping, sizeof(mapping), RS232_TIMEOUT);
-}
-
-/*SEND MAPPING DATA COMMAND*/
-void Send_mapping_data(Point_Pattern_t point_num){
+	HAL_UART_Transmit(huart, mapping_data, sizeof(mapping_data), RS232_TIMEOUT);
 }
 
 /*SEND MOVE COMMAND*/
-void Send_move(Ctrl_Mode_t control_mode, double* value){
+void Send_move(Ctrl_Mode_t control_mode, double* value, size_t size){
 }
 
 /*SEND RUNNING COMMAND*/
-void Send_running(Run_State_t state, Run_Mode_t mode, Memory_Pattern_t pattern_select, Speed_t speed){
+void Send_running(Run_State_t state, Run_Mode_t mode){
 }
 
 /*SEND POSISITON REQ COMMAND*/
@@ -74,8 +70,8 @@ void Req_position(void){
 	chcksum_L = chcksum & 0xFF,
 	chcksum_H = (chcksum >> 8) & 0xFF;
 	
-	req[62] = chcksum_L;
-	req[63] = chcksum_H;
+	req[62] = chcksum_H;
+	req[63] = chcksum_L;
 	
 	HAL_UART_Transmit(huart, req, sizeof(req), RS232_TIMEOUT);
 }
@@ -89,14 +85,14 @@ void Req_angle(void){
 	chcksum_L = chcksum & 0xFF,
 	chcksum_H = (chcksum >> 8) & 0xFF;
 	
-	req[62] = chcksum_L;
-	req[63] = chcksum_H;
+	req[62] = chcksum_H;
+	req[63] = chcksum_L;
 	
 	HAL_UART_Transmit(huart, req, sizeof(req), RS232_TIMEOUT);
 }
 
 /*SEND REQUESTED VALUE COMMAND*/
-void Send_req(Req_t req_var, double* value){
+void Send_req(Req_t req_var, double* value, uint16_t *mapped_point, size_t size){
 	uint8_t 
 	new_valueX[8],
 	new_valueY[8],
@@ -141,14 +137,19 @@ void Send_req(Req_t req_var, double* value){
 			send_req[i+44] 	= new_valueA6[i]; // 44th bit - 51th bit
 		}
 	}
+	
+	else if(req_var == SEND_MAPPED_POINT){
+		for(size_t i=0; i<size; i++) send_req[i+4] = mapped_point[i];
+	}
+	
 	uint16_t chcksum = checksum_generator(send_req, sizeof(send_req));
 	
 	uint8_t
 	chcksum_L = chcksum & 0xFF,
 	chcksum_H = (chcksum >> 8) & 0xFF;
 	
-	send_req[62] = chcksum_L;
-	send_req[63] = chcksum_H;
+	send_req[62] = chcksum_H;
+	send_req[63] = chcksum_L;
 	
 	HAL_UART_Transmit(huart, send_req, sizeof(send_req), RS232_TIMEOUT);
 }
@@ -170,8 +171,8 @@ void Send_feedback(Feedback_t fdbck){
 	chcksum_L = chcksum & 0xFF,
 	chcksum_H = (chcksum >> 8) & 0xFF;
 	
-	feed_buff[62] = chcksum_L;
-	feed_buff[63] = chcksum_H;
+	feed_buff[62] = chcksum_H;
+	feed_buff[63] = chcksum_L;
 	
 	HAL_UART_Transmit(huart, feed_buff, sizeof(feed_buff), RS232_TIMEOUT);
 }
@@ -225,7 +226,7 @@ void Get_command(Data_Get_t* get){
 				get->type = SEND_REQ;
 			}
 			
-			//CEHCK MOTOR STATE COMMAND
+			//CHECK MOTOR STATE COMMAND
 			else if(get_buff[i+2] == MOTOR_STATE_CMD){
 				get->type = MOTOR_STATE;
 			}
@@ -233,13 +234,15 @@ void Get_command(Data_Get_t* get){
 			//CHECK WELDER STATE COMMAND
 			else if(get_buff[i+2] == WELDER_STATE_CMD){
 				get->type = WELDER_STATE;
-				get->welder_state = get_buff[i+3];
+				if(get_buff[i+3] == WELDER_ON) get->welder_state = WELDER_ON;
+				if(get_buff[i+3] == WELDER_OFF) get->welder_state = WELDER_OFF;
 			}
 			
 			//CHECK FEEDBACK COMMAND
 			else if(get_buff[i+2] == FEEDBACK_CMD){
 				get->type = FEEDBACK;
-				get->feedback = get_buff[i+3];
+				if(get_buff[i+3] == AUTO_HOME_DONE) get->feedback = AUTO_HOME_DONE;
+				if(get_buff[i+3] == DISTANCE_MOVE_DONE) get->feedback = DISTANCE_MOVE_DONE;
 			}
 		}
 	}
