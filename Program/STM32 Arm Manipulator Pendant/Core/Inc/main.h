@@ -67,10 +67,6 @@ void Error_Handler(void);
 #define RS232_TXD_GPIO_Port GPIOA
 #define RS232_RXD_Pin GPIO_PIN_10
 #define RS232_RXD_GPIO_Port GPIOA
-#define EEPROM_SCL_Pin GPIO_PIN_6
-#define EEPROM_SCL_GPIO_Port GPIOB
-#define EEPROM_SDA_Pin GPIO_PIN_7
-#define EEPROM_SDA_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

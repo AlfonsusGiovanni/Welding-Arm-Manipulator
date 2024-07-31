@@ -92,7 +92,7 @@ Driver_t Stepper_Driver6;
 /*ROBOT TEST SET*/
 //-------------------
 #define EEPROM_TEST
-#define RS232_TEST
+//#define RS232_TEST
 //#define STEPPER_TEST
 //-------------------
 
@@ -336,20 +336,20 @@ int main(void)
 	/*EEPROM TEST*/
 	//---------------------------------------------------------------------------------------------
 	#ifdef EEPROM_TEST
-	EEPROM_PageReset(&eeprom, 0x000);
-	HAL_Delay(500);
-	EEPROM_PageReset(&eeprom, 0x100);
-	HAL_Delay(500);
+//	EEPROM_PageReset(&eeprom, 0x000);
+//	HAL_Delay(500);
+//	EEPROM_PageReset(&eeprom, 0x100);
+//	HAL_Delay(500);
 	
 	double 
 	test_pos_start[3] = {-40.96, 12.15, -37.42},
 	test_pos_end[3] = {-20.96, 2.15, -37.42},
 	test_angle_start[6] = {70.55, -45.5, 90.58, 150.45, 55.17, 178.77};
 	
-//	Save_WeldingPoint_Position(0x00, START_POINT_BYTE_ADDR, test_pos_start, sizeof(test_pos_start));
-//	Save_WeldingPoint_Position(0x00, END_POINT_BYTE_ADDR, test_pos_end, sizeof(test_pos_end));
-//	Save_WeldingPoint_Angle(0x00, START_POINT_BYTE_ADDR, test_angle_start, sizeof(test_angle_start));
-//	Save_WeldingPoint_Pattern(0x00, LINEAR_PATTERN);
+	Save_WeldingPoint_Position(0x00, START_POINT_BYTE_ADDR, test_pos_start, sizeof(test_pos_start));
+	Save_WeldingPoint_Position(0x00, END_POINT_BYTE_ADDR, test_pos_end, sizeof(test_pos_end));
+	Save_WeldingPoint_Angle(0x00, START_POINT_BYTE_ADDR, test_angle_start, sizeof(test_angle_start));
+	Save_WeldingPoint_Pattern(0x00, LINEAR_PATTERN);
 	HAL_Delay(500);
 	Read_WeldingPoint_Position(0x00, START_POINT_BYTE_ADDR, array_pos_start, sizeof(array_pos_start));
 	Read_WeldingPoint_Position(0x00, END_POINT_BYTE_ADDR, array_pos_end, sizeof(array_pos_end));

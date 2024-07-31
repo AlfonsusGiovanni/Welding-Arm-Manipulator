@@ -26,7 +26,15 @@ stm32 arm manipulator\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_
 stm32 arm manipulator\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash_ex.h
 stm32 arm manipulator\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_i2c.h
 stm32 arm manipulator\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h
+stm32 arm manipulator\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_spi.h
 stm32 arm manipulator\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h
+stm32 arm manipulator\main.o: ../FATFS/App/fatfs.h
+stm32 arm manipulator\main.o: ../Middlewares/Third_Party/FatFs/src/ff.h
+stm32 arm manipulator\main.o: ../Middlewares/Third_Party/FatFs/src/integer.h
+stm32 arm manipulator\main.o: ../FATFS/Target/ffconf.h
+stm32 arm manipulator\main.o: ../Middlewares/Third_Party/FatFs/src/ff_gen_drv.h
+stm32 arm manipulator\main.o: ../Middlewares/Third_Party/FatFs/src/diskio.h
+stm32 arm manipulator\main.o: ../FATFS/Target/user_diskio.h
 stm32 arm manipulator\main.o: ../MDK-ARM/TB6600_Driver.h
 stm32 arm manipulator\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h
 stm32 arm manipulator\main.o: ../MDK-ARM/EEPROM_lib.h

@@ -1,3 +1,0 @@
-lenovo
-LAPTOP-91Q33H10 
-30 July 2024  21:28:48

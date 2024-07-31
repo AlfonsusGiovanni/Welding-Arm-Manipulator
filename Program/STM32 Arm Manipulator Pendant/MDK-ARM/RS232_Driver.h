@@ -88,6 +88,7 @@ typedef enum{
 	LINEAR = 0x01,
 	CIRCULAR,
 	WAVE,
+	NOT_SET,
 }Welding_Pattern_t;
 ////////////////////////////////
 
@@ -96,8 +97,9 @@ typedef enum{
 ///////////////////////////////////
 typedef enum{
 	START_POINT =  0x01,
-	END_POINT
-}Welding_Point_t;
+	END_POINT,
+	PATTERN,
+}Data_type_t;
 ///////////////////////////////////
 
 
@@ -170,7 +172,7 @@ typedef struct{
 	Run_State_t running_state;
 	Run_Mode_t running_mode;
 	Welding_Pattern_t pattern_type;
-	Welding_Point_t point_type;
+	Data_type_t data_type;
 	Mapping_State_t mapping_state;
 	Req_t requested_variable;
 	Motor_State_t motor_state;
@@ -189,7 +191,7 @@ static uint16_t checksum_generator(uint8_t* arr, size_t size);
 /*TRANSMITING COMMAND*/
 //----------------------------------------------------------------------------------------------------
 void Send_auto_home(void);
-void Send_mapping(uint16_t point_num, Welding_Point_t point_type, Welding_Pattern_t pattern_type, uint8_t speed, Mapping_State_t map_state);
+void Send_mapping(uint8_t point_num, Data_type_t point_type, Welding_Pattern_t pattern_type, uint8_t speed, Mapping_State_t map_state);
 void Send_preview(uint16_t point_num);
 
 void Send_move(Ctrl_Mode_t control_mode, double* value, size_t size);

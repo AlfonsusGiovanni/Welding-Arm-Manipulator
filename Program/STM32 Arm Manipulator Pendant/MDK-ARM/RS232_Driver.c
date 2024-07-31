@@ -39,8 +39,8 @@ void Send_auto_home(void){
 }
 
 /*SEND MAPPING MODE DATA COMMAND*/
-void Send_mapping(uint16_t point_num, Welding_Point_t point_type, Welding_Pattern_t pattern_type, uint8_t speed, Mapping_State_t map_state){
-	uint8_t mapping_data[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, MAPPING_MODE_CMD, point_type, pattern_type, speed, map_state};
+void Send_mapping(uint8_t point_num, Data_type_t point_type, Welding_Pattern_t pattern_type, uint8_t speed, Mapping_State_t map_state){
+	uint8_t mapping_data[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, MAPPING_MODE_CMD, point_num, point_type, pattern_type, speed, map_state};
 	uint16_t chcksum = checksum_generator(mapping_data, sizeof(mapping_data));
 	
 	uint8_t
