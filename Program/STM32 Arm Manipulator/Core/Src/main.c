@@ -92,7 +92,7 @@ Driver_t Stepper_Driver6;
 /*ROBOT TEST SET*/
 //-------------------
 #define EEPROM_TEST
-//#define RS232_TEST
+#define RS232_TEST
 //#define STEPPER_TEST
 //-------------------
 
@@ -142,12 +142,19 @@ read_saved_pattern[1];
 /*MOVE VARIABLE*/
 ///////////////////
 double
+current_position[3],
 move_position[3],
 prev_position[3],
 delta_move_pos[3],
+
+current_angle[6],
 move_angle[6], 
 delta_move_ang[6],
 prev_angle[6];
+
+uint8_t
+current_point,
+current_speed;
 ///////////////////
 
 
@@ -192,8 +199,9 @@ void Read_WeldingPoint_Pattern(uint16_t page_select, uint8_t store_pattern);
 /*RS232 CONFIGURATION*/
 //------------------------------------------------------
 uint32_t RS232_state, RS232_err_status;
+uint8_t dummy_byte[3];
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
-	Get_command(&command);
+	//Get_command(&command);
 	RS232_state = check_state();
 	RS232_err_status = check_error();
 }
@@ -219,7 +227,7 @@ int main(void)
 	Stepper_Driver1.ENA_PORT = ENABLE_GPIO_Port;
 	Stepper_Driver1.ENA_PIN = ENABLE_Pin;
 	Stepper_Driver1.driver_step = 200;
-	Driver_set_power(&Stepper_Driver1, DRIVER_ENABLE);
+	Driver_set_power(&Stepper_Driver1, DRIVER_ENABLE); 
 	//-------------------------------------------------
 	
 	
@@ -346,15 +354,15 @@ int main(void)
 	test_pos_end[3] = {-20.96, 2.15, -37.42},
 	test_angle_start[6] = {70.55, -45.5, 90.58, 150.45, 55.17, 178.77};
 	
-	Save_WeldingPoint_Position(0x00, START_POINT_BYTE_ADDR, test_pos_start, sizeof(test_pos_start));
-	Save_WeldingPoint_Position(0x00, END_POINT_BYTE_ADDR, test_pos_end, sizeof(test_pos_end));
-	Save_WeldingPoint_Angle(0x00, START_POINT_BYTE_ADDR, test_angle_start, sizeof(test_angle_start));
-	Save_WeldingPoint_Pattern(0x00, LINEAR_PATTERN);
-	HAL_Delay(500);
-	Read_WeldingPoint_Position(0x00, START_POINT_BYTE_ADDR, array_pos_start, sizeof(array_pos_start));
-	Read_WeldingPoint_Position(0x00, END_POINT_BYTE_ADDR, array_pos_end, sizeof(array_pos_end));
-	Read_WeldingPoint_Angle(0x00, START_POINT_BYTE_ADDR, array_angle, sizeof(array_angle));
-	Read_WeldingPoint_Pattern(0x00, welding_pattern);
+//	Save_WeldingPoint_Position(0x00, START_POINT_BYTE_ADDR, test_pos_start, sizeof(test_pos_start));
+//	Save_WeldingPoint_Position(0x00, END_POINT_BYTE_ADDR, test_pos_end, sizeof(test_pos_end));
+//	Save_WeldingPoint_Angle(0x00, START_POINT_BYTE_ADDR, test_angle_start, sizeof(test_angle_start));
+//	Save_WeldingPoint_Pattern(0x00, LINEAR_PATTERN);
+//	HAL_Delay(500);
+//	Read_WeldingPoint_Position(0x00, START_POINT_BYTE_ADDR, array_pos_start, sizeof(array_pos_start));
+//	Read_WeldingPoint_Position(0x00, END_POINT_BYTE_ADDR, array_pos_end, sizeof(array_pos_end));
+//	Read_WeldingPoint_Angle(0x00, START_POINT_BYTE_ADDR, array_angle, sizeof(array_angle));
+//	Read_WeldingPoint_Pattern(0x00, welding_pattern);
   #endif
 	//---------------------------------------------------------------------------------------------
 	
@@ -366,33 +374,56 @@ int main(void)
   while (1)
   {
 		#ifdef RS232_TEST
+		Get_command(&command);
+		
+		for(int i=0; i<6; i++){
+			if(i<3) current_position[i] = test_pos_start[i] + move_position[i];
+			current_angle[i]  = test_angle_start[i] + move_angle[i];
+		}
+		
 		if(command.type == AUTO_HOME){
 			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-			HAL_Delay(250);
-			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
-			HAL_Delay(1250);
-			
-			for(int i=0; i<50; i++){
-				Send_feedback(AUTO_HOME_DONE);
-				HAL_Delay(10);
-			}
-			command.type = NONE;
 		}
 		
 		else if(command.type == MAPPING){
-			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-			rx_savepoint = command.point_num;
-			rx_patterntype[rx_savepoint] = command.pattern_type;
 			
-			if(command.point_type == START_POINT){
-				rx_pointtype = START_POINT_BYTE_ADDR;
-				Save_WeldingPoint_Position(rx_savepoint, rx_pointtype, test_pos_start, sizeof(test_pos_start));
-				Save_WeldingPoint_Angle(rx_savepoint, rx_pointtype, test_angle_start, sizeof(test_angle_start));
+		}
+		
+		else if(command.type == PREVIEW){
+			
+		}
+		
+		else if(command.type == MOVE){
+			if(command.control_mode == CARTESIAN_CTRL){
+				move_position[command.move_variable-1] = command.move_value;
 			}
-			else if(command.point_type == END_POINT){
-				rx_pointtype = END_POINT_BYTE_ADDR;
-				Save_WeldingPoint_Position(rx_savepoint, rx_pointtype, test_pos_end, sizeof(test_pos_end));
+			
+			else if(command.control_mode == JOINT_CTRL){
+				move_angle[command.move_variable-4] = command.move_value;
 			}
+		}
+		
+		else if(command.type == RUN){
+		}
+		
+		else if(command.type == REQ_DATA){
+			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+			Send_requested_data(current_position, current_angle, current_point, NOT_SET, current_speed); 
+		}
+		
+		else if(command.type == SEND_REQ){
+		}
+		
+		else if(command.type == MOTOR_STATE){
+		}
+		
+		else if(command.type == WELDER_STATE){
+		}
+		
+		else if(command.type == FEEDBACK){
+		}
+		
+		else if(command.type == NONE){
 		}
 		
 		else HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
@@ -422,7 +453,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL2;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -437,7 +468,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     Error_Handler();
   }
@@ -504,7 +535,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
