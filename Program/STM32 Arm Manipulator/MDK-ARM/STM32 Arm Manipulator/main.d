@@ -27,6 +27,8 @@ stm32 arm manipulator\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_
 stm32 arm manipulator\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_i2c.h
 stm32 arm manipulator\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h
 stm32 arm manipulator\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_spi.h
+stm32 arm manipulator\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h
+stm32 arm manipulator\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h
 stm32 arm manipulator\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h
 stm32 arm manipulator\main.o: ../FATFS/App/fatfs.h
 stm32 arm manipulator\main.o: ../Middlewares/Third_Party/FatFs/src/ff.h
@@ -40,3 +42,4 @@ stm32 arm manipulator\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h
 stm32 arm manipulator\main.o: ../MDK-ARM/EEPROM_lib.h
 stm32 arm manipulator\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
 stm32 arm manipulator\main.o: ../MDK-ARM/RS232_Driver.h
+stm32 arm manipulator\main.o: ../MDK-ARM/fatfs_sd.h

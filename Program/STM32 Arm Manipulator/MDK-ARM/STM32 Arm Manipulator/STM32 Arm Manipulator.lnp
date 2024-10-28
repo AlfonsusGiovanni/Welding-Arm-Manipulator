@@ -6,6 +6,7 @@
 "stm32 arm manipulator\tb6600_driver.o"
 "stm32 arm manipulator\eeprom_lib.o"
 "stm32 arm manipulator\rs232_driver.o"
+"stm32 arm manipulator\fatfs_sd.o"
 "stm32 arm manipulator\stm32f1xx_hal_gpio_ex.o"
 "stm32 arm manipulator\stm32f1xx_hal.o"
 "stm32 arm manipulator\stm32f1xx_hal_rcc.o"
@@ -29,6 +30,7 @@
 "stm32 arm manipulator\ff.o"
 "stm32 arm manipulator\ff_gen_drv.o"
 "stm32 arm manipulator\syscall.o"
+"stm32 arm manipulator\ccsbcs.o"
 --strict --scatter "STM32 Arm Manipulator\STM32 Arm Manipulator.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers

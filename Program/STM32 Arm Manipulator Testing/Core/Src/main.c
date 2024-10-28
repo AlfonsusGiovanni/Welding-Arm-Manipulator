@@ -51,6 +51,8 @@ EEPROM_t eeprom;
 I2C_HandleTypeDef hi2c1;
 I2C_HandleTypeDef hi2c2;
 
+TIM_HandleTypeDef htim1;
+
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart1_rx;
@@ -75,7 +77,11 @@ typedef enum{
 
 stepper_dir direction;
 
-float step;
+float 
+step;
+
+double 
+resolution = 1.8;
 
 int
 delta_pos,
@@ -83,6 +89,10 @@ pos_now,
 prev_pos;
 
 uint8_t stored_welding_data[3];
+
+uint8_t 
+encoder_A,
+encoder_B;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -93,6 +103,7 @@ static void MX_USART1_UART_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_I2C2_Init(void);
+static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 void stepper_run(uint16_t input_pos, uint16_t speed);
 void Save_Pattern_Position(double* pos_data, uint8_t size);
@@ -116,6 +127,12 @@ send_position[3];
 
 uint32_t receive_position[3];
 
+int16_t 
+encoder_angle,
+encoder_pos;
+
+uint32_t counter;
+
 void HAL_UART_RXCpltCallback(UART_HandleTypeDef *huart){
 	if(huart->Instance == USART1){
 		
@@ -123,6 +140,11 @@ void HAL_UART_RXCpltCallback(UART_HandleTypeDef *huart){
 	if(huart->Instance == USART2){
 		
 	}
+}
+
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
+	counter = __HAL_TIM_GET_COUNTER(htim);
+	encoder_pos = (-1)*(int16_t)counter * 6;
 }
 
 /* USER CODE END 0 */
@@ -160,6 +182,7 @@ int main(void)
   MX_USART2_UART_Init();
   MX_I2C1_Init();
   MX_I2C2_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
 	EEPROM_Init(&hi2c1, &eeprom, MEM_SIZE_256Kb, 0xA0);
 	lcd_init(&hi2c2);
@@ -168,19 +191,20 @@ int main(void)
 	send_position[1] = posY;
 	send_position[2] = posZ;
 	
+	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+	//HAL_TIM_Encoder_Start_IT(&htim1, TIM_CHANNEL_ALL);
+	
+	int speed = 90;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-//		Save_Pattern_Position(send_position, sizeof(send_position));
-		uint8_t 
-		save_data[3] = {0x01, 0x02, 0x03};
-		EEPROM_PageWrite(&eeprom, 1, 0, save_data, sizeof(save_data));
-		HAL_Delay(50);
-		EEPROM_PageRead(&eeprom, 1, 0, stored_welding_data, sizeof(stored_welding_data));
-		HAL_Delay(50);
+		HAL_GPIO_WritePin(STEP_GPIO_Port, STEP_Pin, GPIO_PIN_SET);
+		DELAY_US(speed);
+		HAL_GPIO_WritePin(STEP_GPIO_Port, STEP_Pin, GPIO_PIN_RESET);
+		DELAY_US(speed);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -300,6 +324,56 @@ static void MX_I2C2_Init(void)
 }
 
 /**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_Encoder_InitTypeDef sConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 0;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 65535;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  sConfig.EncoderMode = TIM_ENCODERMODE_TI12;
+  sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC1Filter = 5;
+  sConfig.IC2Polarity = TIM_ICPOLARITY_FALLING;
+  sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC2Filter = 5;
+  if (HAL_TIM_Encoder_Init(&htim1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
+
+}
+
+/**
   * @brief USART1 Initialization Function
   * @param None
   * @retval None
@@ -411,9 +485,6 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0|GPIO_PIN_12, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, STEP_Pin|DIR_Pin|ENA_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : LED_Pin */
@@ -423,18 +494,11 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB0 PB12 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_12;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
   /*Configure GPIO pins : STEP_Pin DIR_Pin ENA_Pin */
   GPIO_InitStruct.Pin = STEP_Pin|DIR_Pin|ENA_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
@@ -455,8 +519,8 @@ void stepper_run(uint16_t input_pos, uint16_t speed){
 		direction = DIR_CCW;
 	}
 	
-	if(delta_pos < 0) step = (-1)*delta_pos / 1.8;
-	else step = delta_pos / 1.8;
+	if(delta_pos < 0) step = abs(delta_pos) / resolution;
+	else step = delta_pos / resolution;
 
 	HAL_GPIO_WritePin(ENA_GPIO_Port, ENA_Pin, GPIO_PIN_RESET);
 	

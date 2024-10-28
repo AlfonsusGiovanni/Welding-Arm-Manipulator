@@ -1,0 +1,46 @@
+<mxfile host="Electron" modified="2024-09-12T01:10:04.400Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.5.3 Chrome/124.0.6367.207 Electron/30.0.6 Safari/537.36" etag="gAlqm2q6O-TtDNsmLFs3" version="24.5.3" type="device">
+  <diagram name="Page-1" id="0RixSL0sLAx8ep4X2-oP">
+    <mxGraphModel dx="1050" dy="621" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="we7rl4E8Gua2gzRvt8d0-2" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="160" y="200" width="480" height="280" as="geometry" />
+        </mxCell>
+        <mxCell id="we7rl4E8Gua2gzRvt8d0-3" value="PWR&lt;div&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;INPUT&lt;/span&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="170" y="210" width="70" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="we7rl4E8Gua2gzRvt8d0-4" value="PENDANT&lt;div&gt;INPUT&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;rotation=0;" vertex="1" parent="1">
+          <mxGeometry x="170" y="440" width="70" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="we7rl4E8Gua2gzRvt8d0-5" value="SSR&lt;div&gt;SIGNAL&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;rotation=-90;" vertex="1" parent="1">
+          <mxGeometry x="150" y="380" width="70" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="we7rl4E8Gua2gzRvt8d0-6" value="ENCODER" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="250" y="420" width="380" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="we7rl4E8Gua2gzRvt8d0-7" value="STEPPER DRIVER" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="250" y="210" width="380" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="we7rl4E8Gua2gzRvt8d0-13" value="5V&lt;div&gt;BUCK&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="170" y="250" width="70" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="we7rl4E8Gua2gzRvt8d0-17" value="LIMIT SWITCH" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;rotation=-90;" vertex="1" parent="1">
+          <mxGeometry x="545" y="325" width="140" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="we7rl4E8Gua2gzRvt8d0-18" value="MAIN CONTROLLER" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="400" y="290" width="166" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="we7rl4E8Gua2gzRvt8d0-19" value="LED" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;rotation=0;" vertex="1" parent="1">
+          <mxGeometry x="250" y="360" width="50" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="we7rl4E8Gua2gzRvt8d0-21" value="POWER&lt;br&gt;VOLTAGE DISPLAY" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;rotation=0;" vertex="1" parent="1">
+          <mxGeometry x="310" y="290" width="70" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="we7rl4E8Gua2gzRvt8d0-22" value="3V3&lt;div&gt;BUCK&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="250" y="270" width="50" height="80" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

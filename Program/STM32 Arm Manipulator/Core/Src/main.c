@@ -25,6 +25,8 @@
 #include "TB6600_Driver.h"
 #include "EEPROM_lib.h"
 #include "RS232_Driver.h"
+#include "fatfs_sd.h"
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -62,6 +64,8 @@ Driver_t Stepper_Driver6;
 #define USE_EEPROM
 #define USE_RS232
 #define USE_STEPPER
+#define USE_SDCARD
+#define USE_ENCODER
 //----------------------
 
 
@@ -88,12 +92,13 @@ Driver_t Stepper_Driver6;
 //-----------------------------------
 
 
-
 /*ROBOT TEST SET*/
 //-------------------
-#define EEPROM_TEST
-#define RS232_TEST
-//#define STEPPER_TEST
+//#define EEPROM_TEST
+//#define RS232_TEST
+#define STEPPER_TEST
+//#define SDCARD_TEST
+//#define ENCODER_TEST
 //-------------------
 
 /* USER CODE END PD */
@@ -107,6 +112,8 @@ Driver_t Stepper_Driver6;
 I2C_HandleTypeDef hi2c1;
 
 SPI_HandleTypeDef hspi1;
+
+TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart1;
 DMA_HandleTypeDef hdma_usart1_rx;
@@ -177,6 +184,7 @@ static void MX_DMA_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_SPI1_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /*EEPROM CUSTOM FUNCTION*/
@@ -321,6 +329,7 @@ int main(void)
   MX_I2C1_Init();
   MX_SPI1_Init();
   MX_FATFS_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 	
 	/*EEPROM CONFIGURATION*/
@@ -338,6 +347,12 @@ int main(void)
 	Start_get_command();
 	Get_command(&command);
 	//-------------------------
+	#endif
+	
+	
+	/*ENCODER CONFIGURATION*/
+	#ifdef USE_ENCODER
+	
 	#endif
 	
 	
@@ -366,6 +381,9 @@ int main(void)
   #endif
 	//---------------------------------------------------------------------------------------------
 	
+	#ifdef SDCARD_TEST
+	
+	#endif
 	
   /* USER CODE END 2 */
 
@@ -535,7 +553,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -547,6 +565,55 @@ static void MX_SPI1_Init(void)
   /* USER CODE BEGIN SPI1_Init 2 */
 
   /* USER CODE END SPI1_Init 2 */
+
+}
+
+/**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_Encoder_InitTypeDef sConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 0;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 65535;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  sConfig.EncoderMode = TIM_ENCODERMODE_TI1;
+  sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC1Filter = 0;
+  sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC2Filter = 0;
+  if (HAL_TIM_Encoder_Init(&htim2, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
 
 }
 
@@ -611,7 +678,6 @@ static void MX_GPIO_Init(void)
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
@@ -621,14 +687,14 @@ static void MX_GPIO_Init(void)
                           |PULSE_4_Pin|DIR_4_Pin|PULSE_5_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, LED_Pin|ENABLE_Pin|PULSE_1_Pin|DIR_1_Pin
-                          |PULSE_2_Pin|PULSE_6_Pin|DIR_6_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, SD_CS_Pin|LED_Pin|ENABLE_Pin|PULSE_1_Pin
+                          |DIR_1_Pin|PULSE_2_Pin|PULSE_6_Pin|DIR_6_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : ENC_A_Pin ENC_B_Pin */
-  GPIO_InitStruct.Pin = ENC_A_Pin|ENC_B_Pin;
+  /*Configure GPIO pins : ENC2_A_Pin ENC2_B_Pin */
+  GPIO_InitStruct.Pin = ENC2_A_Pin|ENC2_B_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : SD_SS_Pin DIR_2_Pin PULSE_3_Pin DIR_3_Pin
                            PULSE_4_Pin DIR_4_Pin PULSE_5_Pin */
@@ -639,20 +705,20 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : SD_CS_Pin LED_Pin ENABLE_Pin PULSE_1_Pin
+                           DIR_1_Pin PULSE_2_Pin PULSE_6_Pin DIR_6_Pin */
+  GPIO_InitStruct.Pin = SD_CS_Pin|LED_Pin|ENABLE_Pin|PULSE_1_Pin
+                          |DIR_1_Pin|PULSE_2_Pin|PULSE_6_Pin|DIR_6_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
   /*Configure GPIO pin : PHASE_B6_Pin */
   GPIO_InitStruct.Pin = PHASE_B6_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(PHASE_B6_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : LED_Pin ENABLE_Pin PULSE_1_Pin DIR_1_Pin
-                           PULSE_2_Pin PULSE_6_Pin DIR_6_Pin */
-  GPIO_InitStruct.Pin = LED_Pin|ENABLE_Pin|PULSE_1_Pin|DIR_1_Pin
-                          |PULSE_2_Pin|PULSE_6_Pin|DIR_6_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : DIR_5_Pin */
   GPIO_InitStruct.Pin = DIR_5_Pin;
