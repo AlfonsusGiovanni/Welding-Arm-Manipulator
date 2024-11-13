@@ -63,7 +63,7 @@ Keypad_t keypad;
 
 //--- EEPROM TYPEDEF ---//
 //////////////////////////
-EEPROM_t eeprom;
+EEPROM_t eeprom1;
 
 typedef enum{
 	UPDATE_ALL = 0x01,
@@ -84,7 +84,7 @@ Data_Get_t command;
 
 /*EEPROM ADDRESS SET*/
 //-----------------------------------
-#define EEPROM_ADDRESS					0xA0
+#define EEPROM1_ADDRESS					0xA0
 #define DATA_BYTE_SHIFT					0x02
 #define DATA_PAGE_SHIFT					0x01
 //-----------------------------------
@@ -116,7 +116,6 @@ I2C_HandleTypeDef hi2c2;
 
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
-TIM_HandleTypeDef htim4;
 
 UART_HandleTypeDef huart1;
 DMA_HandleTypeDef hdma_usart1_rx;
@@ -152,7 +151,7 @@ total_mapped_points,
 preview_point, welding_point,
 preview_pattern, welding_pattern,
 preview_speed, welding_speed,
-max_welding_point = 250;
+max_welding_point = 350;
 
 float
 angle_value[6], move_angle_value[6],
@@ -243,7 +242,6 @@ static void MX_I2C2_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
-static void MX_TIM4_Init(void);
 /* USER CODE BEGIN PFP */
 
 // MENU HANDLER FUNCTION PROTOTYPE
@@ -253,11 +251,11 @@ bool check_numkeys_pressed(void);
 
 
 // EEPROM HANDLER FUNCTION PROTOTYPE
-void Save_WeldingData(uint8_t welding_point, uint8_t welding_pattern, uint8_t welding_speed);
-void Delete_WeldingData(uint8_t welding_point);
-void Read_WeldingData(uint8_t welding_point, uint8_t* stored_data);
-void Update_Data(Mem_Update_t update_type);
-void Format_mem(void);
+void Save_WeldingData(uint8_t welding_point, uint8_t welding_pattern, uint8_t welding_speed);		// SAVING WELDING DATA
+void Delete_WeldingData(uint8_t welding_point);																									// DELETE WELDING DATA
+void Read_WeldingData(uint8_t welding_point, uint8_t* stored_data);															// READ WELDING DATA
+void Update_Data(Mem_Update_t update_type);																											// UPDATE WELDING DATA
+void Format_mem(void);																																					// MEMORY FORMAT
 
 /* USER CODE END PFP */
 
@@ -342,7 +340,6 @@ int main(void)
   MX_USART1_UART_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
-  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
 
 	/*LCD CONFIGURATION*/
@@ -362,7 +359,7 @@ int main(void)
 	
 	/*EEPROM CONFIGURATION*/
 	//---------------------------------------------------------------------
-	EEPROM_Init(&hi2c1, &eeprom, MEM_SIZE_256Kb, 0xA0);
+	EEPROM_Init(&hi2c1, &eeprom1, MEM_SIZE_256Kb, 0xA0);
 	Update_Data(UPDATE_ALL);
 	//---------------------------------------------------------------------
 	
@@ -508,7 +505,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 400000;
+  hi2c1.Init.ClockSpeed = 100000;
   hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
@@ -651,55 +648,6 @@ static void MX_TIM3_Init(void)
 }
 
 /**
-  * @brief TIM4 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM4_Init(void)
-{
-
-  /* USER CODE BEGIN TIM4_Init 0 */
-
-  /* USER CODE END TIM4_Init 0 */
-
-  TIM_Encoder_InitTypeDef sConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-
-  /* USER CODE BEGIN TIM4_Init 1 */
-
-  /* USER CODE END TIM4_Init 1 */
-  htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 0;
-  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim4.Init.Period = 65535;
-  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  sConfig.EncoderMode = TIM_ENCODERMODE_TI1;
-  sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
-  sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
-  sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
-  sConfig.IC1Filter = 0;
-  sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
-  sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
-  sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
-  sConfig.IC2Filter = 0;
-  if (HAL_TIM_Encoder_Init(&htim4, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM4_Init 2 */
-
-  /* USER CODE END TIM4_Init 2 */
-
-}
-
-/**
   * @brief USART1 Initialization Function
   * @param None
   * @retval None
@@ -761,8 +709,8 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
@@ -2154,7 +2102,7 @@ bool check_numkeys_pressed(void){
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void Save_WeldingData(uint8_t welding_point, uint8_t welding_pattern, uint8_t welding_speed){
 	uint8_t save_data[3] = {welding_point, welding_pattern, welding_speed};
-	EEPROM_PageWrite(&eeprom, welding_point-1, 0, save_data, sizeof(save_data));
+	EEPROM_PageWrite(&eeprom1, welding_point-1, 0, save_data, sizeof(save_data));
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -2162,7 +2110,7 @@ void Save_WeldingData(uint8_t welding_point, uint8_t welding_pattern, uint8_t we
 /*--- DELETE WELDING DATA ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void Delete_WeldingData(uint8_t welding_point){
-	EEPROM_PageReset(&eeprom, welding_point-1, 0);
+	EEPROM_PageReset(&eeprom1, welding_point-1, 0);
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -2170,7 +2118,7 @@ void Delete_WeldingData(uint8_t welding_point){
 /*--- READ WELDING DATA ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void Read_WeldingData(uint8_t welding_point, uint8_t* stored_data){
-	EEPROM_PageRead(&eeprom, welding_point-1, 0, stored_data, sizeof(stored_data));
+	EEPROM_PageRead(&eeprom1, welding_point-1, 0, stored_data, sizeof(stored_data));
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -2213,8 +2161,8 @@ void Update_Data(Mem_Update_t update_type){
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void format_mem(void){
 	for(uint8_t i=0; i<max_welding_point; i++){
-		for(uint8_t j=0; j<64; j++){
-			EEPROM_ByteWrite(&eeprom, i, j, 0x00, 1);
+		for(uint8_t j=0; j<eeprom1.page_size; j++){
+			EEPROM_ByteWrite(&eeprom1, i, j, 0x00, 1);
 		}
 	}
 }

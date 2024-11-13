@@ -57,6 +57,24 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define KEYPAD_C1_Pin GPIO_PIN_1
+#define KEYPAD_C1_GPIO_Port GPIOA
+#define KEYPAD_C2_Pin GPIO_PIN_2
+#define KEYPAD_C2_GPIO_Port GPIOA
+#define KEYPAD_C3_Pin GPIO_PIN_3
+#define KEYPAD_C3_GPIO_Port GPIOA
+#define KEYPAD_C4_Pin GPIO_PIN_4
+#define KEYPAD_C4_GPIO_Port GPIOA
+#define KEYPAD_R1_Pin GPIO_PIN_5
+#define KEYPAD_R1_GPIO_Port GPIOA
+#define KEYPAD_R2_Pin GPIO_PIN_6
+#define KEYPAD_R2_GPIO_Port GPIOA
+#define KEYPAD_R3_Pin GPIO_PIN_7
+#define KEYPAD_R3_GPIO_Port GPIOA
+#define KEYPAD_R4_Pin GPIO_PIN_0
+#define KEYPAD_R4_GPIO_Port GPIOB
+#define KEYPAD_R5_Pin GPIO_PIN_1
+#define KEYPAD_R5_GPIO_Port GPIOB
 #define LCD_SCL_Pin GPIO_PIN_10
 #define LCD_SCL_GPIO_Port GPIOB
 #define LCD_SDA_Pin GPIO_PIN_11
@@ -67,6 +85,10 @@ void Error_Handler(void);
 #define RS232_TXD_GPIO_Port GPIOA
 #define RS232_RXD_Pin GPIO_PIN_10
 #define RS232_RXD_GPIO_Port GPIOA
+#define MEM_SCL_Pin GPIO_PIN_8
+#define MEM_SCL_GPIO_Port GPIOB
+#define MEM_SDA_Pin GPIO_PIN_9
+#define MEM_SDA_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

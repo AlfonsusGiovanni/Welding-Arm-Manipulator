@@ -34,7 +34,8 @@
 
 //--- EEPROM TYPEDEF ---//
 //////////////////////////
-EEPROM_t eeprom;
+EEPROM_t eeprom1;
+EEPROM_t eeprom2;
 //////////////////////////
 
 
@@ -71,16 +72,14 @@ Driver_t Stepper_Driver6;
 
 /*EEPROM ADDRESS SET*/
 //-----------------------------------
-#define EEPROM_ADDRESS					0xA0
+#define EEPROM1_ADDRESS					0xA0	// PRIMARY EEPROM ADDRESS
+#define EEPROM2_ADDRESS					0xA1	// SECONDARY EEPROM ADDRESS
 
-#define START_POINT_BYTE_ADDR		0x00
-#define END_POINT_BYTE_ADDR			0x18
-#define PATTERN_BYTE_ADDR				0x30
-
-#define POS_STARTBYTE_ADDR			0x000
-#define POS_ENDBYTE_ADDR				0x0FF
-#define ANG_STARTBYTE_ADDR			0x100
-#define ANG_ENDBYTE_ADDR				0x1FF
+#define SP_POS_BYTE_ADDR				0x00	// START POINT POSITION ADDR
+#define EP_POS_BYTE_ADDR				0x18	// END POINT POSITION ADDR
+#define SP_ANG_BYTE_ADDR				0x30	// START POINT ANGLE ADDR
+#define EP_ANG_BYTE_ADDR				0x48	// END POINT ANGLE ADDR
+#define PATTERN_BYTE_ADDR				0x60	// PATTERN ADDR
 //-----------------------------------
 
 
@@ -94,9 +93,9 @@ Driver_t Stepper_Driver6;
 
 /*ROBOT TEST SET*/
 //-------------------
-//#define EEPROM_TEST
+#define EEPROM_TEST
 //#define RS232_TEST
-#define STEPPER_TEST
+//#define STEPPER_TEST
 //#define SDCARD_TEST
 //#define ENCODER_TEST
 //-------------------
@@ -125,7 +124,8 @@ DMA_HandleTypeDef hdma_usart1_rx;
 double 
 array_pos_start[3],
 array_pos_end[3],
-array_angle[6];
+array_ang_start[6],
+array_ang_end[6];
 
 uint8_t
 saved_pos[24], read_saved_pos[24],
@@ -189,14 +189,14 @@ static void MX_TIM2_Init(void);
 
 /*EEPROM CUSTOM FUNCTION*/
 //----------------------------------------------------------------------------------------------------------
-void Save_WeldingPoint_Position(uint16_t page_select, uint8_t start_addr, double* pos_data, size_t size);
-void Read_WeldingPoint_Position(uint16_t page_select, uint8_t start_addr, double* stored_data, size_t size);
+void Save_WeldingPoint_Position(uint16_t welding_point, uint8_t start_addr, double* pos_data, size_t size);
+void Read_WeldingPoint_Position(uint16_t welding_point, uint8_t start_addr, double* stored_data, size_t size);
 
-void Save_WeldingPoint_Angle(uint16_t page_select, uint8_t start_addr, double* angle_data, size_t size);
-void Read_WeldingPoint_Angle(uint16_t page_select, uint8_t start_addr, double* stored_data, size_t size);
+void Save_WeldingPoint_Angle(uint16_t welding_point, uint8_t start_addr, double* angle_data, size_t size);
+void Read_WeldingPoint_Angle(uint16_t welding_point, uint8_t start_addr, double* stored_data, size_t size);
 
-void Save_WeldingPoint_Pattern(uint16_t page_select, uint8_t select_pattern);
-void Read_WeldingPoint_Pattern(uint16_t page_select, uint8_t store_pattern);
+void Save_WeldingPoint_Pattern(uint16_t welding_point, uint8_t select_pattern);
+void Read_WeldingPoint_Pattern(uint16_t welding_point, uint8_t store_pattern);
 //----------------------------------------------------------------------------------------------------------
 
 /* USER CODE END PFP */
@@ -234,7 +234,7 @@ int main(void)
 	Stepper_Driver1.PULSE_PIN = PULSE_1_Pin;
 	Stepper_Driver1.ENA_PORT = ENABLE_GPIO_Port;
 	Stepper_Driver1.ENA_PIN = ENABLE_Pin;
-	Stepper_Driver1.driver_step = 200;
+	Stepper_Driver1.driver_step = 800;
 	Driver_set_power(&Stepper_Driver1, DRIVER_ENABLE); 
 	//-------------------------------------------------
 	
@@ -247,7 +247,7 @@ int main(void)
 	Stepper_Driver2.PULSE_PIN = PULSE_2_Pin;
 	Stepper_Driver2.ENA_PORT = ENABLE_GPIO_Port;
 	Stepper_Driver2.ENA_PIN = ENABLE_Pin;
-	Stepper_Driver2.driver_step = 200;
+	Stepper_Driver2.driver_step = 800;
 	Driver_set_power(&Stepper_Driver2, DRIVER_ENABLE);
 	//-------------------------------------------------
 	
@@ -260,7 +260,7 @@ int main(void)
 	Stepper_Driver3.PULSE_PIN = PULSE_3_Pin;
 	Stepper_Driver3.ENA_PORT = ENABLE_GPIO_Port;
 	Stepper_Driver3.ENA_PIN = ENABLE_Pin;
-	Stepper_Driver3.driver_step = 200;
+	Stepper_Driver3.driver_step = 800;
 	Driver_set_power(&Stepper_Driver3, DRIVER_ENABLE);
 	//-------------------------------------------------
 	
@@ -273,7 +273,7 @@ int main(void)
 	Stepper_Driver4.PULSE_PIN = PULSE_4_Pin;
 	Stepper_Driver4.ENA_PORT = ENABLE_GPIO_Port;
 	Stepper_Driver4.ENA_PIN = ENABLE_Pin;
-	Stepper_Driver4.driver_step = 200;
+	Stepper_Driver4.driver_step = 800;
 	Driver_set_power(&Stepper_Driver4, DRIVER_ENABLE);
 	//-------------------------------------------------
 	
@@ -286,7 +286,7 @@ int main(void)
 	Stepper_Driver5.PULSE_PIN = PULSE_5_Pin;
 	Stepper_Driver5.ENA_PORT = ENABLE_GPIO_Port;
 	Stepper_Driver5.ENA_PIN = ENABLE_Pin;
-	Stepper_Driver5.driver_step = 200;
+	Stepper_Driver5.driver_step = 800;
 	Driver_set_power(&Stepper_Driver5, DRIVER_ENABLE);
 	//-------------------------------------------------
 	
@@ -299,7 +299,7 @@ int main(void)
 	Stepper_Driver6.PULSE_PIN = PULSE_6_Pin;
 	Stepper_Driver6.ENA_PORT = ENABLE_GPIO_Port;
 	Stepper_Driver6.ENA_PIN = ENABLE_Pin;
-	Stepper_Driver6.driver_step = 200;
+	Stepper_Driver6.driver_step = 800;
 	Driver_set_power(&Stepper_Driver6, DRIVER_ENABLE);
 	//-------------------------------------------------
 	#endif
@@ -335,7 +335,8 @@ int main(void)
 	/*EEPROM CONFIGURATION*/
 	//-----------------------------------------------------------
 	#ifdef USE_EEPROM
-	EEPROM_Init(&hi2c1, &eeprom, MEM_SIZE_256Kb, EEPROM_ADDRESS);
+	EEPROM_Init(&hi2c1, &eeprom1, MEM_SIZE_512Kb, EEPROM1_ADDRESS);
+	EEPROM_Init(&hi2c1, &eeprom2, MEM_SIZE_512Kb, EEPROM2_ADDRESS);
 	#endif
 	//-----------------------------------------------------------
 	
@@ -359,25 +360,29 @@ int main(void)
 	/*EEPROM TEST*/
 	//---------------------------------------------------------------------------------------------
 	#ifdef EEPROM_TEST
-//	EEPROM_PageReset(&eeprom, 0x000);
+//	EEPROM_PageReset(&eeprom1, 0x000);
 //	HAL_Delay(500);
-//	EEPROM_PageReset(&eeprom, 0x100);
+//	EEPROM_PageReset(&eeprom1, 0x100);
 //	HAL_Delay(500);
 	
 	double 
 	test_pos_start[3] = {-40.96, 12.15, -37.42},
 	test_pos_end[3] = {-20.96, 2.15, -37.42},
-	test_angle_start[6] = {70.55, -45.5, 90.58, 150.45, 55.17, 178.77};
+	test_angle_start[6] = {70.55, -45.5, 90.58, 150.45, 55.17, 178.77},
+	test_angle_end[6] = {60, -20, 70.25, 115.62, 66.18, 122.76};
 	
-//	Save_WeldingPoint_Position(0x00, START_POINT_BYTE_ADDR, test_pos_start, sizeof(test_pos_start));
-//	Save_WeldingPoint_Position(0x00, END_POINT_BYTE_ADDR, test_pos_end, sizeof(test_pos_end));
-//	Save_WeldingPoint_Angle(0x00, START_POINT_BYTE_ADDR, test_angle_start, sizeof(test_angle_start));
-//	Save_WeldingPoint_Pattern(0x00, LINEAR_PATTERN);
-//	HAL_Delay(500);
-//	Read_WeldingPoint_Position(0x00, START_POINT_BYTE_ADDR, array_pos_start, sizeof(array_pos_start));
-//	Read_WeldingPoint_Position(0x00, END_POINT_BYTE_ADDR, array_pos_end, sizeof(array_pos_end));
-//	Read_WeldingPoint_Angle(0x00, START_POINT_BYTE_ADDR, array_angle, sizeof(array_angle));
-//	Read_WeldingPoint_Pattern(0x00, welding_pattern);
+	Save_WeldingPoint_Position(0x00, SP_POS_BYTE_ADDR, test_pos_start, sizeof(test_pos_start));
+	Save_WeldingPoint_Position(0x00, EP_POS_BYTE_ADDR, test_pos_end, sizeof(test_pos_end));
+	Save_WeldingPoint_Angle(0x00, SP_ANG_BYTE_ADDR, test_angle_start, sizeof(test_angle_start));
+	Save_WeldingPoint_Angle(0x00, EP_ANG_BYTE_ADDR, test_angle_end, sizeof(test_angle_end));
+	Save_WeldingPoint_Pattern(0x00, LINEAR_PATTERN);
+	HAL_Delay(500);
+	Read_WeldingPoint_Position(0x00, SP_POS_BYTE_ADDR, array_pos_start, sizeof(array_pos_start));
+	Read_WeldingPoint_Position(0x00, EP_POS_BYTE_ADDR, array_pos_end, sizeof(array_pos_end));
+	Read_WeldingPoint_Angle(0x00, SP_ANG_BYTE_ADDR, array_ang_start, sizeof(array_ang_start));
+	Read_WeldingPoint_Angle(0x00, SP_ANG_BYTE_ADDR, array_ang_end, sizeof(array_ang_end));
+	Read_WeldingPoint_Pattern(0x00, welding_pattern);
+	HAL_Delay(500);
   #endif
 	//---------------------------------------------------------------------------------------------
 	
@@ -733,12 +738,11 @@ static void MX_GPIO_Init(void)
 
 /*--- SAVE WELDING POINT POSITION VALUE ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void Save_WeldingPoint_Position(uint16_t page_select, uint8_t start_addr, double* pos_data, size_t size){
-	if(page_select > POS_ENDBYTE_ADDR) page_select = POS_ENDBYTE_ADDR;
+void Save_WeldingPoint_Position(uint16_t welding_point, uint8_t start_addr, double* pos_data, size_t size){
 	for(int i=0; i<24; i++) saved_pos[i] = 0;
 	for(size_t i=0; i<size; i++) memcpy(&saved_pos[i*8], &pos_data[i], sizeof(double));
 	
-	EEPROM_PageWrite(&eeprom, page_select | POS_STARTBYTE_ADDR, start_addr, saved_pos, sizeof(saved_pos));
+	EEPROM_PageWrite(&eeprom1, welding_point, start_addr, saved_pos, sizeof(saved_pos));
 	HAL_Delay(10);
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -746,12 +750,11 @@ void Save_WeldingPoint_Position(uint16_t page_select, uint8_t start_addr, double
 
 /*--- READ WELDING POINT POSITION VALUE ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void Read_WeldingPoint_Position(uint16_t page_select, uint8_t start_addr, double* stored_data, size_t size){
-	if(page_select > POS_ENDBYTE_ADDR) page_select = POS_ENDBYTE_ADDR;
+void Read_WeldingPoint_Position(uint16_t welding_point, uint8_t start_addr, double* stored_data, size_t size){
 	for(int i=0; i<24; i++) read_saved_pos[i] = 0;
 	for(size_t i=0; i<size; i++) stored_data[i] = 0;
 	
-	EEPROM_PageRead(&eeprom, page_select | POS_STARTBYTE_ADDR, start_addr, read_saved_pos, sizeof(read_saved_pos));
+	EEPROM_PageRead(&eeprom1, welding_point, start_addr, read_saved_pos, sizeof(read_saved_pos));
 	
 	for(int i=0; i<8; i++){
 		read_saved_posX[i] = read_saved_pos[i];
@@ -769,12 +772,11 @@ void Read_WeldingPoint_Position(uint16_t page_select, uint8_t start_addr, double
 
 /*--- SAVE WELDING POINT ANGLE VALUE ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void Save_WeldingPoint_Angle(uint16_t page_select, uint8_t start_addr, double* angle_data, size_t size){
-	if(page_select > ANG_ENDBYTE_ADDR) page_select = ANG_ENDBYTE_ADDR;
-	for(int i=0; i<24; i++) saved_angle[i] = 0;
+void Save_WeldingPoint_Angle(uint16_t welding_point, uint8_t start_addr, double* angle_data, size_t size){
+	for(int i=0; i<48; i++) saved_angle[i] = 0;
 	for(size_t i=0; i<size; i++) memcpy(&saved_angle[i*8], &angle_data[i], sizeof(double));
 	
-	EEPROM_PageWrite(&eeprom, page_select | ANG_STARTBYTE_ADDR, start_addr, saved_angle, sizeof(saved_angle));
+	EEPROM_PageWrite(&eeprom1, welding_point, start_addr, saved_angle, sizeof(saved_angle));
 	HAL_Delay(10);
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -782,12 +784,11 @@ void Save_WeldingPoint_Angle(uint16_t page_select, uint8_t start_addr, double* a
 
 /*--- SAVE WELDING POINT ANGLE VALUE ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void Read_WeldingPoint_Angle(uint16_t page_select, uint8_t start_addr, double* stored_data, size_t size){
-	if(page_select > ANG_ENDBYTE_ADDR) page_select = ANG_ENDBYTE_ADDR;
-	for(int i=0; i<24; i++) read_saved_angle[i] = 0;
+void Read_WeldingPoint_Angle(uint16_t welding_point, uint8_t start_addr, double* stored_data, size_t size){
+	for(int i=0; i<48; i++) read_saved_angle[i] = 0;
 	for(size_t i=0; i<size; i++) stored_data[i] = 0;
 	
-	EEPROM_PageRead(&eeprom, page_select | ANG_STARTBYTE_ADDR, start_addr, read_saved_angle, sizeof(read_saved_angle));
+	EEPROM_PageRead(&eeprom1, welding_point, start_addr, read_saved_angle, sizeof(read_saved_angle));
 	
 	for(int i=0; i<8; i++){
 		read_saved_angle1[i] = read_saved_angle[i];
@@ -811,16 +812,16 @@ void Read_WeldingPoint_Angle(uint16_t page_select, uint8_t start_addr, double* s
 
 /*--- SAVE WELDING POINT PATTERN ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void Save_WeldingPoint_Pattern(uint16_t page_select, uint8_t select_pattern){
-	EEPROM_ByteWrite(&eeprom, page_select, PATTERN_BYTE_ADDR, select_pattern, sizeof(select_pattern));
+void Save_WeldingPoint_Pattern(uint16_t welding_point, uint8_t select_pattern){
+	EEPROM_ByteWrite(&eeprom1, welding_point, PATTERN_BYTE_ADDR, select_pattern, sizeof(select_pattern));
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 /*--- READ WELDING POINT PATTERN ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void Read_WeldingPoint_Pattern(uint16_t page_select, uint8_t store_pattern){
-	EEPROM_ByteRead(&eeprom, page_select, PATTERN_BYTE_ADDR, read_saved_pattern, sizeof(store_pattern));
+void Read_WeldingPoint_Pattern(uint16_t welding_point, uint8_t store_pattern){
+	EEPROM_ByteRead(&eeprom1, welding_point, PATTERN_BYTE_ADDR, read_saved_pattern, sizeof(store_pattern));
 	welding_pattern = read_saved_pattern[0]; 
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

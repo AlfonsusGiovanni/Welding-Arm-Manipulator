@@ -29,6 +29,11 @@ void EEPROM_Init(I2C_HandleTypeDef* I2C_handler, EEPROM_t* mem, Memory_Size_t me
 		mem->page = EEPROM_256Kb_PAGE;
 		mem->page_size = EEPROM_256Kb_PAGE_SIZE;
 	}
+	
+	else if(mem_model == MEM_SIZE_512Kb){
+		mem->page = EEPROM_512Kb_PAGE;
+		mem->page_size = EEPROM_512Kb_PAGE_SIZE;
+	}
 }
 
 /*EEPROM PAGE RESET*/
