@@ -57,6 +57,11 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define LED_Pin GPIO_PIN_13
+#define LED_GPIO_Port GPIOC
+#define EMERGENCY_Pin GPIO_PIN_15
+#define EMERGENCY_GPIO_Port GPIOC
+#define EMERGENCY_EXTI_IRQn EXTI15_10_IRQn
 #define KEYPAD_C1_Pin GPIO_PIN_1
 #define KEYPAD_C1_GPIO_Port GPIOA
 #define KEYPAD_C2_Pin GPIO_PIN_2
@@ -79,8 +84,6 @@ void Error_Handler(void);
 #define LCD_SCL_GPIO_Port GPIOB
 #define LCD_SDA_Pin GPIO_PIN_11
 #define LCD_SDA_GPIO_Port GPIOB
-#define LED_Pin GPIO_PIN_12
-#define LED_GPIO_Port GPIOB
 #define RS232_TXD_Pin GPIO_PIN_9
 #define RS232_TXD_GPIO_Port GPIOA
 #define RS232_RXD_Pin GPIO_PIN_10

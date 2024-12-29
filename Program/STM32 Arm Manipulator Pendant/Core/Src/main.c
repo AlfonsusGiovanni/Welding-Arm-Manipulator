@@ -33,6 +33,7 @@
 //--- LCD MENU TYPEDEF ---//
 ////////////////////////////
 typedef enum{
+	EMERGENCY_MENU,
 	BOOTING_MENU,
 	AUTO_HOME_MENU,
 	HOMING_MENU,
@@ -97,10 +98,11 @@ Data_Get_t command;
 
 
 /*TESTING MODE SET*/
-//------------------
+//--------------------
 //#define RS232_TEST
 //#define EEPROM_TEST
-//------------------
+#define EMERGENCY_TEST
+//--------------------
 
 
 /* USER CODE END PD */
@@ -174,7 +176,8 @@ bool
 home_state = true,
 mapping_state = false,
 preview_state = false,
-welding_state = false;
+welding_state = false,
+emergency_state = false;
 
 float
 increase_decrease_value = 2.5;
@@ -202,9 +205,11 @@ low_speed[] 				= "LOW",
 med_speed[] 				= "MED",
 high_speed[] 				= "HIGH",
 
+not_set_mode[]			= "NOTSET",
+dot_mode[]					= "DOT",
 linear_mode[]				= "LINEAR",
 circular_mode[] 		= "CIRCULAR",
-wave_mode[] 				= "WAVE",
+wave_mode[]					= "WAVE",
 
 string_max_dist[] 	= "300      ",
 string_max_point[] 	= "250      ",
@@ -262,13 +267,23 @@ void Format_mem(void);																																					// MEMORY FORMAT
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-/*LCD MENU CONFIGURATION*/
+/*LCD MENU TIMER UPDATE*/
 //------------------------------------------------------------
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if(htim->Instance == TIM2) show_menu(select_menu);
 }
 //------------------------------------------------------------
 
+
+/*EMERGENCY STOP BUTTON INTERRUPT*/
+//-----------------------------------------------------------
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
+	if(GPIO_Pin == EMERGENCY_Pin){
+		emergency_state = true;
+		select_menu = EMERGENCY_MENU;
+	}
+}
+//-----------------------------------------------------------
 
 /*KEYPAD CONFIGURATION*/
 //-------------------------------
@@ -344,10 +359,10 @@ int main(void)
 
 	/*LCD CONFIGURATION*/
 	//----------------------------
-	HAL_Delay(1500);
-	lcd_init(&hi2c2);
-	select_menu = BOOTING_MENU;
-	HAL_TIM_Base_Start_IT(&htim2);
+//	HAL_Delay(1500);
+//	lcd_init(&hi2c2);
+//	select_menu = BOOTING_MENU;
+//	HAL_TIM_Base_Start_IT(&htim2);
 	//----------------------------
 	
 	
@@ -359,8 +374,8 @@ int main(void)
 	
 	/*EEPROM CONFIGURATION*/
 	//---------------------------------------------------------------------
-	EEPROM_Init(&hi2c1, &eeprom1, MEM_SIZE_256Kb, 0xA0);
-	Update_Data(UPDATE_ALL);
+//	EEPROM_Init(&hi2c1, &eeprom1, MEM_SIZE_256Kb, 0xA0);
+//	Update_Data(UPDATE_ALL);
 	//---------------------------------------------------------------------
 	
 	
@@ -372,11 +387,10 @@ int main(void)
 	
 	/*RS232 COM CONFIGURATION*/
 	//-------------------------
-	
-	RS232_Init(&huart1);
-	Start_get_command();
-	Get_command(&command);
-	HAL_Delay(250);
+//	RS232_Init(&huart1);
+//	Start_get_command();
+//	Get_command(&command);
+//	HAL_Delay(250);
 	//-------------------------
 	
 	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
@@ -416,11 +430,6 @@ int main(void)
 	prep_done = true;
 	//------------------------------------------
 	
-	
-	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-	HAL_Delay(100);
-	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
-	HAL_Delay(100);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -432,12 +441,17 @@ int main(void)
 		#endif
 		
 		#ifdef RS232_TEST
-//		Send_auto_home();
-//		Send_move(CARTESIAN_CTRL, CARTESIAN_X, 12.5);
+		Send_auto_home();
+		Send_move(CARTESIAN_CTRL, CARTESIAN_X, 12.5);
 		#endif
 		
 		#ifdef EEPROM_TEST
 		// MASIH KOSONG
+		#endif
+		
+		#ifdef EMERGENCY_TEST
+		if(select_menu == EMERGENCY_MENU) HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+		else HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
 		#endif
     /* USER CODE END WHILE */
 
@@ -708,6 +722,7 @@ static void MX_GPIO_Init(void)
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
@@ -721,6 +736,16 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : EMERGENCY_Pin */
+  GPIO_InitStruct.Pin = EMERGENCY_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(EMERGENCY_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
@@ -743,8 +768,14 @@ void ui_handler(void){
 	keys = Keypad_Read(&keypad);
 	if(keys != prev_keys && keys != 0x00) lcd_clear();
 	
+	/* EMERGENCY MENU HANDLER */
+	if(select_menu == EMERGENCY_MENU){
+		uint8_t btn_state = HAL_GPIO_ReadPin(EMERGENCY_GPIO_Port, EMERGENCY_Pin);
+		if(btn_state == GPIO_PIN_SET) select_menu = HOME_MENU;
+	}
+	
 	/* AUTO HOME MENU HANDLER */////////////////////////////////////////////
-	if(select_menu == AUTO_HOME_MENU){
+	else if(select_menu == AUTO_HOME_MENU){
 		while(1){
 			keys = Keypad_Read(&keypad);
 			if(keys == '#' && prev_keys != keys){
@@ -1300,18 +1331,23 @@ void ui_handler(void){
 					total_mapped_points = 0;
 					
 					if(pattern_sel_counter == 0){
+						Send_mapping(start_point_counter&end_point_counter, PATTERN, NOT_SET, running_speed, SAVE_VALUE);
+						Save_WeldingData(start_point_counter, NOT_SET, running_speed);
+					}
+					
+					else if(pattern_sel_counter == 1){
+						Send_mapping(start_point_counter&end_point_counter, PATTERN, DOT, running_speed, SAVE_VALUE);
+						Save_WeldingData(start_point_counter, DOT, running_speed);
+					}
+					
+					else if(pattern_sel_counter == 2){
 						Send_mapping(start_point_counter&end_point_counter, PATTERN, LINEAR, running_speed, SAVE_VALUE);
 						Save_WeldingData(start_point_counter, LINEAR, running_speed);
 					}
 					
-					else if(pattern_sel_counter == 1){
+					else if(pattern_sel_counter == 3){
 						Send_mapping(start_point_counter&end_point_counter, PATTERN, CIRCULAR, running_speed, SAVE_VALUE);
 						Save_WeldingData(start_point_counter, CIRCULAR, running_speed);
-					}
-					
-					else if(pattern_sel_counter == 2){
-						Send_mapping(start_point_counter&end_point_counter, PATTERN, WAVE, running_speed, SAVE_VALUE);
-						Save_WeldingData(start_point_counter, WAVE, running_speed);
 					}
 					HAL_Delay(50);
 					
@@ -1457,8 +1493,16 @@ void ui_handler(void){
 /*--- LCD MENU ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void show_menu(LCD_Menu_t menu){
+	/* EMERGENCY MENU */
+	if(menu == EMERGENCY_MENU){
+		lcd_set_cursor(0, 1);
+		lcd_printstr("EMERGENCY!!!");
+		lcd_set_cursor(0, 2);
+		lcd_printstr("ROBOT STOPED");
+	}
+	
 	/* BOOTING MENU *////////////////
-	if(menu == BOOTING_MENU){
+	else if(menu == BOOTING_MENU){
 		lcd_set_cursor(3, 1);
 		lcd_printstr("SYSTEM BOOTING");
 		lcd_set_cursor(4, 2);
@@ -1809,13 +1853,21 @@ void show_menu(LCD_Menu_t menu){
 		
 		if(pattern_sel_counter == 0){
 			lcd_set_cursor(14, 0);
-			lcd_printstr(linear_mode);
+			lcd_printstr(not_set_mode);
 		}
 		else if(pattern_sel_counter == 1){
+			lcd_set_cursor(17, 0);
+			lcd_printstr(dot_mode);
+		}
+		else if(pattern_sel_counter == 2){
+			lcd_set_cursor(14, 0);
+			lcd_printstr(linear_mode);
+		}
+		else if(pattern_sel_counter == 3){
 			lcd_set_cursor(12, 0);
 			lcd_printstr(circular_mode);
 		}
-		else if(pattern_sel_counter == 2){
+		else if(pattern_sel_counter == 4){
 			lcd_set_cursor(16, 0);
 			lcd_printstr(wave_mode);
 		}
@@ -1856,19 +1908,32 @@ void show_menu(LCD_Menu_t menu){
 		lcd_set_cursor(0, 3);
 		lcd_printstr(preview_menu);
 		
-		if(preview_pattern == 1){
+		if(preview_pattern == 0){
+			lcd_set_cursor(12, 2);
+			lcd_printstr("(");
+			lcd_printstr(not_set_mode);
+			lcd_printstr(")");
+		}
+		
+		else if(preview_pattern == 1){
+			lcd_set_cursor(15, 3);
+			lcd_printstr("(");
+			lcd_printstr(dot_mode);
+			lcd_printstr(")");
+		}
+		else if(preview_pattern == 2){
 			lcd_set_cursor(12, 3);
 			lcd_printstr("(");
 			lcd_printstr(linear_mode);
 			lcd_printstr(")");
 		}
-		else if(preview_pattern == 2){
+		else if(preview_pattern == 3){
 			lcd_set_cursor(10, 3);
 			lcd_printstr("(");
 			lcd_printstr(circular_mode);
 			lcd_printstr(")");
 		}
-		else if(preview_pattern == 3){
+		else if(preview_pattern == 4){
 			lcd_set_cursor(14, 3);
 			lcd_printstr("(");
 			lcd_printstr(wave_mode);
@@ -1946,20 +2011,32 @@ void show_menu(LCD_Menu_t menu){
 		
 		
 		// SHOW CURRENT PATTERN ******
-		if(preview_pattern == 1){
-			lcd_set_cursor(12, 3);
+		if(preview_pattern == 0){
+			lcd_set_cursor(12, 2);
+			lcd_printstr("(");
+			lcd_printstr(not_set_mode);
+			lcd_printstr(")");
+		}
+		else if(preview_pattern == 1){
+			lcd_set_cursor(15, 2);
+			lcd_printstr("(");
+			lcd_printstr(dot_mode);
+			lcd_printstr(")");
+		}
+		else if(preview_pattern == 2){
+			lcd_set_cursor(12, 2);
 			lcd_printstr("(");
 			lcd_printstr(linear_mode);
 			lcd_printstr(")");
 		}
-		else if(preview_pattern == 2){
-			lcd_set_cursor(10, 3);
+		else if(preview_pattern == 3){
+			lcd_set_cursor(10, 2);
 			lcd_printstr("(");
 			lcd_printstr(circular_mode);
 			lcd_printstr(")");
 		}
-		else if(preview_pattern == 3){
-			lcd_set_cursor(14, 3);
+		else if(preview_pattern == 4){
+			lcd_set_cursor(14, 2);
 			lcd_printstr("(");
 			lcd_printstr(wave_mode);
 			lcd_printstr(")");

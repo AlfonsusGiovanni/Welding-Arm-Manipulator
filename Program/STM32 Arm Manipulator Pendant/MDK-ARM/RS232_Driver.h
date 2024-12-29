@@ -100,10 +100,11 @@ typedef enum{
 //--- MEMORY TYPEDEF ---//
 ////////////////////////////////
 typedef enum{
-	LINEAR = 0x01,
+	NOT_SET,
+	DOT,
+	LINEAR,
 	CIRCULAR,
 	WAVE,
-	NOT_SET,
 }Welding_Pattern_t;
 ////////////////////////////////
 

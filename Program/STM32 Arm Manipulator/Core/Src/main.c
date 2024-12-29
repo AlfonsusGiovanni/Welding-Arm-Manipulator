@@ -25,35 +25,43 @@
 #include "TB6600_Driver.h"
 #include "EEPROM_lib.h"
 #include "RS232_Driver.h"
+
 #include "fatfs_sd.h"
 #include "string.h"
+
+#include "fonts.h"
+#include "ssd1306.h"
+
+#include "stdio.h"
+#include "stdlib.h"
+
+#include "math.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
-//--- EEPROM TYPEDEF ---//
-//////////////////////////
+// EEPROM TYPEDEF
 EEPROM_t eeprom1;
 EEPROM_t eeprom2;
-//////////////////////////
 
-
-//--- RS232 TYPEDEF ---//
-/////////////////////////
+// RS232 TYPEDEF
 Data_Get_t command;
-/////////////////////////
 
-
-/*--- DRIVER STEPPER TYPEDEF ---*/
-//////////////////////////////////
+// DRIVER STEPPER TYPEDEF
 Driver_t Stepper_Driver1;
 Driver_t Stepper_Driver2;
 Driver_t Stepper_Driver3;
 Driver_t Stepper_Driver4;
 Driver_t Stepper_Driver5;
 Driver_t Stepper_Driver6;
-//////////////////////////////////
+
+// OLED MENU TYPEDEF
+typedef enum{
+	MENU1,	// RS-232 Communication Status
+	MENU2,	// EEPROM Available Memory
+}Oled_Menu_t;
+
 
 /* USER CODE END PTD */
 
@@ -64,6 +72,7 @@ Driver_t Stepper_Driver6;
 //----------------------
 #define USE_EEPROM
 #define USE_RS232
+#define USE_OLED
 #define USE_STEPPER
 #define USE_SDCARD
 #define USE_ENCODER
@@ -93,11 +102,12 @@ Driver_t Stepper_Driver6;
 
 /*ROBOT TEST SET*/
 //-------------------
-#define EEPROM_TEST
+//#define EEPROM_TEST
 //#define RS232_TEST
 //#define STEPPER_TEST
 //#define SDCARD_TEST
 //#define ENCODER_TEST
+#define OLED_TEST
 //-------------------
 
 /* USER CODE END PD */
@@ -113,6 +123,7 @@ I2C_HandleTypeDef hi2c1;
 SPI_HandleTypeDef hspi1;
 
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart1;
 DMA_HandleTypeDef hdma_usart1_rx;
@@ -128,6 +139,8 @@ array_ang_start[6],
 array_ang_end[6];
 
 uint8_t
+page_data_byte[128],
+
 saved_pos[24], read_saved_pos[24],
 read_saved_posX[8],
 read_saved_posY[8],
@@ -175,6 +188,14 @@ rx_rotate_mode,
 rx_rotate_value[8];
 ///////////////////
 
+/*OLED VARIABLE*/
+/////////////////////////
+uint8_t selected_menu;
+
+char 
+title[] = "WELDING ARM V1";
+/////////////////////////
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -185,6 +206,7 @@ static void MX_USART1_UART_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 
 /*EEPROM CUSTOM FUNCTION*/
@@ -197,12 +219,25 @@ void Read_WeldingPoint_Angle(uint16_t welding_point, uint8_t start_addr, double*
 
 void Save_WeldingPoint_Pattern(uint16_t welding_point, uint8_t select_pattern);
 void Read_WeldingPoint_Pattern(uint16_t welding_point, uint8_t store_pattern);
+
+void Read_All_WeldingDataBuyte(uint16_t welding_point);
+
+uint16_t Check_Free_WeldingPoint(void);
+
+void Show_Menu(Oled_Menu_t sel_menu);
 //----------------------------------------------------------------------------------------------------------
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+/*OLED MENU CONFIGURATION*/
+//------------------------------------------------------------
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+	if(htim->Instance == TIM3) Show_Menu(selected_menu);
+}
+//------------------------------------------------------------
 
 /*RS232 CONFIGURATION*/
 //------------------------------------------------------
@@ -330,24 +365,28 @@ int main(void)
   MX_SPI1_Init();
   MX_FATFS_Init();
   MX_TIM2_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 	
 	/*EEPROM CONFIGURATION*/
-	//-----------------------------------------------------------
 	#ifdef USE_EEPROM
 	EEPROM_Init(&hi2c1, &eeprom1, MEM_SIZE_512Kb, EEPROM1_ADDRESS);
 	EEPROM_Init(&hi2c1, &eeprom2, MEM_SIZE_512Kb, EEPROM2_ADDRESS);
 	#endif
-	//-----------------------------------------------------------
 	
 	
 	/*RS232 COM CONFIGURATION*/
-	//-------------------------
 	#ifdef USE_RS232
 	RS232_Init(&huart1);
 	Start_get_command();
 	Get_command(&command);
-	//-------------------------
+	#endif
+	
+	
+	/*OLED CONFIGURATION*/
+	#ifdef USE_OLED
+	SSD1306_Init ();
+	HAL_TIM_Base_Start_IT(&htim3);
 	#endif
 	
 	
@@ -358,12 +397,11 @@ int main(void)
 	
 	
 	/*EEPROM TEST*/
-	//---------------------------------------------------------------------------------------------
 	#ifdef EEPROM_TEST
-//	EEPROM_PageReset(&eeprom1, 0x000);
-//	HAL_Delay(500);
-//	EEPROM_PageReset(&eeprom1, 0x100);
-//	HAL_Delay(500);
+//	for(int i=0; i<512; i++){
+//		EEPROM_PageReset(&eeprom1, i);
+//		HAL_Delay(50);
+//	}
 	
 	double 
 	test_pos_start[3] = {-40.96, 12.15, -37.42},
@@ -380,16 +418,11 @@ int main(void)
 	Read_WeldingPoint_Position(0x00, SP_POS_BYTE_ADDR, array_pos_start, sizeof(array_pos_start));
 	Read_WeldingPoint_Position(0x00, EP_POS_BYTE_ADDR, array_pos_end, sizeof(array_pos_end));
 	Read_WeldingPoint_Angle(0x00, SP_ANG_BYTE_ADDR, array_ang_start, sizeof(array_ang_start));
-	Read_WeldingPoint_Angle(0x00, SP_ANG_BYTE_ADDR, array_ang_end, sizeof(array_ang_end));
+	Read_WeldingPoint_Angle(0x00, EP_ANG_BYTE_ADDR, array_ang_end, sizeof(array_ang_end));
 	Read_WeldingPoint_Pattern(0x00, welding_pattern);
 	HAL_Delay(500);
+	Read_All_WeldingDataBuyte(0x00);
   #endif
-	//---------------------------------------------------------------------------------------------
-	
-	#ifdef SDCARD_TEST
-	
-	#endif
-	
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -450,6 +483,10 @@ int main(void)
 		}
 		
 		else HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+		#endif
+		
+		#ifdef OLED_TEST
+		selected_menu = MENU1;
 		#endif
     /* USER CODE END WHILE */
 
@@ -619,6 +656,51 @@ static void MX_TIM2_Init(void)
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
+
+}
+
+/**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 1151;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 62499;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
 
 }
 
@@ -823,6 +905,51 @@ void Save_WeldingPoint_Pattern(uint16_t welding_point, uint8_t select_pattern){
 void Read_WeldingPoint_Pattern(uint16_t welding_point, uint8_t store_pattern){
 	EEPROM_ByteRead(&eeprom1, welding_point, PATTERN_BYTE_ADDR, read_saved_pattern, sizeof(store_pattern));
 	welding_pattern = read_saved_pattern[0]; 
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*--- READ ALL WELDING POINT DATA IN BYTE ---*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void Read_All_WeldingDataBuyte(uint16_t welding_point){
+	EEPROM_PageRead(&eeprom1, welding_point, 0x00, page_data_byte, sizeof(page_data_byte));
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*--- CHECK EEPROM FREE WLEDING POINT ---*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+uint16_t Check_Free_WeldingPoint(void){
+	return 0;
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*--- SHOW OLED MENU FUNCTION*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void Show_Menu(Oled_Menu_t sel_menu){
+	if(sel_menu == MENU1){
+		SSD1306_GotoXY(18,10);
+		SSD1306_Puts (title, &Font_7x10, SSD1306_COLOR_WHITE);
+		
+		SSD1306_GotoXY(48,25);
+		SSD1306_Puts("RS232", &Font_7x10, SSD1306_COLOR_WHITE);
+		
+		SSD1306_GotoXY(0,50);
+		SSD1306_Puts("State:", &Font_7x10, SSD1306_COLOR_WHITE);
+		
+		SSD1306_GotoXY(45,50);
+		if(RS232_state == 0x00) SSD1306_Puts("reset", &Font_7x10, SSD1306_COLOR_WHITE);
+		else if(RS232_state == 0x20) SSD1306_Puts("ready", &Font_7x10, SSD1306_COLOR_WHITE);
+		else if(RS232_state == 0x24) SSD1306_Puts("busy", &Font_7x10, SSD1306_COLOR_WHITE);
+		else if(RS232_state == 0x21) SSD1306_Puts("busy tx", &Font_7x10, SSD1306_COLOR_WHITE);
+		else if(RS232_state == 0x22) SSD1306_Puts("busy rx", &Font_7x10, SSD1306_COLOR_WHITE);
+		else if(RS232_state == 0x23) SSD1306_Puts("busy all", &Font_7x10, SSD1306_COLOR_WHITE);
+		else if(RS232_state == 0xA0) SSD1306_Puts("timeout", &Font_7x10, SSD1306_COLOR_WHITE);
+		else if(RS232_state == 0xE0) SSD1306_Puts("error", &Font_7x10, SSD1306_COLOR_WHITE);
+		
+		SSD1306_UpdateScreen();
+	}
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 

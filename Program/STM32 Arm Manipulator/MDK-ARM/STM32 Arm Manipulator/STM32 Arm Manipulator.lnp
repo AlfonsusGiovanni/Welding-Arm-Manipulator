@@ -7,6 +7,8 @@
 "stm32 arm manipulator\eeprom_lib.o"
 "stm32 arm manipulator\rs232_driver.o"
 "stm32 arm manipulator\fatfs_sd.o"
+"stm32 arm manipulator\ssd1306.o"
+"stm32 arm manipulator\fonts.o"
 "stm32 arm manipulator\stm32f1xx_hal_gpio_ex.o"
 "stm32 arm manipulator\stm32f1xx_hal.o"
 "stm32 arm manipulator\stm32f1xx_hal_rcc.o"
