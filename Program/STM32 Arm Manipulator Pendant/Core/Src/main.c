@@ -93,15 +93,16 @@ Data_Get_t command;
 
 /*RUNNING MODE SET*/
 //-------------------
-#define UI_HANDLER_ON
+//#define UI_HANDLER_ON
 //-------------------
 
 
 /*TESTING MODE SET*/
 //--------------------
+#define KEYPAD_TEST
 //#define RS232_TEST
 //#define EEPROM_TEST
-#define EMERGENCY_TEST
+//#define EMERGENCY_TEST
 //--------------------
 
 
@@ -390,8 +391,8 @@ int main(void)
 //	RS232_Init(&huart1);
 //	Start_get_command();
 //	Get_command(&command);
-//	HAL_Delay(250);
 	//-------------------------
+	
 	
 	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
 	HAL_Delay(100);
@@ -401,17 +402,16 @@ int main(void)
 	
 	/*KEYPAD CONFIGURATION*/	
 	//----------------------------------------------------------
-	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+	keypad.col_port[0] = GPIOB, keypad.col_pin[0] = GPIO_PIN_1;
+	keypad.col_port[1] = GPIOB, keypad.col_pin[1] = GPIO_PIN_0;
+	keypad.col_port[2] = GPIOA, keypad.col_pin[2] = GPIO_PIN_7;
+	keypad.col_port[3] = GPIOA, keypad.col_pin[3] = GPIO_PIN_6;
+	
 	keypad.row_port[0] = GPIOA, keypad.row_pin[0] = GPIO_PIN_1;
 	keypad.row_port[1] = GPIOA, keypad.row_pin[1] = GPIO_PIN_2;
 	keypad.row_port[2] = GPIOA, keypad.row_pin[2] = GPIO_PIN_3;
 	keypad.row_port[3] = GPIOA, keypad.row_pin[3] = GPIO_PIN_4;
 	keypad.row_port[4] = GPIOA, keypad.row_pin[4] = GPIO_PIN_5;
-	
-	keypad.col_port[0] = GPIOC, keypad.col_pin[0] = GPIO_PIN_13;
-	keypad.col_port[1] = GPIOC, keypad.col_pin[1] = GPIO_PIN_14;
-	keypad.col_port[2] = GPIOC, keypad.col_pin[2] = GPIO_PIN_15;
-	keypad.col_port[3] = GPIOA, keypad.col_pin[3] = GPIO_PIN_0;
 	
 	Keypad_Init(&keypad, makeKeymap(key), num_rows, num_cols);
 	//----------------------------------------------------------
@@ -440,18 +440,24 @@ int main(void)
 		ui_handler();
 		#endif
 		
+		#ifdef KEYPAD_TEST
+		keys = Keypad_Read(&keypad);
+		if(keys != prev_keys && keys != 0x00) lcd_clear();	
+		
+		prev_keys = keys;
+		#endif
+		
 		#ifdef RS232_TEST
 		Send_auto_home();
 		Send_move(CARTESIAN_CTRL, CARTESIAN_X, 12.5);
 		#endif
 		
 		#ifdef EEPROM_TEST
-		// MASIH KOSONG
+		
 		#endif
 		
 		#ifdef EMERGENCY_TEST
-		if(select_menu == EMERGENCY_MENU) HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
-		else HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+	
 		#endif
     /* USER CODE END WHILE */
 
@@ -724,8 +730,8 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
