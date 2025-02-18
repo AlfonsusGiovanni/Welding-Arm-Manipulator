@@ -89,7 +89,7 @@ lcd_status send_cmd(char data);
 lcd_status send_data(char data);
 
 // LCD INITIALIZE
-void lcd_init(I2C_HandleTypeDef *set_i2c);
+uint8_t lcd_init(I2C_HandleTypeDef *set_i2c);
 
 // LCD SET CURSOR LOCATION
 void lcd_set_cursor(int8_t col, int8_t row);

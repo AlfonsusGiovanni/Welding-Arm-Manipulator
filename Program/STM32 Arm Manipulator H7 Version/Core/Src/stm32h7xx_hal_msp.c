@@ -154,111 +154,15 @@ void HAL_I2C_MspDeInit(I2C_HandleTypeDef* hi2c)
 }
 
 /**
-* @brief SD MSP Initialization
+* @brief TIM_Base MSP Initialization
 * This function configures the hardware resources used in this example
-* @param hsd: SD handle pointer
+* @param htim_base: TIM_Base handle pointer
 * @retval None
 */
-void HAL_SD_MspInit(SD_HandleTypeDef* hsd)
+void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
-  if(hsd->Instance==SDMMC1)
-  {
-  /* USER CODE BEGIN SDMMC1_MspInit 0 */
-
-  /* USER CODE END SDMMC1_MspInit 0 */
-
-  /** Initializes the peripherals clock
-  */
-    PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SDMMC;
-    PeriphClkInitStruct.SdmmcClockSelection = RCC_SDMMCCLKSOURCE_PLL;
-    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
-    {
-      Error_Handler();
-    }
-
-    /* Peripheral clock enable */
-    __HAL_RCC_SDMMC1_CLK_ENABLE();
-
-    __HAL_RCC_GPIOC_CLK_ENABLE();
-    __HAL_RCC_GPIOD_CLK_ENABLE();
-    /**SDMMC1 GPIO Configuration
-    PC8     ------> SDMMC1_D0
-    PC9     ------> SDMMC1_D1
-    PC10     ------> SDMMC1_D2
-    PC11     ------> SDMMC1_D3
-    PC12     ------> SDMMC1_CK
-    PD2     ------> SDMMC1_CMD
-    */
-    GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_11
-                          |GPIO_PIN_12;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-    GPIO_InitStruct.Alternate = GPIO_AF12_SDIO1;
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-    GPIO_InitStruct.Pin = GPIO_PIN_2;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-    GPIO_InitStruct.Alternate = GPIO_AF12_SDIO1;
-    HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
-
-  /* USER CODE BEGIN SDMMC1_MspInit 1 */
-
-  /* USER CODE END SDMMC1_MspInit 1 */
-  }
-
-}
-
-/**
-* @brief SD MSP De-Initialization
-* This function freeze the hardware resources used in this example
-* @param hsd: SD handle pointer
-* @retval None
-*/
-void HAL_SD_MspDeInit(SD_HandleTypeDef* hsd)
-{
-  if(hsd->Instance==SDMMC1)
-  {
-  /* USER CODE BEGIN SDMMC1_MspDeInit 0 */
-
-  /* USER CODE END SDMMC1_MspDeInit 0 */
-    /* Peripheral clock disable */
-    __HAL_RCC_SDMMC1_CLK_DISABLE();
-
-    /**SDMMC1 GPIO Configuration
-    PC8     ------> SDMMC1_D0
-    PC9     ------> SDMMC1_D1
-    PC10     ------> SDMMC1_D2
-    PC11     ------> SDMMC1_D3
-    PC12     ------> SDMMC1_CK
-    PD2     ------> SDMMC1_CMD
-    */
-    HAL_GPIO_DeInit(GPIOC, GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_11
-                          |GPIO_PIN_12);
-
-    HAL_GPIO_DeInit(GPIOD, GPIO_PIN_2);
-
-  /* USER CODE BEGIN SDMMC1_MspDeInit 1 */
-
-  /* USER CODE END SDMMC1_MspDeInit 1 */
-  }
-
-}
-
-/**
-* @brief TIM_Encoder MSP Initialization
-* This function configures the hardware resources used in this example
-* @param htim_encoder: TIM_Encoder handle pointer
-* @retval None
-*/
-void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* htim_encoder)
-{
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-  if(htim_encoder->Instance==TIM1)
+  if(htim_base->Instance==TIM1)
   {
   /* USER CODE BEGIN TIM1_MspInit 0 */
 
@@ -269,14 +173,13 @@ void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* htim_encoder)
     __HAL_RCC_GPIOE_CLK_ENABLE();
     /**TIM1 GPIO Configuration
     PE9     ------> TIM1_CH1
-    PE11     ------> TIM1_CH2
     */
-    GPIO_InitStruct.Pin = ENC4B_Pin|ENC4A_Pin;
+    GPIO_InitStruct.Pin = ENC4A_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF1_TIM1;
-    HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+    HAL_GPIO_Init(ENC4A_GPIO_Port, &GPIO_InitStruct);
 
     /* TIM1 interrupt Init */
     HAL_NVIC_SetPriority(TIM1_CC_IRQn, 0, 0);
@@ -285,7 +188,7 @@ void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* htim_encoder)
 
   /* USER CODE END TIM1_MspInit 1 */
   }
-  else if(htim_encoder->Instance==TIM2)
+  else if(htim_base->Instance==TIM2)
   {
   /* USER CODE BEGIN TIM2_MspInit 0 */
 
@@ -294,10 +197,8 @@ void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* htim_encoder)
     __HAL_RCC_TIM2_CLK_ENABLE();
 
     __HAL_RCC_GPIOA_CLK_ENABLE();
-    __HAL_RCC_GPIOB_CLK_ENABLE();
     /**TIM2 GPIO Configuration
     PA5     ------> TIM2_CH1
-    PB3 (JTDO/TRACESWO)     ------> TIM2_CH2
     */
     GPIO_InitStruct.Pin = ENC3A_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
@@ -306,13 +207,6 @@ void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* htim_encoder)
     GPIO_InitStruct.Alternate = GPIO_AF1_TIM2;
     HAL_GPIO_Init(ENC3A_GPIO_Port, &GPIO_InitStruct);
 
-    GPIO_InitStruct.Pin = ENC3B_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    GPIO_InitStruct.Alternate = GPIO_AF1_TIM2;
-    HAL_GPIO_Init(ENC3B_GPIO_Port, &GPIO_InitStruct);
-
     /* TIM2 interrupt Init */
     HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(TIM2_IRQn);
@@ -320,7 +214,7 @@ void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* htim_encoder)
 
   /* USER CODE END TIM2_MspInit 1 */
   }
-  else if(htim_encoder->Instance==TIM3)
+  else if(htim_base->Instance==TIM3)
   {
   /* USER CODE BEGIN TIM3_MspInit 0 */
 
@@ -331,14 +225,13 @@ void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* htim_encoder)
     __HAL_RCC_GPIOA_CLK_ENABLE();
     /**TIM3 GPIO Configuration
     PA6     ------> TIM3_CH1
-    PA7     ------> TIM3_CH2
     */
-    GPIO_InitStruct.Pin = ENC5A_Pin|ENC5B_Pin;
+    GPIO_InitStruct.Pin = ENC5A_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF2_TIM3;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+    HAL_GPIO_Init(ENC5A_GPIO_Port, &GPIO_InitStruct);
 
     /* TIM3 interrupt Init */
     HAL_NVIC_SetPriority(TIM3_IRQn, 0, 0);
@@ -347,7 +240,7 @@ void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* htim_encoder)
 
   /* USER CODE END TIM3_MspInit 1 */
   }
-  else if(htim_encoder->Instance==TIM4)
+  else if(htim_base->Instance==TIM4)
   {
   /* USER CODE BEGIN TIM4_MspInit 0 */
 
@@ -358,14 +251,13 @@ void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* htim_encoder)
     __HAL_RCC_GPIOD_CLK_ENABLE();
     /**TIM4 GPIO Configuration
     PD12     ------> TIM4_CH1
-    PD13     ------> TIM4_CH2
     */
-    GPIO_InitStruct.Pin = ENC1A_Pin|ENCA1B_Pin;
+    GPIO_InitStruct.Pin = ENC1A_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF2_TIM4;
-    HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+    HAL_GPIO_Init(ENC1A_GPIO_Port, &GPIO_InitStruct);
 
     /* TIM4 interrupt Init */
     HAL_NVIC_SetPriority(TIM4_IRQn, 0, 0);
@@ -374,7 +266,7 @@ void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* htim_encoder)
 
   /* USER CODE END TIM4_MspInit 1 */
   }
-  else if(htim_encoder->Instance==TIM5)
+  else if(htim_base->Instance==TIM5)
   {
   /* USER CODE BEGIN TIM5_MspInit 0 */
 
@@ -385,14 +277,13 @@ void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* htim_encoder)
     __HAL_RCC_GPIOA_CLK_ENABLE();
     /**TIM5 GPIO Configuration
     PA0     ------> TIM5_CH1
-    PA1     ------> TIM5_CH2
     */
-    GPIO_InitStruct.Pin = ENC6A_Pin|ENC6B_Pin;
+    GPIO_InitStruct.Pin = ENC6A_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF2_TIM5;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+    HAL_GPIO_Init(ENC6A_GPIO_Port, &GPIO_InitStruct);
 
     /* TIM5 interrupt Init */
     HAL_NVIC_SetPriority(TIM5_IRQn, 0, 0);
@@ -401,7 +292,35 @@ void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* htim_encoder)
 
   /* USER CODE END TIM5_MspInit 1 */
   }
-  else if(htim_encoder->Instance==TIM8)
+  else if(htim_base->Instance==TIM6)
+  {
+  /* USER CODE BEGIN TIM6_MspInit 0 */
+
+  /* USER CODE END TIM6_MspInit 0 */
+    /* Peripheral clock enable */
+    __HAL_RCC_TIM6_CLK_ENABLE();
+    /* TIM6 interrupt Init */
+    HAL_NVIC_SetPriority(TIM6_DAC_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(TIM6_DAC_IRQn);
+  /* USER CODE BEGIN TIM6_MspInit 1 */
+
+  /* USER CODE END TIM6_MspInit 1 */
+  }
+  else if(htim_base->Instance==TIM7)
+  {
+  /* USER CODE BEGIN TIM7_MspInit 0 */
+
+  /* USER CODE END TIM7_MspInit 0 */
+    /* Peripheral clock enable */
+    __HAL_RCC_TIM7_CLK_ENABLE();
+    /* TIM7 interrupt Init */
+    HAL_NVIC_SetPriority(TIM7_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(TIM7_IRQn);
+  /* USER CODE BEGIN TIM7_MspInit 1 */
+
+  /* USER CODE END TIM7_MspInit 1 */
+  }
+  else if(htim_base->Instance==TIM8)
   {
   /* USER CODE BEGIN TIM8_MspInit 0 */
 
@@ -412,34 +331,109 @@ void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* htim_encoder)
     __HAL_RCC_GPIOC_CLK_ENABLE();
     /**TIM8 GPIO Configuration
     PC6     ------> TIM8_CH1
-    PC7     ------> TIM8_CH2
     */
-    GPIO_InitStruct.Pin = ENC2A_Pin|ENC2B_Pin;
+    GPIO_InitStruct.Pin = ENC2A_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF3_TIM8;
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+    HAL_GPIO_Init(ENC2A_GPIO_Port, &GPIO_InitStruct);
 
     /* TIM8 interrupt Init */
+    HAL_NVIC_SetPriority(TIM8_BRK_TIM12_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(TIM8_BRK_TIM12_IRQn);
+    HAL_NVIC_SetPriority(TIM8_UP_TIM13_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(TIM8_UP_TIM13_IRQn);
+    HAL_NVIC_SetPriority(TIM8_TRG_COM_TIM14_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(TIM8_TRG_COM_TIM14_IRQn);
     HAL_NVIC_SetPriority(TIM8_CC_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(TIM8_CC_IRQn);
   /* USER CODE BEGIN TIM8_MspInit 1 */
 
   /* USER CODE END TIM8_MspInit 1 */
   }
+  else if(htim_base->Instance==TIM12)
+  {
+  /* USER CODE BEGIN TIM12_MspInit 0 */
+
+  /* USER CODE END TIM12_MspInit 0 */
+    /* Peripheral clock enable */
+    __HAL_RCC_TIM12_CLK_ENABLE();
+    /* TIM12 interrupt Init */
+    HAL_NVIC_SetPriority(TIM8_BRK_TIM12_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(TIM8_BRK_TIM12_IRQn);
+  /* USER CODE BEGIN TIM12_MspInit 1 */
+
+  /* USER CODE END TIM12_MspInit 1 */
+  }
+  else if(htim_base->Instance==TIM13)
+  {
+  /* USER CODE BEGIN TIM13_MspInit 0 */
+
+  /* USER CODE END TIM13_MspInit 0 */
+    /* Peripheral clock enable */
+    __HAL_RCC_TIM13_CLK_ENABLE();
+    /* TIM13 interrupt Init */
+    HAL_NVIC_SetPriority(TIM8_UP_TIM13_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(TIM8_UP_TIM13_IRQn);
+  /* USER CODE BEGIN TIM13_MspInit 1 */
+
+  /* USER CODE END TIM13_MspInit 1 */
+  }
+  else if(htim_base->Instance==TIM14)
+  {
+  /* USER CODE BEGIN TIM14_MspInit 0 */
+
+  /* USER CODE END TIM14_MspInit 0 */
+    /* Peripheral clock enable */
+    __HAL_RCC_TIM14_CLK_ENABLE();
+    /* TIM14 interrupt Init */
+    HAL_NVIC_SetPriority(TIM8_TRG_COM_TIM14_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(TIM8_TRG_COM_TIM14_IRQn);
+  /* USER CODE BEGIN TIM14_MspInit 1 */
+
+  /* USER CODE END TIM14_MspInit 1 */
+  }
+  else if(htim_base->Instance==TIM15)
+  {
+  /* USER CODE BEGIN TIM15_MspInit 0 */
+
+  /* USER CODE END TIM15_MspInit 0 */
+    /* Peripheral clock enable */
+    __HAL_RCC_TIM15_CLK_ENABLE();
+    /* TIM15 interrupt Init */
+    HAL_NVIC_SetPriority(TIM15_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(TIM15_IRQn);
+  /* USER CODE BEGIN TIM15_MspInit 1 */
+
+  /* USER CODE END TIM15_MspInit 1 */
+  }
+  else if(htim_base->Instance==TIM16)
+  {
+  /* USER CODE BEGIN TIM16_MspInit 0 */
+
+  /* USER CODE END TIM16_MspInit 0 */
+    /* Peripheral clock enable */
+    __HAL_RCC_TIM16_CLK_ENABLE();
+    /* TIM16 interrupt Init */
+    HAL_NVIC_SetPriority(TIM16_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(TIM16_IRQn);
+  /* USER CODE BEGIN TIM16_MspInit 1 */
+
+  /* USER CODE END TIM16_MspInit 1 */
+  }
 
 }
 
 /**
-* @brief TIM_Encoder MSP De-Initialization
+* @brief TIM_Base MSP De-Initialization
 * This function freeze the hardware resources used in this example
-* @param htim_encoder: TIM_Encoder handle pointer
+* @param htim_base: TIM_Base handle pointer
 * @retval None
 */
-void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* htim_encoder)
+void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* htim_base)
 {
-  if(htim_encoder->Instance==TIM1)
+  if(htim_base->Instance==TIM1)
   {
   /* USER CODE BEGIN TIM1_MspDeInit 0 */
 
@@ -449,9 +443,8 @@ void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* htim_encoder)
 
     /**TIM1 GPIO Configuration
     PE9     ------> TIM1_CH1
-    PE11     ------> TIM1_CH2
     */
-    HAL_GPIO_DeInit(GPIOE, ENC4B_Pin|ENC4A_Pin);
+    HAL_GPIO_DeInit(ENC4A_GPIO_Port, ENC4A_Pin);
 
     /* TIM1 interrupt DeInit */
     HAL_NVIC_DisableIRQ(TIM1_CC_IRQn);
@@ -459,7 +452,7 @@ void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* htim_encoder)
 
   /* USER CODE END TIM1_MspDeInit 1 */
   }
-  else if(htim_encoder->Instance==TIM2)
+  else if(htim_base->Instance==TIM2)
   {
   /* USER CODE BEGIN TIM2_MspDeInit 0 */
 
@@ -469,11 +462,8 @@ void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* htim_encoder)
 
     /**TIM2 GPIO Configuration
     PA5     ------> TIM2_CH1
-    PB3 (JTDO/TRACESWO)     ------> TIM2_CH2
     */
     HAL_GPIO_DeInit(ENC3A_GPIO_Port, ENC3A_Pin);
-
-    HAL_GPIO_DeInit(ENC3B_GPIO_Port, ENC3B_Pin);
 
     /* TIM2 interrupt DeInit */
     HAL_NVIC_DisableIRQ(TIM2_IRQn);
@@ -481,7 +471,7 @@ void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* htim_encoder)
 
   /* USER CODE END TIM2_MspDeInit 1 */
   }
-  else if(htim_encoder->Instance==TIM3)
+  else if(htim_base->Instance==TIM3)
   {
   /* USER CODE BEGIN TIM3_MspDeInit 0 */
 
@@ -491,9 +481,8 @@ void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* htim_encoder)
 
     /**TIM3 GPIO Configuration
     PA6     ------> TIM3_CH1
-    PA7     ------> TIM3_CH2
     */
-    HAL_GPIO_DeInit(GPIOA, ENC5A_Pin|ENC5B_Pin);
+    HAL_GPIO_DeInit(ENC5A_GPIO_Port, ENC5A_Pin);
 
     /* TIM3 interrupt DeInit */
     HAL_NVIC_DisableIRQ(TIM3_IRQn);
@@ -501,7 +490,7 @@ void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* htim_encoder)
 
   /* USER CODE END TIM3_MspDeInit 1 */
   }
-  else if(htim_encoder->Instance==TIM4)
+  else if(htim_base->Instance==TIM4)
   {
   /* USER CODE BEGIN TIM4_MspDeInit 0 */
 
@@ -511,9 +500,8 @@ void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* htim_encoder)
 
     /**TIM4 GPIO Configuration
     PD12     ------> TIM4_CH1
-    PD13     ------> TIM4_CH2
     */
-    HAL_GPIO_DeInit(GPIOD, ENC1A_Pin|ENCA1B_Pin);
+    HAL_GPIO_DeInit(ENC1A_GPIO_Port, ENC1A_Pin);
 
     /* TIM4 interrupt DeInit */
     HAL_NVIC_DisableIRQ(TIM4_IRQn);
@@ -521,7 +509,7 @@ void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* htim_encoder)
 
   /* USER CODE END TIM4_MspDeInit 1 */
   }
-  else if(htim_encoder->Instance==TIM5)
+  else if(htim_base->Instance==TIM5)
   {
   /* USER CODE BEGIN TIM5_MspDeInit 0 */
 
@@ -531,9 +519,8 @@ void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* htim_encoder)
 
     /**TIM5 GPIO Configuration
     PA0     ------> TIM5_CH1
-    PA1     ------> TIM5_CH2
     */
-    HAL_GPIO_DeInit(GPIOA, ENC6A_Pin|ENC6B_Pin);
+    HAL_GPIO_DeInit(ENC6A_GPIO_Port, ENC6A_Pin);
 
     /* TIM5 interrupt DeInit */
     HAL_NVIC_DisableIRQ(TIM5_IRQn);
@@ -541,7 +528,35 @@ void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* htim_encoder)
 
   /* USER CODE END TIM5_MspDeInit 1 */
   }
-  else if(htim_encoder->Instance==TIM8)
+  else if(htim_base->Instance==TIM6)
+  {
+  /* USER CODE BEGIN TIM6_MspDeInit 0 */
+
+  /* USER CODE END TIM6_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_TIM6_CLK_DISABLE();
+
+    /* TIM6 interrupt DeInit */
+    HAL_NVIC_DisableIRQ(TIM6_DAC_IRQn);
+  /* USER CODE BEGIN TIM6_MspDeInit 1 */
+
+  /* USER CODE END TIM6_MspDeInit 1 */
+  }
+  else if(htim_base->Instance==TIM7)
+  {
+  /* USER CODE BEGIN TIM7_MspDeInit 0 */
+
+  /* USER CODE END TIM7_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_TIM7_CLK_DISABLE();
+
+    /* TIM7 interrupt DeInit */
+    HAL_NVIC_DisableIRQ(TIM7_IRQn);
+  /* USER CODE BEGIN TIM7_MspDeInit 1 */
+
+  /* USER CODE END TIM7_MspDeInit 1 */
+  }
+  else if(htim_base->Instance==TIM8)
   {
   /* USER CODE BEGIN TIM8_MspDeInit 0 */
 
@@ -551,15 +566,129 @@ void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* htim_encoder)
 
     /**TIM8 GPIO Configuration
     PC6     ------> TIM8_CH1
-    PC7     ------> TIM8_CH2
     */
-    HAL_GPIO_DeInit(GPIOC, ENC2A_Pin|ENC2B_Pin);
+    HAL_GPIO_DeInit(ENC2A_GPIO_Port, ENC2A_Pin);
 
     /* TIM8 interrupt DeInit */
+  /* USER CODE BEGIN TIM8:TIM8_BRK_TIM12_IRQn disable */
+    /**
+    * Uncomment the line below to disable the "TIM8_BRK_TIM12_IRQn" interrupt
+    * Be aware, disabling shared interrupt may affect other IPs
+    */
+    /* HAL_NVIC_DisableIRQ(TIM8_BRK_TIM12_IRQn); */
+  /* USER CODE END TIM8:TIM8_BRK_TIM12_IRQn disable */
+
+  /* USER CODE BEGIN TIM8:TIM8_UP_TIM13_IRQn disable */
+    /**
+    * Uncomment the line below to disable the "TIM8_UP_TIM13_IRQn" interrupt
+    * Be aware, disabling shared interrupt may affect other IPs
+    */
+    /* HAL_NVIC_DisableIRQ(TIM8_UP_TIM13_IRQn); */
+  /* USER CODE END TIM8:TIM8_UP_TIM13_IRQn disable */
+
+  /* USER CODE BEGIN TIM8:TIM8_TRG_COM_TIM14_IRQn disable */
+    /**
+    * Uncomment the line below to disable the "TIM8_TRG_COM_TIM14_IRQn" interrupt
+    * Be aware, disabling shared interrupt may affect other IPs
+    */
+    /* HAL_NVIC_DisableIRQ(TIM8_TRG_COM_TIM14_IRQn); */
+  /* USER CODE END TIM8:TIM8_TRG_COM_TIM14_IRQn disable */
+
     HAL_NVIC_DisableIRQ(TIM8_CC_IRQn);
   /* USER CODE BEGIN TIM8_MspDeInit 1 */
 
   /* USER CODE END TIM8_MspDeInit 1 */
+  }
+  else if(htim_base->Instance==TIM12)
+  {
+  /* USER CODE BEGIN TIM12_MspDeInit 0 */
+
+  /* USER CODE END TIM12_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_TIM12_CLK_DISABLE();
+
+    /* TIM12 interrupt DeInit */
+  /* USER CODE BEGIN TIM12:TIM8_BRK_TIM12_IRQn disable */
+    /**
+    * Uncomment the line below to disable the "TIM8_BRK_TIM12_IRQn" interrupt
+    * Be aware, disabling shared interrupt may affect other IPs
+    */
+    /* HAL_NVIC_DisableIRQ(TIM8_BRK_TIM12_IRQn); */
+  /* USER CODE END TIM12:TIM8_BRK_TIM12_IRQn disable */
+
+  /* USER CODE BEGIN TIM12_MspDeInit 1 */
+
+  /* USER CODE END TIM12_MspDeInit 1 */
+  }
+  else if(htim_base->Instance==TIM13)
+  {
+  /* USER CODE BEGIN TIM13_MspDeInit 0 */
+
+  /* USER CODE END TIM13_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_TIM13_CLK_DISABLE();
+
+    /* TIM13 interrupt DeInit */
+  /* USER CODE BEGIN TIM13:TIM8_UP_TIM13_IRQn disable */
+    /**
+    * Uncomment the line below to disable the "TIM8_UP_TIM13_IRQn" interrupt
+    * Be aware, disabling shared interrupt may affect other IPs
+    */
+    /* HAL_NVIC_DisableIRQ(TIM8_UP_TIM13_IRQn); */
+  /* USER CODE END TIM13:TIM8_UP_TIM13_IRQn disable */
+
+  /* USER CODE BEGIN TIM13_MspDeInit 1 */
+
+  /* USER CODE END TIM13_MspDeInit 1 */
+  }
+  else if(htim_base->Instance==TIM14)
+  {
+  /* USER CODE BEGIN TIM14_MspDeInit 0 */
+
+  /* USER CODE END TIM14_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_TIM14_CLK_DISABLE();
+
+    /* TIM14 interrupt DeInit */
+  /* USER CODE BEGIN TIM14:TIM8_TRG_COM_TIM14_IRQn disable */
+    /**
+    * Uncomment the line below to disable the "TIM8_TRG_COM_TIM14_IRQn" interrupt
+    * Be aware, disabling shared interrupt may affect other IPs
+    */
+    /* HAL_NVIC_DisableIRQ(TIM8_TRG_COM_TIM14_IRQn); */
+  /* USER CODE END TIM14:TIM8_TRG_COM_TIM14_IRQn disable */
+
+  /* USER CODE BEGIN TIM14_MspDeInit 1 */
+
+  /* USER CODE END TIM14_MspDeInit 1 */
+  }
+  else if(htim_base->Instance==TIM15)
+  {
+  /* USER CODE BEGIN TIM15_MspDeInit 0 */
+
+  /* USER CODE END TIM15_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_TIM15_CLK_DISABLE();
+
+    /* TIM15 interrupt DeInit */
+    HAL_NVIC_DisableIRQ(TIM15_IRQn);
+  /* USER CODE BEGIN TIM15_MspDeInit 1 */
+
+  /* USER CODE END TIM15_MspDeInit 1 */
+  }
+  else if(htim_base->Instance==TIM16)
+  {
+  /* USER CODE BEGIN TIM16_MspDeInit 0 */
+
+  /* USER CODE END TIM16_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_TIM16_CLK_DISABLE();
+
+    /* TIM16 interrupt DeInit */
+    HAL_NVIC_DisableIRQ(TIM16_IRQn);
+  /* USER CODE BEGIN TIM16_MspDeInit 1 */
+
+  /* USER CODE END TIM16_MspDeInit 1 */
   }
 
 }
@@ -577,7 +706,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
   if(huart->Instance==UART4)
   {
   /* USER CODE BEGIN UART4_MspInit 0 */
-
+	__HAL_UART_ENABLE_IT(huart, UART_IT_IDLE);
   /* USER CODE END UART4_MspInit 0 */
 
   /** Initializes the peripherals clock
@@ -597,13 +726,16 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     PA11     ------> UART4_RX
     PA12     ------> UART4_TX
     */
-    GPIO_InitStruct.Pin = RS232_RX_Pin|RS232_TX_Pin;
+    GPIO_InitStruct.Pin = GPIO_PIN_11|GPIO_PIN_12;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF6_UART4;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
+    /* UART4 interrupt Init */
+    HAL_NVIC_SetPriority(UART4_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(UART4_IRQn);
   /* USER CODE BEGIN UART4_MspInit 1 */
 
   /* USER CODE END UART4_MspInit 1 */
@@ -631,8 +763,10 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* huart)
     PA11     ------> UART4_RX
     PA12     ------> UART4_TX
     */
-    HAL_GPIO_DeInit(GPIOA, RS232_RX_Pin|RS232_TX_Pin);
+    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_11|GPIO_PIN_12);
 
+    /* UART4 interrupt DeInit */
+    HAL_NVIC_DisableIRQ(UART4_IRQn);
   /* USER CODE BEGIN UART4_MspDeInit 1 */
 
   /* USER CODE END UART4_MspDeInit 1 */

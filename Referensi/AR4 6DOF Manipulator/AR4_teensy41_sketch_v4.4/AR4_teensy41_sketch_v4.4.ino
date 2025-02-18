@@ -95,7 +95,6 @@ bool isValidResult(float value) {
   return !std::isnan(value) && !std::isinf(value);
 }
 
-
 const int J1stepPin = 0;
 const int J1dirPin = 1;
 const int J2stepPin = 2;
@@ -146,7 +145,6 @@ Encoder J3encPos(19, 18);
 Encoder J4encPos(20, 21);
 Encoder J5encPos(23, 22);
 Encoder J6encPos(24, 25);
-
 
 // GLOBAL VARS //
 
@@ -7323,7 +7321,6 @@ void loop() {
       int WristConStart = inData.indexOf("W");
       int LoopModeStart = inData.indexOf("Lm");
       int DisWristStart = inData.indexOf("Q");
-
 
       xyzuvw_Temp[0] = inData.substring(xStart + 1, yStart).toFloat();
       xyzuvw_Temp[1] = inData.substring(yStart + 1, zStart).toFloat();

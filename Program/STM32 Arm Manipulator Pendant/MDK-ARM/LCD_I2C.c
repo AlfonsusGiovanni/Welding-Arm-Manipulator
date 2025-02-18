@@ -33,32 +33,35 @@ lcd_status send_data(char data){
 }
 
 // LCD INITIALIZE
-void lcd_init(I2C_HandleTypeDef *set_i2c){
+uint8_t lcd_init(I2C_HandleTypeDef *set_i2c){
 	hi2c = set_i2c;
 	uint8_t cmd;
+	uint8_t error_value;
 	
 	cmd = LCD_FUNCTIONSET | LCD_4BITMODE;
-	send_cmd(cmd);
-	HAL_Delay(10);
+	if(send_cmd(cmd) == LCD_ERR) error_value = 1;
 	
+	HAL_Delay(10);
 	cmd = LCD_FUNCTIONSET | LCD_4BITMODE | LCD_2LINE | LCD_FTYPE_5X8;
-	send_cmd(cmd);
+	if(send_cmd(cmd) == LCD_ERR) error_value = 2;
 	
 	HAL_Delay(1);
 	cmd = LCD_DISPLAYCTRL | LCD_OFF;
-	send_cmd(cmd);
+	if(send_cmd(cmd) == LCD_ERR) error_value = 3;
 	
 	HAL_Delay(1);
 	cmd = LCD_CLEAR;
-	send_cmd(cmd);
+	if(send_cmd(cmd) == LCD_ERR) error_value = 4;
 	
 	HAL_Delay(2);
 	cmd = LCD_ENTRYMODE | LCD_ENTRYINCREMENT | LCD_ENTRYSHIFTDISABLE;
-	send_cmd(cmd);
+	if(send_cmd(cmd) == LCD_ERR) error_value = 5;
 	
 	HAL_Delay(1);
 	cmd = LCD_DISPLAYCTRL | LCD_ON;
-	send_cmd(cmd);
+	if(send_cmd(cmd) == LCD_ERR) error_value = 6;
+	
+	return error_value;
 }
 
 // LCD SET CURSOR LOCATION

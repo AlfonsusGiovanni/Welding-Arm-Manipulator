@@ -64,8 +64,16 @@ void TIM2_IRQHandler(void);
 void TIM3_IRQHandler(void);
 void TIM4_IRQHandler(void);
 void EXTI15_10_IRQHandler(void);
+void TIM8_BRK_TIM12_IRQHandler(void);
+void TIM8_UP_TIM13_IRQHandler(void);
+void TIM8_TRG_COM_TIM14_IRQHandler(void);
 void TIM8_CC_IRQHandler(void);
 void TIM5_IRQHandler(void);
+void UART4_IRQHandler(void);
+void TIM6_DAC_IRQHandler(void);
+void TIM7_IRQHandler(void);
+void TIM15_IRQHandler(void);
+void TIM16_IRQHandler(void);
 /* USER CODE BEGIN EFP */
 
 /* USER CODE END EFP */

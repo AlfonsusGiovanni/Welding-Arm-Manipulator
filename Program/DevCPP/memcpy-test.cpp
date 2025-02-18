@@ -3,13 +3,13 @@
 #include <cstring> // For memcpy
 
 int main() {
-    float var1 = 90.5; // Example double variable
+    double var1 = 102.55; // Example double variable
 
     // Create a uint8_t array with enough space to hold the double variable
-    uint8_t var2[4];
+    uint8_t var2[8];
 
     // Use memcpy to copy the bytes of var1 into the uint8_t array
-    std::memcpy(var2, &var1, sizeof(float));
+    std::memcpy(var2, &var1, sizeof(double));
 
     // Output the original double variable
     std::cout << "Original double variable: " << var1 << std::endl;
@@ -22,7 +22,8 @@ int main() {
     std::cout << std::endl;
     
     // Create a double variable var3
-    float var3;
+
+    double var3;
 
     // Use memcpy to copy the bytes from var2 into var3
     std::memcpy(&var3, var2, sizeof(double));

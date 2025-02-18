@@ -22,12 +22,20 @@ Dialog DLL:      TCM.DLL V1.53.0.0
  
 <h2>Project:</h2>
 D:\Data Udin\Kuliah\7. TUGAS AKHIR\Arm Manipulator\Program\STM32 Arm Manipulator\MDK-ARM\STM32 Arm Manipulator.uvprojx
-Project File Date:  11/14/2024
+Project File Date:  02/08/2025
 
 <h2>Output:</h2>
 *** Using Compiler 'V5.06 update 7 (build 960)', folder: 'C:\Keil_v5\ARM\ARMCC\Bin'
 Build target 'STM32 Arm Manipulator'
-"STM32 Arm Manipulator\STM32 Arm Manipulator.axf" - 0 Error(s), 0 Warning(s).
+assembling startup_stm32f103xb.s...
+compiling main.c...
+../Core/Src/main.c(238): warning:  #188-D: enumerated type mixed with another type
+  	if(htim->Instance == TIM3) Show_Menu(selected_menu);
+../Core/Src/main.c: 1 warning, 0 errors
+linking...
+Program Size: Code=14068 RO-data=2284 RW-data=180 ZI-data=3836  
+FromELF: creating hex file...
+"STM32 Arm Manipulator\STM32 Arm Manipulator.axf" - 0 Error(s), 1 Warning(s).
 
 <h2>Software Packages used:</h2>
 
@@ -51,7 +59,7 @@ Package Vendor: Keil
 
    * Component: ARM::CMSIS:CORE:5.6.0
       Include file:  CMSIS\Core\Include\tz_context.h
-Build Time Elapsed:  00:00:01
+Build Time Elapsed:  00:00:02
 </pre>
 </body>
 </html>

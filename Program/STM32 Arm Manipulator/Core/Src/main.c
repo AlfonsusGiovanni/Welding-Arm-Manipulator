@@ -70,12 +70,12 @@ typedef enum{
 
 /*SYSTEM CONFIGURATION*/
 //----------------------
-#define USE_EEPROM
-#define USE_RS232
-#define USE_OLED
-#define USE_STEPPER
-#define USE_SDCARD
-#define USE_ENCODER
+//#define USE_EEPROM
+//#define USE_RS232
+//#define USE_OLED
+//#define USE_STEPPER
+//#define USE_SDCARD
+//#define USE_ENCODER
 //----------------------
 
 
@@ -103,11 +103,11 @@ typedef enum{
 /*ROBOT TEST SET*/
 //-------------------
 //#define EEPROM_TEST
-//#define RS232_TEST
+#define RS232_TEST
 //#define STEPPER_TEST
 //#define SDCARD_TEST
 //#define ENCODER_TEST
-#define OLED_TEST
+//#define OLED_TEST
 //-------------------
 
 /* USER CODE END PD */
@@ -242,9 +242,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 /*RS232 CONFIGURATION*/
 //------------------------------------------------------
 uint32_t RS232_state, RS232_err_status;
-uint8_t dummy_byte[3];
+uint8_t dummy_byte[100];
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
-	//Get_command(&command);
+	Get_command(&command);
 	RS232_state = check_state();
 	RS232_err_status = check_error();
 }
@@ -379,7 +379,6 @@ int main(void)
 	#ifdef USE_RS232
 	RS232_Init(&huart1);
 	Start_get_command();
-	Get_command(&command);
 	#endif
 	
 	
@@ -430,12 +429,10 @@ int main(void)
   while (1)
   {
 		#ifdef RS232_TEST
-		Get_command(&command);
-		
-		for(int i=0; i<6; i++){
-			if(i<3) current_position[i] = test_pos_start[i] + move_position[i];
-			current_angle[i]  = test_angle_start[i] + move_angle[i];
-		}
+//		for(int i=0; i<6; i++){
+//			if(i<3) current_position[i] = test_pos_start[i] + move_position[i];
+//			current_angle[i]  = test_angle_start[i] + move_angle[i];
+//		}
 		
 		if(command.type == AUTO_HOME){
 			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
@@ -765,17 +762,28 @@ static void MX_GPIO_Init(void)
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, SD_SS_Pin|DIR_2_Pin|PULSE_3_Pin|DIR_3_Pin
                           |PULSE_4_Pin|DIR_4_Pin|PULSE_5_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, SD_CS_Pin|LED_Pin|ENABLE_Pin|PULSE_1_Pin
-                          |DIR_1_Pin|PULSE_2_Pin|PULSE_6_Pin|DIR_6_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, SD_CS_Pin|ENABLE_Pin|PULSE_1_Pin|DIR_1_Pin
+                          |PULSE_2_Pin|PULSE_6_Pin|DIR_6_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : LED_Pin */
+  GPIO_InitStruct.Pin = LED_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : ENC2_A_Pin ENC2_B_Pin */
   GPIO_InitStruct.Pin = ENC2_A_Pin|ENC2_B_Pin;
@@ -792,10 +800,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : SD_CS_Pin LED_Pin ENABLE_Pin PULSE_1_Pin
-                           DIR_1_Pin PULSE_2_Pin PULSE_6_Pin DIR_6_Pin */
-  GPIO_InitStruct.Pin = SD_CS_Pin|LED_Pin|ENABLE_Pin|PULSE_1_Pin
-                          |DIR_1_Pin|PULSE_2_Pin|PULSE_6_Pin|DIR_6_Pin;
+  /*Configure GPIO pins : SD_CS_Pin ENABLE_Pin PULSE_1_Pin DIR_1_Pin
+                           PULSE_2_Pin PULSE_6_Pin DIR_6_Pin */
+  GPIO_InitStruct.Pin = SD_CS_Pin|ENABLE_Pin|PULSE_1_Pin|DIR_1_Pin
+                          |PULSE_2_Pin|PULSE_6_Pin|DIR_6_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

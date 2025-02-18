@@ -184,27 +184,30 @@ int main(void)
   MX_I2C2_Init();
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
-	EEPROM_Init(&hi2c1, &eeprom, MEM_SIZE_256Kb, 0xA0);
+//	EEPROM_Init(&hi2c1, &eeprom, MEM_SIZE_256Kb, 0xA0);
 	lcd_init(&hi2c2);
 	
-	send_position[0] = posX;
-	send_position[1] = posY;
-	send_position[2] = posZ;
+//	send_position[0] = posX;
+//	send_position[1] = posY;
+//	send_position[2] = posZ;
+//	
+//	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+//	HAL_TIM_Encoder_Start_IT(&htim1, TIM_CHANNEL_ALL);
 	
-	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-	//HAL_TIM_Encoder_Start_IT(&htim1, TIM_CHANNEL_ALL);
-	
-	int speed = 90;
+//	int speed = 90;
+
+	lcd_set_cursor(0, 0);
+	lcd_printstr("HALO DUNIA");
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-		HAL_GPIO_WritePin(STEP_GPIO_Port, STEP_Pin, GPIO_PIN_SET);
-		DELAY_US(speed);
-		HAL_GPIO_WritePin(STEP_GPIO_Port, STEP_Pin, GPIO_PIN_RESET);
-		DELAY_US(speed);
+//		HAL_GPIO_WritePin(STEP_GPIO_Port, STEP_Pin, GPIO_PIN_SET);
+//		DELAY_US(speed);
+//		HAL_GPIO_WritePin(STEP_GPIO_Port, STEP_Pin, GPIO_PIN_RESET);
+//		DELAY_US(speed);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -494,11 +497,18 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : STEP_Pin DIR_Pin ENA_Pin */
-  GPIO_InitStruct.Pin = STEP_Pin|DIR_Pin|ENA_Pin;
+  /*Configure GPIO pin : STEP_Pin */
+  GPIO_InitStruct.Pin = STEP_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(STEP_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : DIR_Pin ENA_Pin */
+  GPIO_InitStruct.Pin = DIR_Pin|ENA_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */

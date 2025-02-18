@@ -31,3 +31,4 @@ stm32 arm manipulator pendant\rs232_driver.o: ../Drivers/STM32F1xx_HAL_Driver/In
 stm32 arm manipulator pendant\rs232_driver.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h
 stm32 arm manipulator pendant\rs232_driver.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h
 stm32 arm manipulator pendant\rs232_driver.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
+stm32 arm manipulator pendant\rs232_driver.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h

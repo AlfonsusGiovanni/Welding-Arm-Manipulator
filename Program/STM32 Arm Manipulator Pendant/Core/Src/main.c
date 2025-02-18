@@ -45,11 +45,15 @@ typedef enum{
 	PAUSE_MENU,
 	STOP_MENU,
 	HOLD_MENU,
-	MAPPING_ERROR_MENU,
-	PREVIEW_ERROR_MENU,
+	MAPPING_ERR_MENU,
+	PREVIEW_ERR_MENU,
 	MAPPING_SAVE_MENU,
 	POINT_SET_MENU,
 	POINT_UNSET_MENU,
+	EEPROM_ERR_MENU,
+	RS232_ERR_MENU,
+	KEYPAD_ERR_MENU,
+	ANGLE_LIMIT_MENU,
 }LCD_Menu_t;
 
 LCD_Menu_t select_menu;
@@ -74,14 +78,20 @@ typedef enum{
 
 
 //--- RS232 TYPEDEF ---//
-//////////////////////////
+/////////////////////////
 Data_Get_t command;
-//////////////////////////
+/////////////////////////
 
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+/*WELDING POINT SET*/
+//-------------------
+#define MAX_POINT 300
+//-------------------
+
 
 /*EEPROM ADDRESS SET*/
 //-----------------------------------
@@ -91,19 +101,23 @@ Data_Get_t command;
 //-----------------------------------
 
 
-/*RUNNING MODE SET*/
-//-------------------
-//#define UI_HANDLER_ON
-//-------------------
+/*FUNCTION CONFIG SET*/
+//---------------------
+#define USE_LCD
+#define USE_EEPROM
+#define USE_RS232
+#define USE_KEYPAD
+//---------------------
 
 
 /*TESTING MODE SET*/
-//--------------------
-#define KEYPAD_TEST
+//----------------------
+#define MAIN_PROGRAM
+//#define KEYPAD_TEST
 //#define RS232_TEST
 //#define EEPROM_TEST
 //#define EMERGENCY_TEST
-//--------------------
+//----------------------
 
 
 /* USER CODE END PD */
@@ -121,7 +135,6 @@ TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart1;
-DMA_HandleTypeDef hdma_usart1_rx;
 
 /* USER CODE BEGIN PV */
 
@@ -136,17 +149,18 @@ state_home 				= false,
 state_running 		= false,
 stop 							= false,
 prep_done 				= false,
-mapped_start_array[250],
-mapped_end_array[250];
+mapped_start_array[MAX_POINT],
+mapped_end_array[MAX_POINT];
 
 uint8_t
+lcd_error_value,
 stored_welding_data[3],
 running_speed,
 max_speed = 150,
-mapped_array[250],
-mapped_points[250],
-mapped_pattern[250],
-mapped_speed[250];
+mapped_array[MAX_POINT],
+mapped_points[MAX_POINT],
+mapped_pattern[MAX_POINT],
+mapped_speed[MAX_POINT];
 
 uint16_t 
 mapping_point,
@@ -154,7 +168,8 @@ total_mapped_points,
 preview_point, welding_point,
 preview_pattern, welding_pattern,
 preview_speed, welding_speed,
-max_welding_point = 350;
+max_welding_point = MAX_POINT;
+
 
 float
 angle_value[6], move_angle_value[6],
@@ -165,9 +180,13 @@ distance_val,
 max_distance = 300;
 
 char
-string_distance[20] = "0",
-string_preview[20] 	= "0",
-string_speed[20]		= "0";
+string_distance[20],
+string_preview[20],
+string_speed[20];
+
+char 
+prev_keys,
+keys;
 //////////////////////////////
 
 
@@ -178,7 +197,8 @@ home_state = true,
 mapping_state = false,
 preview_state = false,
 welding_state = false,
-emergency_state = false;
+emergency_state = false,
+prev_emergency_state = false;
 
 float
 increase_decrease_value = 2.5;
@@ -231,18 +251,20 @@ mapped_array_counter,
 welding_menu_counter,
 add_col;
 
-char num_keys[] = {
+char num_keys[10] = {
 '1', '2', '3', '4', '5',
 '6', '7', '8', '9', '0',
 };
 ///////////////////////////////////
 
+uint8_t
+erased_page_count,
+eeprom_page_data[128];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_DMA_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_USART1_UART_Init(void);
@@ -250,16 +272,18 @@ static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 
-// MENU HANDLER FUNCTION PROTOTYPE
-void show_menu(LCD_Menu_t menu);
-void ui_handler(void);
-bool check_numkeys_pressed(void);
+// LED BLINK FUNCTION PROTOTYPE
+void blink_led(uint8_t delay_time, uint8_t count);
 
+// MENU HANDLER FUNCTION PROTOTYPE
+void ui_handler(void);
+void show_menu(LCD_Menu_t menu);
+bool check_numkeys_pressed(void);
 
 // EEPROM HANDLER FUNCTION PROTOTYPE
 void Save_WeldingData(uint8_t welding_point, uint8_t welding_pattern, uint8_t welding_speed);		// SAVING WELDING DATA
 void Delete_WeldingData(uint8_t welding_point);																									// DELETE WELDING DATA
-void Read_WeldingData(uint8_t welding_point, uint8_t* stored_data);															// READ WELDING DATA
+void Read_WeldingData(uint16_t welding_point, uint8_t* stored_data);														// READ WELDING DATA
 void Update_Data(Mem_Update_t update_type);																											// UPDATE WELDING DATA
 void Format_mem(void);																																					// MEMORY FORMAT
 
@@ -269,22 +293,24 @@ void Format_mem(void);																																					// MEMORY FORMAT
 /* USER CODE BEGIN 0 */
 
 /*LCD MENU TIMER UPDATE*/
-//------------------------------------------------------------
+//-----------------------------------------------------------
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if(htim->Instance == TIM2) show_menu(select_menu);
 }
-//------------------------------------------------------------
+//-----------------------------------------------------------
 
 
 /*EMERGENCY STOP BUTTON INTERRUPT*/
-//-----------------------------------------------------------
+//----------------------------------------------------------------------------------------------
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	if(GPIO_Pin == EMERGENCY_Pin){
-		emergency_state = true;
-		select_menu = EMERGENCY_MENU;
+		emergency_state = (HAL_GPIO_ReadPin(EMERGENCY_GPIO_Port, EMERGENCY_Pin) == GPIO_PIN_RESET);
+		if(emergency_state == true) HAL_GPIO_WritePin(SIG_GPIO_Port, SIG_Pin, GPIO_PIN_RESET);
+		else HAL_GPIO_WritePin(SIG_GPIO_Port, SIG_Pin, GPIO_PIN_SET);
 	}
 }
-//-----------------------------------------------------------
+//----------------------------------------------------------------------------------------------
+
 
 /*KEYPAD CONFIGURATION*/
 //-------------------------------
@@ -303,10 +329,6 @@ char key[num_rows][num_cols] = {
 	{'7', '8', '9', '.'},
 	{'<', '0', '>', '#'}
 };
-
-char 
-prev_keys,
-keys;
 //-------------------------------
 
 
@@ -314,9 +336,14 @@ keys;
 //------------------------------------------------------
 uint32_t RS232_state, RS232_err_status;
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
-	Get_command(&command);
-	RS232_state = check_state();
-	RS232_err_status = check_error();
+	if(huart->Instance == USART1){
+		Get_command(&command);
+		Start_get_command(&command);
+	}
+}
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
+	command.send_data_state = false;
 }
 //------------------------------------------------------
 
@@ -350,58 +377,73 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
   MX_I2C1_Init();
   MX_I2C2_Init();
   MX_USART1_UART_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-
+	HAL_Delay(1500);
+	
 	/*LCD CONFIGURATION*/
-	//----------------------------
-//	HAL_Delay(1500);
-//	lcd_init(&hi2c2);
-//	select_menu = BOOTING_MENU;
-//	HAL_TIM_Base_Start_IT(&htim2);
-	//----------------------------
+	//---------------------------------
+	#ifdef USE_LCD
+	lcd_error_value = lcd_init(&hi2c2);
+	if(lcd_error_value != 0){
+		while(1){
+			blink_led(50, 1);
+		}
+	};
+	select_menu = BOOTING_MENU;
+	HAL_TIM_Base_Start_IT(&htim2);
+	blink_led(100, 2);
+	#endif
+	//---------------------------------
 	
 	
-	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-	HAL_Delay(100);
-	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
-	HAL_Delay(100);
-	
-	
-	/*EEPROM CONFIGURATION*/
-	//---------------------------------------------------------------------
-//	EEPROM_Init(&hi2c1, &eeprom1, MEM_SIZE_256Kb, 0xA0);
-//	Update_Data(UPDATE_ALL);
-	//---------------------------------------------------------------------
-	
-	
-	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-	HAL_Delay(100);
-	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
-	HAL_Delay(100);
+	/*CHECK EMERGENCY*/
+	//-----------------------------------------------------------------------
+	if(HAL_GPIO_ReadPin(EMERGENCY_GPIO_Port, EMERGENCY_Pin) == GPIO_PIN_SET){
+		HAL_GPIO_WritePin(SIG_GPIO_Port, SIG_Pin, GPIO_PIN_SET);
+	}
+	else HAL_GPIO_WritePin(SIG_GPIO_Port, SIG_Pin, GPIO_PIN_RESET);
+	//-----------------------------------------------------------------------
 	
 	
 	/*RS232 COM CONFIGURATION*/
-	//-------------------------
-//	RS232_Init(&huart1);
-//	Start_get_command();
-//	Get_command(&command);
-	//-------------------------
+	//----------------------------------------
+	#ifdef USE_RS232
+	RS232_Init(&huart1);
+	Start_get_command(&command);
+	for(int i=0; i<50; i++){
+		Send_feedback(&command, PENDANT_ONLINE);
+		HAL_Delay(10);
+	}
+	blink_led(100, 2);
+	#endif
+	//----------------------------------------
+
 	
-	
-	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-	HAL_Delay(100);
-	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
-	HAL_Delay(100);
+	/*EEPROM CONFIGURATION*/
+	//---------------------------------------------------------
+	#ifdef USE_EEPROM
+	EEPROM_Init(&hi2c1, &eeprom1, MEM_SIZE_256Kb, 0xA0);
+	EEPROM_ByteRead(&eeprom1, 511, 0, eeprom1.dummy_byte, 1);
+	if(eeprom1.status != EEPROM_OK){
+		while(1){ 
+			select_menu = EEPROM_ERR_MENU;
+			blink_led(50, 1);
+		}
+	}
+	Update_Data(UPDATE_ALL);
+	blink_led(100, 2);
+	#endif
+	//---------------------------------------------------------
 	
 	
 	/*KEYPAD CONFIGURATION*/	
-	//----------------------------------------------------------
+	//---------------------------------------------------------
+	#ifdef USE_KEYPAD
 	keypad.col_port[0] = GPIOB, keypad.col_pin[0] = GPIO_PIN_1;
 	keypad.col_port[1] = GPIOB, keypad.col_pin[1] = GPIO_PIN_0;
 	keypad.col_port[2] = GPIOA, keypad.col_pin[2] = GPIO_PIN_7;
@@ -414,13 +456,11 @@ int main(void)
 	keypad.row_port[4] = GPIOA, keypad.row_pin[4] = GPIO_PIN_5;
 	
 	Keypad_Init(&keypad, makeKeymap(key), num_rows, num_cols);
-	//----------------------------------------------------------
+	blink_led(100, 2);
 	
-	
-	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-	HAL_Delay(100);
-	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
-	HAL_Delay(100);
+	HAL_TIM_Base_Start_IT(&htim3);
+	#endif
+	//---------------------------------------------------------
 	
 	
 	/*ALL PREPARATION COMPLETED - BOOTING DONE*/
@@ -430,34 +470,32 @@ int main(void)
 	prep_done = true;
 	//------------------------------------------
 	
+	
+	#ifdef EEPROM_TEST
+	Save_WeldingData(0, LINEAR, 50);
+	HAL_Delay(100);
+	Read_WeldingData(0, stored_welding_data);
+	#endif
+	
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-		#ifdef UI_HANDLER_ON
+		#ifdef MAIN_PROGRAM
 		ui_handler();
 		#endif
 		
 		#ifdef KEYPAD_TEST
 		keys = Keypad_Read(&keypad);
-		if(keys != prev_keys && keys != 0x00) lcd_clear();	
+		if(keys != prev_keys && keys != 0x00) lcd_clear();
 		
 		prev_keys = keys;
 		#endif
 		
 		#ifdef RS232_TEST
-		Send_auto_home();
-		Send_move(CARTESIAN_CTRL, CARTESIAN_X, 12.5);
-		#endif
-		
-		#ifdef EEPROM_TEST
-		
-		#endif
-		
-		#ifdef EMERGENCY_TEST
-	
+		Start_get_command(&command);
 		#endif
     /* USER CODE END WHILE */
 
@@ -525,7 +563,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.ClockSpeed = 400000;
   hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
@@ -641,9 +679,9 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 0;
+  htim3.Init.Prescaler = 143;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 65535;
+  htim3.Init.Period = 49999;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -683,7 +721,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 38400;
+  huart1.Init.BaudRate = 115200;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
@@ -697,22 +735,6 @@ static void MX_USART1_UART_Init(void)
   /* USER CODE BEGIN USART1_Init 2 */
 
   /* USER CODE END USART1_Init 2 */
-
-}
-
-/**
-  * Enable DMA controller clock
-  */
-static void MX_DMA_Init(void)
-{
-
-  /* DMA controller clock enable */
-  __HAL_RCC_DMA1_CLK_ENABLE();
-
-  /* DMA interrupt init */
-  /* DMA1_Channel5_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
 
 }
 
@@ -734,18 +756,18 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, LED_Pin|SIG_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : LED_Pin */
-  GPIO_InitStruct.Pin = LED_Pin;
+  /*Configure GPIO pins : LED_Pin SIG_Pin */
+  GPIO_InitStruct.Pin = LED_Pin|SIG_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pin : EMERGENCY_Pin */
   GPIO_InitStruct.Pin = EMERGENCY_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(EMERGENCY_GPIO_Port, &GPIO_InitStruct);
 
@@ -759,10 +781,23 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
+/*--- LED BLINK HANDLER ---*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void blink_led(uint8_t delay_time, uint8_t count){
+	for(int i=0; i<count; i++){
+		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+		HAL_Delay(delay_time);
+		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+		HAL_Delay(delay_time);
+	}
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
 /*--- USER INTERFACE HANDLER ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void ui_handler(void){
-	Req_data();
+	Start_get_command(&command);
 	
 	if(command.type == SEND_REQ){
 		for(int i=0; i<6; i++){
@@ -772,42 +807,59 @@ void ui_handler(void){
 	}
 	
 	keys = Keypad_Read(&keypad);
-	if(keys != prev_keys && keys != 0x00) lcd_clear();
+	if(keys != prev_keys && keys != 0x00){
+		lcd_clear();
+	}
 	
-	/* EMERGENCY MENU HANDLER */
+	/* EMERGENCY MENU HANDLER *////////////////////////////////////////////////
 	if(select_menu == EMERGENCY_MENU){
 		uint8_t btn_state = HAL_GPIO_ReadPin(EMERGENCY_GPIO_Port, EMERGENCY_Pin);
-		if(btn_state == GPIO_PIN_SET) select_menu = HOME_MENU;
+		HAL_GPIO_WritePin(SIG_GPIO_Port, SIG_Pin, GPIO_PIN_SET);
+		
+		if(emergency_state != prev_emergency_state){
+			lcd_clear();
+			prev_emergency_state = emergency_state;
+		}
+		
+		if(btn_state == GPIO_PIN_SET){
+			lcd_clear();
+			HAL_GPIO_WritePin(SIG_GPIO_Port, SIG_Pin, GPIO_PIN_RESET);
+			emergency_state = false;
+			prev_emergency_state = false;
+			select_menu = HOME_MENU;
+		}
 	}
+	///////////////////////////////////////////////////////////////////////////
+	
 	
 	/* AUTO HOME MENU HANDLER */////////////////////////////////////////////
 	else if(select_menu == AUTO_HOME_MENU){
+		keys = Keypad_Read(&keypad);
+		if(keys == '#' && prev_keys != keys){
+			HAL_Delay(100);
+			lcd_clear();
+			select_menu = HOMING_MENU;
+		}
+		else if(keys == '.' && prev_keys != keys){
+			lcd_clear();
+			select_menu = HOME_MENU;
+		}
+	}
+	////////////////////////////////////////////////////////////////////////
+	
+	
+	/* HOMING MENU HANDLER */////////////////////////////////////////
+	else if(select_menu == HOMING_MENU){
 		while(1){
-			keys = Keypad_Read(&keypad);
-			if(keys == '#' && prev_keys != keys){
-				lcd_clear();
-				while(1){
-					Send_auto_home();
-					if(command.feedback == AUTO_HOME_DONE){
-						lcd_clear();
-						select_menu = HOME_MENU;
-						HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-						HAL_Delay(100);
-						HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
-						break;
-					}
-					else select_menu = HOMING_MENU;
-				}
-				break;
-			}
-			else if(keys == '.' && prev_keys != keys){
+			Send_auto_home(&command);
+			if(command.feedback == AUTO_HOME_DONE){
 				lcd_clear();
 				select_menu = HOME_MENU;
 				break;
 			}
 		}
 	}
-	////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////
 	
 	
 	/* HOME MENU HANDLER */////////////////////////////////////////////////////////////////
@@ -850,7 +902,7 @@ void ui_handler(void){
 		// MOVE VALUE BY DISTANCE *************************************************************
 		else if((change_value_counter == 1 && check_numkeys_pressed() == true) || keys == '<'){
 			add_col = 0;
-			*string_distance = '0';
+			strcpy(string_distance, "0");
 			
 			while(1){
 				saved_dist = false;
@@ -880,7 +932,6 @@ void ui_handler(void){
 					saved_dist = true;
 					break;
 				}
-	
 				prev_keys = keys;
 			}
 		}
@@ -897,40 +948,42 @@ void ui_handler(void){
 		// ********************************
 		
 		
-		// INCLREASE VALUE ****************************************************************
+		// INCLREASE VALUE *****************************************************************************************
 		if(keys == 'U' && HAL_GetTick() - prev_tick > debounce){
+			// Cartesian Increase Value Control
 			if(ctrl_mode_counter == 0){
 				for(int i=0; i<3; i++){
 					if(move_var_counter == i){
 						if(change_value_counter != 1) move_pos_value[i] += increase_decrease_value;
 						else move_pos_value[i] += distance_val;
-						Send_move(CARTESIAN_CTRL, (Move_Var_t)(i+1), move_pos_value[i]);
+						Send_move(&command, CARTESIAN_CTRL, (Move_Mode_t)change_value_counter, (Move_Var_t)(i+1), UNSIGNED_VAR, move_pos_value[i]);
 					}
 				}
 			}
 			
+			// Joint Increase Value Control
 			else{
 				for(int i=0; i<6; i++){
 					if(move_var_counter == i){
 						if(change_value_counter != 1) move_angle_value[i] += increase_decrease_value;
 						else move_angle_value[i] += distance_val;
-						Send_move(JOINT_CTRL, (Move_Var_t)(i+4), move_angle_value[i]);
+						Send_move(&command, JOINT_CTRL, (Move_Mode_t)change_value_counter, (Move_Var_t)(i+4), UNSIGNED_VAR, move_angle_value[i]);
 					}
 				}
 			}
 			prev_tick = HAL_GetTick();
 		}
-		// ********************************************************************************
+		// *********************************************************************************************************
 		
 		
-		// DECREASE VALUE *****************************************************************
+		// DECREASE VALUE *******************************************************************
 		else if(keys == 'D' && HAL_GetTick() - prev_tick > debounce){
 			if(ctrl_mode_counter == 0){
 				for(int i=0; i<3; i++){
 					if(move_var_counter == i){
 						if(change_value_counter != 1) move_pos_value[i] -= increase_decrease_value;
 						else move_pos_value[i] -= distance_val;
-						Send_move(CARTESIAN_CTRL, (Move_Var_t)(i+1), move_pos_value[i]);
+						Send_move(&command, CARTESIAN_CTRL, (Move_Mode_t)change_value_counter, (Move_Var_t)(i+1), SIGNED_VAR, move_pos_value[i]);
 					}
 				}
 			}
@@ -939,13 +992,13 @@ void ui_handler(void){
 					if(move_var_counter == i){
 						if(change_value_counter != 1) move_angle_value[i] -= increase_decrease_value;
 						else move_angle_value[i] -= distance_val;
-						Send_move(JOINT_CTRL, (Move_Var_t)(i+4), move_angle_value[i]);
+						Send_move(&command, JOINT_CTRL, (Move_Mode_t)change_value_counter, (Move_Var_t)(i+4), SIGNED_VAR, move_angle_value[i]);
 					}
 				}
 			}
 			prev_tick = HAL_GetTick();
 		}
-		// ********************************************************************************
+		// **********************************************************************************
 		
 		
 		// MOVE TO PREPARATION MENU *********
@@ -1064,6 +1117,7 @@ void ui_handler(void){
 			// WELDING RUN
 			else if(keys == '#' && prev_keys != keys){
 				welding_state = true;
+				Send_running(&command, RUNNING_START);
 				select_menu = WELDING_MENU;
 				move_var_counter = 0;
 				mapping_menu_counter = 0;
@@ -1078,7 +1132,7 @@ void ui_handler(void){
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	
 	
-	/* MAPPING MENU UI HANDLER *////////////////////////////////////////////////////////////////////////
+	/* MAPPING MENU UI HANDLER */////////////////////////////////////////////////////////////////////////////////
 	else if(select_menu == MAPPING_MENU){
 		// MOVE TO PREPARATION MENU *********
 		if(keys == '.' && prev_keys != keys){
@@ -1096,7 +1150,7 @@ void ui_handler(void){
 		// *****************************************************
 		
 		
-		// MAPPING MENU 1 ************************************************************************ 
+		// MAPPING MENU 1 ***************************************************************************************************
 		if(mapping_menu_counter == 0){
 			// CHANGE MOVE CONTROL
 			if(keys == 'W' && prev_keys != keys){
@@ -1169,7 +1223,7 @@ void ui_handler(void){
 						if(move_var_counter == i){
 							if(change_value_counter != 1) move_pos_value[i] += increase_decrease_value;
 							else move_pos_value[i] += distance_val;
-							Send_move(CARTESIAN_CTRL, (Move_Var_t)(i+1), move_pos_value[i]);
+							Send_move(&command, CARTESIAN_CTRL, (Move_Mode_t)change_value_counter, (Move_Var_t)(i+1), UNSIGNED_VAR, move_pos_value[i]);
 						}
 					}
 				}
@@ -1179,7 +1233,7 @@ void ui_handler(void){
 						if(move_var_counter == i){
 							if(change_value_counter != 1) move_angle_value[i] += increase_decrease_value;
 							else move_angle_value[i] += distance_val;
-							Send_move(JOINT_CTRL, (Move_Var_t)(i+4), move_angle_value[i]);
+							Send_move(&command, JOINT_CTRL, (Move_Mode_t)change_value_counter, (Move_Var_t)(i+4), UNSIGNED_VAR, move_angle_value[i]);
 						}
 					}
 				}
@@ -1193,7 +1247,7 @@ void ui_handler(void){
 						if(move_var_counter == i){
 							if(change_value_counter != 1) move_pos_value[i] -= increase_decrease_value;
 							else move_pos_value[i] -= distance_val;
-							Send_move(CARTESIAN_CTRL, (Move_Var_t)(i+1), move_pos_value[i]);
+							Send_move(&command, CARTESIAN_CTRL, (Move_Mode_t)change_value_counter, (Move_Var_t)(i+1), SIGNED_VAR, move_pos_value[i]);
 						}
 					}
 				}
@@ -1202,17 +1256,17 @@ void ui_handler(void){
 						if(move_var_counter == i){
 							if(change_value_counter != 1) move_angle_value[i] -= increase_decrease_value;
 							else move_angle_value[i] -= distance_val;
-							Send_move(JOINT_CTRL, (Move_Var_t)(i+4), move_angle_value[i]);
+							Send_move(&command, JOINT_CTRL, (Move_Mode_t)change_value_counter, (Move_Var_t)(i+4), SIGNED_VAR, move_angle_value[i]);
 						}
 					}
 				}
 				prev_tick = HAL_GetTick();
 			}
 		}
-		// ***************************************************************************************
+		// ********************************************************************************************************************************
 		
 		
-		// MAPPING MENU 2 *******************************************************************
+		// MAPPING MENU 2 **************************************************************
 		else if(mapping_menu_counter == 1){
 			// CHANGE CURSOR FOR SELECT WELDING POINT
 			if(keys == 'R' && prev_keys != keys){
@@ -1252,11 +1306,11 @@ void ui_handler(void){
 			else if(keys == '>' && prev_keys != keys && mapping_menu_counter != 0){
 				if(move_var_counter == 0 && start_point_counter != 0){
 					mapped_start_array[start_point_counter] = true;
-					Send_mapping(start_point_counter, START_POINT, NOT_SET, 0, SAVE_VALUE);
+					Send_mapping(&command, start_point_counter, START_POINT, NOT_SET, 0, SAVE_VALUE);
 				}
 				else if(move_var_counter == 1 && end_point_counter != 0){
 					mapped_end_array[end_point_counter] = true;
-					Send_mapping(end_point_counter, END_POINT, NOT_SET, 0, SAVE_VALUE);
+					Send_mapping(&command, end_point_counter, END_POINT, NOT_SET, 0, SAVE_VALUE);
 				}
 				
 				select_menu = POINT_SET_MENU;
@@ -1269,11 +1323,11 @@ void ui_handler(void){
 			else if(keys == '<' && prev_keys != keys && mapping_menu_counter != 0){
 				if(move_var_counter == 0){
 					mapped_start_array[start_point_counter] = false;
-					Send_mapping(start_point_counter, START_POINT, NOT_SET, 0, DELETE_VALUE);
+					Send_mapping(&command, start_point_counter, START_POINT, NOT_SET, 0, DELETE_VALUE);
 				}
 				else if(move_var_counter == 1){
 					mapped_end_array[end_point_counter] = false;
-					Send_mapping(end_point_counter, END_POINT, NOT_SET, 0, DELETE_VALUE);
+					Send_mapping(&command, end_point_counter, END_POINT, NOT_SET, 0, DELETE_VALUE);
 				}
 				
 				select_menu = POINT_UNSET_MENU;
@@ -1282,10 +1336,10 @@ void ui_handler(void){
 				select_menu = MAPPING_MENU;
 			}
 		}
-		// **********************************************************************************
+		// *****************************************************************************
 		
 		
-		// MAPPING MENU 3 ************************************************************
+		// MAPPING MENU 3 ****************************************************************************************
 		else if(mapping_menu_counter == 2){
 			// CHANGE PATTERN
 			if(keys == 'W' && prev_keys != keys){
@@ -1337,22 +1391,22 @@ void ui_handler(void){
 					total_mapped_points = 0;
 					
 					if(pattern_sel_counter == 0){
-						Send_mapping(start_point_counter&end_point_counter, PATTERN, NOT_SET, running_speed, SAVE_VALUE);
+						Send_mapping(&command, start_point_counter&end_point_counter, PATTERN, NOT_SET, running_speed, SAVE_VALUE);
 						Save_WeldingData(start_point_counter, NOT_SET, running_speed);
 					}
 					
 					else if(pattern_sel_counter == 1){
-						Send_mapping(start_point_counter&end_point_counter, PATTERN, DOT, running_speed, SAVE_VALUE);
+						Send_mapping(&command, start_point_counter&end_point_counter, PATTERN, DOT, running_speed, SAVE_VALUE);
 						Save_WeldingData(start_point_counter, DOT, running_speed);
 					}
 					
 					else if(pattern_sel_counter == 2){
-						Send_mapping(start_point_counter&end_point_counter, PATTERN, LINEAR, running_speed, SAVE_VALUE);
+						Send_mapping(&command, start_point_counter&end_point_counter, PATTERN, LINEAR, running_speed, SAVE_VALUE);
 						Save_WeldingData(start_point_counter, LINEAR, running_speed);
 					}
 					
 					else if(pattern_sel_counter == 3){
-						Send_mapping(start_point_counter&end_point_counter, PATTERN, CIRCULAR, running_speed, SAVE_VALUE);
+						Send_mapping(&command, start_point_counter&end_point_counter, PATTERN, CIRCULAR, running_speed, SAVE_VALUE);
 						Save_WeldingData(start_point_counter, CIRCULAR, running_speed);
 					}
 					HAL_Delay(50);
@@ -1365,7 +1419,7 @@ void ui_handler(void){
 				}
 				
 				else{
-					select_menu = MAPPING_ERROR_MENU;
+					select_menu = MAPPING_ERR_MENU;
 					HAL_Delay(3000);
 					lcd_clear();
 					select_menu = MAPPING_MENU;
@@ -1373,9 +1427,9 @@ void ui_handler(void){
 				}
 			}
 		}
-		// ***************************************************************************
+		// *******************************************************************************************************
 	}
-	////////////////////////////////////////////////////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	
 	
 	/* PREVIEW MENU HANDLER */////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1405,7 +1459,7 @@ void ui_handler(void){
 		
 		else if((preview_point & mapped_points[preview_point-1]) != preview_point || preview_point == 0 || preview_speed == 0){
 			lcd_clear();
-			select_menu = PREVIEW_ERROR_MENU;
+			select_menu = PREVIEW_ERR_MENU;
 			HAL_Delay(2000);
 			lcd_clear();
 			select_menu = PREP_MENU;
@@ -1423,7 +1477,6 @@ void ui_handler(void){
 		
 		// PAUSE MENU ***********************
 		if(keys == 'Q' && prev_keys != keys){
-			// kirim command pause
 			select_menu = PAUSE_MENU;
 		}
 		// **********************************
@@ -1441,12 +1494,13 @@ void ui_handler(void){
 		else if(keys == 'R' && prev_keys != keys){
 			welding_menu_counter++;
 			if(welding_menu_counter > 1) welding_menu_counter = 0;
-		}
+		} 
 		// *****************************************************
 		
 		
 		// STOP MENU *****************************
 		else if(keys == '.' && prev_keys != keys){
+			Send_running(&command, RUNNING_STOP);
 			select_menu = STOP_MENU;
 		}
 		// ***************************************
@@ -1461,8 +1515,9 @@ void ui_handler(void){
 			keys = Keypad_Read(&keypad);
 			if(keys != prev_keys && keys != 0x00) lcd_clear();
 			
-			Send_running(RUNNING_PAUSE);
+			Send_running(&command, RUNNING_PAUSE);
 			if(keys == '#' && prev_keys != keys){
+				Send_running(&command, RUNNING_START);
 				select_menu = WELDING_MENU;
 			}
 			
@@ -1477,7 +1532,7 @@ void ui_handler(void){
 	else if(select_menu == STOP_MENU){
 		// WAIT FOR AUTO HOMING DONE ************
 		while(1){
-			Send_running(RUNNING_STOP);
+			Send_running(&command, RUNNING_STOP);
 			if(command.feedback == AUTO_HOME_DONE){
 				ctrl_mode_counter = 0,
 				change_value_counter = 0,
@@ -1501,9 +1556,9 @@ void ui_handler(void){
 void show_menu(LCD_Menu_t menu){
 	/* EMERGENCY MENU */
 	if(menu == EMERGENCY_MENU){
-		lcd_set_cursor(0, 1);
-		lcd_printstr("EMERGENCY!!!");
-		lcd_set_cursor(0, 2);
+		lcd_set_cursor(5, 1);
+		lcd_printstr("EMERGENCY!");
+		lcd_set_cursor(4, 2);
 		lcd_printstr("ROBOT STOPED");
 	}
 	
@@ -1527,7 +1582,7 @@ void show_menu(LCD_Menu_t menu){
 	/////////////////////////////////////
 	
 	
-	/* HOMING MENU *//////////////
+	/* HOMING MENU */////////////////
 	else if(menu == HOMING_MENU){
 		lcd_set_cursor(0, 0);	
 			lcd_printstr("XP:HOMING");
@@ -1542,7 +1597,7 @@ void show_menu(LCD_Menu_t menu){
 			lcd_set_cursor(15, 3);
 			lcd_printstr(cartesian_ctrl);
 	}
-	//////////////////////////////
+	/////////////////////////////////
 	
 	
 	/* HOME MENU *//////////////////////////////////////////////////
@@ -2094,7 +2149,7 @@ void show_menu(LCD_Menu_t menu){
 	
 	
 	/* MAPPING ERROR MENU *////////////////
-	else if(menu == MAPPING_ERROR_MENU){
+	else if(menu == MAPPING_ERR_MENU){
 		lcd_set_cursor(3, 0);
 		lcd_printstr("WELDING  POINT");
 		lcd_set_cursor(2, 1);
@@ -2106,7 +2161,7 @@ void show_menu(LCD_Menu_t menu){
 	
 	
 	/* PREVIEW ERROR MENU *//////////////
-	else if(menu == PREVIEW_ERROR_MENU){
+	else if(menu == PREVIEW_ERR_MENU){
 		lcd_set_cursor(3, 1);
 		lcd_printstr("SELECTED POINT");
 		lcd_set_cursor(5, 2);
@@ -2200,7 +2255,7 @@ void Delete_WeldingData(uint8_t welding_point){
 
 /*--- READ WELDING DATA ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void Read_WeldingData(uint8_t welding_point, uint8_t* stored_data){
+void Read_WeldingData(uint16_t welding_point, uint8_t* stored_data){
 	EEPROM_PageRead(&eeprom1, welding_point-1, 0, stored_data, sizeof(stored_data));
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2210,7 +2265,7 @@ void Read_WeldingData(uint8_t welding_point, uint8_t* stored_data){
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void Update_Data(Mem_Update_t update_type){
 	if(update_type == UPDATE_ALL){
-		for(uint8_t i=1; i<max_welding_point; i++){
+		for(uint16_t i=1; i<max_welding_point; i++){
 			Read_WeldingData(i, stored_welding_data);
 			
 			if(stored_welding_data[0] != 0){
@@ -2225,7 +2280,7 @@ void Update_Data(Mem_Update_t update_type){
 				mapped_speed[i-1] 	= 0;
 			}
 			
-			HAL_Delay(10);
+			HAL_Delay(1);
 		}
 	}
 	
@@ -2242,11 +2297,9 @@ void Update_Data(Mem_Update_t update_type){
 
 /*--- FORMAT EEPROM MEMORY ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void format_mem(void){
-	for(uint8_t i=0; i<max_welding_point; i++){
-		for(uint8_t j=0; j<eeprom1.page_size; j++){
-			EEPROM_ByteWrite(&eeprom1, i, j, 0x00, 1);
-		}
+void Format_mem(void){
+	for(uint8_t j=0; j<eeprom1.page_size; j++){
+		EEPROM_PageReset(&eeprom1, j, 0);
 	}
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

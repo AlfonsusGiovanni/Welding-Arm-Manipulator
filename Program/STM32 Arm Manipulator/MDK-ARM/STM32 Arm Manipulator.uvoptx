@@ -185,7 +185,7 @@
         <Ww>
           <count>0</count>
           <WinNumber>2</WinNumber>
-          <ItemText>RS232_state</ItemText>
+          <ItemText>RS232_state,0x10</ItemText>
         </Ww>
         <Ww>
           <count>1</count>
@@ -200,7 +200,7 @@
         <Ww>
           <count>3</count>
           <WinNumber>2</WinNumber>
-          <ItemText>command.move_value,0x0A</ItemText>
+          <ItemText>command.move_value</ItemText>
         </Ww>
       </WatchWindow2>
       <Tracepoint>
