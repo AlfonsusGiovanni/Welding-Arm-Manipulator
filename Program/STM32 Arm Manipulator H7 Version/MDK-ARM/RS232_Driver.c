@@ -19,21 +19,18 @@ void RS232_Init(UART_HandleTypeDef* huart_handler){
 /*SEND AUTO HOME COMMAND*/
 void Send_auto_home(Data_Get_t* get){
 	uint8_t tx_buff[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, AUTO_HOME_CMD};	
-	get->send_data_state = true; 
 	HAL_UART_Transmit_IT(huart, tx_buff, sizeof(tx_buff));
 }
 
 /*SEND MAPPING MODE DATA COMMAND*/
 void Send_mapping(Data_Get_t* get, uint8_t point_num, Data_type_t point_type, Welding_Pattern_t pattern_type, uint8_t welding_speed, Mapping_State_t map_state){
 	uint8_t mapping_data[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, MAPPING_MODE_CMD, point_num, point_type, pattern_type, welding_speed, map_state};	
-	get->send_data_state = true;
 	HAL_UART_Transmit_IT(huart, mapping_data, sizeof(mapping_data));
 }
 
 /*SEND PREVIEW MODE DATA COMMAND*/
 void Send_preview(Data_Get_t* get, uint16_t point_num){
 	uint8_t preview[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, RUNNING_CMD, point_num};	
-	get->send_data_state = true;
 	HAL_UART_Transmit_IT(huart, preview, sizeof(preview));
 }
 
@@ -46,22 +43,18 @@ void Send_move(Data_Get_t* get, Ctrl_Mode_t control_mode, Move_Mode_t move_mode,
 	for(int i=0; i<8; i++){
 		move_pos[i+8] = new_value[i];
 	}
-	
-	get->send_data_state = true;
 	HAL_UART_Transmit_IT(huart, move_pos, sizeof(move_pos));
 }
 
 /*SEND RUNNING COMMAND*/
 void Send_running(Data_Get_t* get, Run_State_t state){
 	uint8_t run[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, RUNNING_CMD, state};	
-	get->send_data_state = true;
 	HAL_UART_Transmit_IT(huart, run, sizeof(run));
 }
 
 /*SEND DATA REQUEST COMMAND*/
 void Req_data(Data_Get_t* get){
 	uint8_t req[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, REQ_DATA_CMD};	
-	get->send_data_state = true;
 	HAL_UART_Transmit_IT(huart, req, sizeof(req));
 }
 
@@ -132,21 +125,18 @@ void Send_requested_data(Data_Get_t* get, double* cartesian_value, double* joint
 /*SEND MOTOR STATE COMMAND*/
 void Send_motor_state(Data_Get_t* get, Motor_State_t state){
 	uint8_t motor_state[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, MOTOR_STATE_CMD, state};		
-	get->send_data_state = true;
 	HAL_UART_Transmit_IT(huart, motor_state, sizeof(motor_state));
 }
 
 /*SEND WELDER STATE COMMAND*/
 void Send_welder_state(Data_Get_t* get, Welder_State_t state){
 	uint8_t welder_state[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, WELDER_STATE_CMD, state};	
-	get->send_data_state = true;
 	HAL_UART_Transmit_IT(huart, welder_state, sizeof(welder_state));
 }
 
 /*SEND FEDDBACK COMMAND*/
 void Send_feedback(Data_Get_t* get, Feedback_t fdbck){
 	uint8_t feed_buff[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, FEEDBACK_CMD, fdbck};		
-	get->send_data_state = true;
 	HAL_UART_Transmit_IT(huart, feed_buff, sizeof(feed_buff));
 }
 
@@ -174,7 +164,7 @@ void Get_command(Data_Get_t* get){
 	else get->buff_status = BUFF_ALIGNED;
 	
 	for(int i=0; i<BUFF_SIZE; i++){
-		if(rx_buff[i] == HEADER1 && rx_buff[i+1] == HEADER2 && rx_buff[i+2] == HEADER3 && get->buff_status == BUFF_ALIGNED && i<80){
+		if(rx_buff[i] == HEADER1 && rx_buff[i+1] == HEADER2 && rx_buff[i+2] == HEADER3 && get->buff_status == BUFF_ALIGNED){
 			//CHECK AUTO HOME COMMAND 
 			if(rx_buff[i+3] == AUTO_HOME_CMD){
 				get->type = AUTO_HOME;

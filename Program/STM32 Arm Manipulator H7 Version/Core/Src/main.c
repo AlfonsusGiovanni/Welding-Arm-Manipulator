@@ -98,7 +98,7 @@ typedef enum{
 #define USE_EEPROM
 #define USE_RS232
 #define USE_OLED
-//#define USE_STEPPER
+#define USE_STEPPER
 //#define USE_ENCODER
 
 //#define TEST_EEPROM
@@ -186,7 +186,6 @@ TIM_HandleTypeDef htim12;
 TIM_HandleTypeDef htim13;
 TIM_HandleTypeDef htim14;
 TIM_HandleTypeDef htim15;
-TIM_HandleTypeDef htim16;
 
 UART_HandleTypeDef huart4;
 
@@ -278,7 +277,7 @@ step_input[6],
 step_output[6],
 step_freq[6],
 step_period[6],
-stepper_microstep[6],
+stepper_stepfactor[6],
 
 stepper_microstep[6]={
 	MICROSTEP_VALUE3,
@@ -396,7 +395,6 @@ static void MX_TIM12_Init(void);
 static void MX_TIM13_Init(void);
 static void MX_TIM14_Init(void);
 static void MX_TIM1_Init(void);
-static void MX_TIM16_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM4_Init(void);
@@ -433,6 +431,7 @@ void encoder_reset(void);
 void encoder_read(void);
 
 // Custom RS232 Function
+void transmit_req_data(void);
 void receive_data(void);
 
 // OLED Function
@@ -449,16 +448,15 @@ uint32_t RS232_state, RS232_err_status;
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	if(huart->Instance == UART4){
 		RS232_state = check_state();
-		command.receive_data_state = true;
+		command.msg_get = true;
 		prev_data_get = HAL_GetTick();
-		Get_command(&command);
 	}
 }
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 	if(huart->Instance == UART4){
 		RS232_state = check_state();
-		command.send_data_state = false;
+		command.msg_sent = true;
 	}
 }
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -468,6 +466,7 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	// Joint 1
 	if(htim->Instance == TIM6){
+		step_state[0] = true;
 		timer_counter[0]++;
 		if(timer_counter[0] < t_on[0]) HAL_GPIO_WritePin(PUL1_GPIO_Port, PUL1_Pin, GPIO_PIN_SET);
 		else if(timer_counter[0] >= t_on[0] && timer_counter[0] < step_period[0]-1) HAL_GPIO_WritePin(PUL1_GPIO_Port, PUL1_Pin, GPIO_PIN_RESET);
@@ -476,14 +475,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 			step_counter[0]++;
 		}
 		
-		if((step_counter[0] >= step_input[0] && step_limit[0] == true) || (step_start[0] == false)){
+		if(((step_counter[0] >= step_input[0]) && step_limit[0] == true) || step_start[0] == false){
 			HAL_TIM_Base_Stop_IT(&htim6);
+			timer_counter[0] = 0;
 			step_counter[0] = 0;
+			step_state[0] = false;
 		}
 	}
 	
 	// Joint 2
 	else if(htim->Instance == TIM7){
+		step_state[1] = true;
 		timer_counter[1]++;
 		if(timer_counter[1] < t_on[1]) HAL_GPIO_WritePin(PUL2_GPIO_Port, PUL2_Pin, GPIO_PIN_SET);
 		else if(timer_counter[1] >= t_on[1] && timer_counter[1] < step_period[1]-1) HAL_GPIO_WritePin(PUL2_GPIO_Port, PUL2_Pin, GPIO_PIN_RESET);
@@ -492,9 +494,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 			step_counter[1]++;
 		}
 		
-		if((step_counter[1] >= step_input[1] && step_limit[1] == true) || (step_start[1] == false)){
+		if(((step_counter[1] >= step_input[0]) && step_limit[1] == true) || step_start[1] == false){
 			HAL_TIM_Base_Stop_IT(&htim7);
+			timer_counter[1] = 0;
 			step_counter[1] = 0;
+			step_state[1] = false;
 		}
 	}
 	
@@ -516,22 +520,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	// Joint 6
 	else if(htim->Instance == TIM15){
 		timer_counter[5]++;
-	}
-	
-	// OLED
-	else if(htim->Instance == TIM16){
-		send_data_counter++;
-		refresh_counter++;
-		
-		if(send_data_counter == 1){
-			Send_requested_data(&command, tx_current_pos, tx_current_angle, tx_welding_point, (Welding_Pattern_t)tx_welding_pattern, current_speed);
-			send_data_counter = 0;
-		}
-		
-		if(refresh_counter == 20){
-			show_menu((Oled_Menu_t)selected_menu);
-			refresh_counter = 0;
-		}
 	}
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------
@@ -660,7 +648,6 @@ int main(void)
   MX_TIM13_Init();
   MX_TIM14_Init();
   MX_TIM1_Init();
-  MX_TIM16_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
   MX_TIM4_Init();
@@ -672,7 +659,7 @@ int main(void)
 	#ifdef USE_OLED
 	SSD1306_Init();
 	selected_menu = BOOT_MENU;
-	HAL_TIM_Base_Start_IT(&htim16);
+	show_menu((Oled_Menu_t)selected_menu);
 	HAL_Delay(1000);
 	#endif
 	//-----------------------------
@@ -704,14 +691,17 @@ int main(void)
 	#ifdef USE_RS232
 	RS232_Init(&huart4);
 	selected_menu = COM_INIT_MENU;
+	show_menu((Oled_Menu_t)selected_menu);
 	while(1){
-		Start_get_command(&command);
+		receive_data();
 		Send_feedback(&command, MAIN_ONLINE);
 		if(command.type == FEEDBACK && command.feedback == PENDANT_ONLINE){
 			SSD1306_Clear();
 			break;
 		}
 	}
+	command.msg_sent = true;
+	command.msg_get = true;
 	#endif
 	// ---------------------------------------------------------------------------------------------------------------------------
 	
@@ -728,12 +718,12 @@ int main(void)
 	HAL_GPIO_WritePin(DIR1_GPIO_Port, DIR1_Pin, GPIO_PIN_SET);
 	
 	for(int i=0; i<DOF_NUM; i++){
-		if(stepper_microstep[i] == MICROSTEP_VALUE1) stepper_microstep[i] = MICROSTEP_FACTOR1;
-		else if(stepper_microstep[i] == MICROSTEP_VALUE2) stepper_microstep[i] = MICROSTEP_FACTOR2;
-		else if(stepper_microstep[i] == MICROSTEP_VALUE3) stepper_microstep[i] = MICROSTEP_FACTOR3;
-		else if(stepper_microstep[i] == MICROSTEP_VALUE4) stepper_microstep[i] = MICROSTEP_FACTOR4;
-		else if(stepper_microstep[i] == MICROSTEP_VALUE5) stepper_microstep[i] = MICROSTEP_FACTOR5;
-		else if(stepper_microstep[i] == MICROSTEP_VALUE6) stepper_microstep[i] = MICROSTEP_FACTOR6;
+		if(stepper_microstep[i] == MICROSTEP_VALUE1) stepper_stepfactor[i] = MICROSTEP_FACTOR1;
+		else if(stepper_microstep[i] == MICROSTEP_VALUE2) stepper_stepfactor[i] = MICROSTEP_FACTOR2;
+		else if(stepper_microstep[i] == MICROSTEP_VALUE3) stepper_stepfactor[i] = MICROSTEP_FACTOR3;
+		else if(stepper_microstep[i] == MICROSTEP_VALUE4) stepper_stepfactor[i] = MICROSTEP_FACTOR4;
+		else if(stepper_microstep[i] == MICROSTEP_VALUE5) stepper_stepfactor[i] = MICROSTEP_FACTOR5;
+		else if(stepper_microstep[i] == MICROSTEP_VALUE6) stepper_stepfactor[i] = MICROSTEP_FACTOR6;
 	}
 	
 	step_dir[0] = 0;	
@@ -777,6 +767,7 @@ int main(void)
 	/* ALL SETUP DONE */
 	//------------------------
 	selected_menu = MAIN_MENU;
+	show_menu((Oled_Menu_t)selected_menu);
 	//------------------------
 	
 	struct_size = sizeof(Data_Get_t)%8;
@@ -805,7 +796,8 @@ int main(void)
 		#endif
 		
 		#ifdef TEST_STEPPER
-		
+		move_stepper(J1, 8000, DIR_CW, 3600);
+		move_stepper(J2, 8000, DIR_CW, 1000);
 		#endif
 		
 		#ifdef TEST_ENCODER
@@ -836,34 +828,40 @@ int main(void)
 		// Check Move Command
 		else if(command.type == MOVE){
 			if(command.control_mode == CARTESIAN_CTRL){
-				if(command.move_mode == CONTINUOUS){
-					for(int i=0; i<DOF_NUM; i++){
-						step_limit[i] = false;
-						step_start[i] = true;
-					}
-				}
-				
-				else if(command.move_mode == DISTANCE || command.move_mode == STEP){
-					for(int i=0; i<DOF_NUM; i++){
-						step_limit[i] = true;
-						step_start[i] = false;
-					}
-				}
+
 			}
 			
-			else if(command.control_mode == JOINT_CTRL){
-				if(command.move_mode == CONTINUOUS){
-					for(int i=0; i<DOF_NUM; i++){
-						step_limit[i] = false;
-						step_start[i] = true;
+			else if(command.control_mode == JOINT_CTRL){	
+				// Joint 1 Command Control
+				if(command.move_variable == JOINT_1){
+					if(command.move_mode == CONTINUOUS){
+						step_limit[0] = false;
+						step_start[0] = true;
+						rx_move_angle[0] = 0.0;
 					}
+					
+					else if(command.move_mode == DISTANCE || command.move_mode == STEP){
+						step_limit[0] = true;
+						step_limit[0] = false;
+						rx_move_angle[0] = command.move_value;
+					}
+					move_joint(J1, rx_move_angle[0], MED);
 				}
 				
-				else if(command.move_mode == DISTANCE || command.move_mode == STEP){
-					for(int i=0; i<DOF_NUM; i++){
-						step_limit[i] = true;
-						step_start[i] = false;
+				// Joint 2 Command Control
+				else if(command.move_variable == JOINT_2){
+					if(command.move_mode == CONTINUOUS){
+						step_limit[1] = false;
+						step_start[1] = true;
+						rx_move_angle[1] = 0.0;
 					}
+					
+					else if(command.move_mode == DISTANCE || command.move_mode == STEP){
+						step_limit[1] = true;
+						step_start[1] = false;
+						rx_move_angle[1] = command.move_value;
+					}
+					move_joint(J2, rx_move_angle[1], MED);
 				}
 			}
 		}
@@ -891,10 +889,11 @@ int main(void)
 		}
 		
 		// Check None Command
-		else if(command.type == STANDBY){
+		else if(command.type == NONE){
 			for(int i=0; i<DOF_NUM; i++){
 				step_start[i] = false;
 			}
+			command.move_value = 0.0;
 		}
 		
 		// Send Current Position
@@ -908,6 +907,9 @@ int main(void)
 		tx_current_angle[3] = 100.11;
 		tx_current_angle[4] = 30.17;
 		tx_current_angle[5] = 15.99;
+		
+		transmit_req_data();
+		show_menu((Oled_Menu_t)selected_menu);
 		#endif
     /* USER CODE END WHILE */
 
@@ -1704,38 +1706,6 @@ static void MX_TIM15_Init(void)
 }
 
 /**
-  * @brief TIM16 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM16_Init(void)
-{
-
-  /* USER CODE BEGIN TIM16_Init 0 */
-
-  /* USER CODE END TIM16_Init 0 */
-
-  /* USER CODE BEGIN TIM16_Init 1 */
-
-  /* USER CODE END TIM16_Init 1 */
-  htim16.Instance = TIM16;
-  htim16.Init.Prescaler = 19;
-  htim16.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim16.Init.Period = 49999;
-  htim16.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim16.Init.RepetitionCounter = 0;
-  htim16.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim16) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM16_Init 2 */
-
-  /* USER CODE END TIM16_Init 2 */
-
-}
-
-/**
   * @brief UART4 Initialization Function
   * @param None
   * @retval None
@@ -1909,19 +1879,19 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI2_IRQn, 13, 0);
   HAL_NVIC_EnableIRQ(EXTI2_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI3_IRQn, 13, 0);
   HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI4_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI4_IRQn, 13, 0);
   HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 14, 0);
   HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 14, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
@@ -2067,18 +2037,22 @@ void move_stepper(Joint_Num_t select_joint, uint16_t step, Stepper_Dir_t dir, ui
 		t_off[0] = step_period[0] - t_on[0];
 		
 		// Set Stepper Direction
-		if(dir == DIR_CW){
+		if(dir == DIR_CW && step_state[0] == false){
 			step_dir[0] = 0;
 			HAL_GPIO_WritePin(DIR1_GPIO_Port, DIR1_Pin, GPIO_PIN_SET);
 		}
-		else if(dir == DIR_CCW){
+		else if(dir == DIR_CCW && step_state[0] == false){
 			step_dir[0] = 1;
 			HAL_GPIO_WritePin(DIR1_GPIO_Port, DIR1_Pin, GPIO_PIN_RESET);
 		}
 		
 		// Pulse Start
 		step_input[0] = step;
-		if((step_counter[0] == 0 && step_counter[0] != step) || (step_start[0] == true)){
+		if(step_counter[0] == 0 && step_counter[0] != step && step_state[0] == false){
+			step_start[0] = true;
+			HAL_TIM_Base_Start_IT(&htim6);
+		}
+		else if(step_start[0] == true && step_state[0] == false){
 			HAL_TIM_Base_Start_IT(&htim6);
 		}
 	}
@@ -2092,18 +2066,22 @@ void move_stepper(Joint_Num_t select_joint, uint16_t step, Stepper_Dir_t dir, ui
 		t_off[1] = step_period[1] - t_on[1];
 		
 		// Set Stepper Direction
-		if(dir == DIR_CW){
+		if(dir == DIR_CW && step_state[1] == false){
 			step_dir[1] = 0;
 			HAL_GPIO_WritePin(DIR2_GPIO_Port, DIR2_Pin, GPIO_PIN_SET);
 		}
-		else if(dir == DIR_CCW){
+		else if(dir == DIR_CCW && step_state[1] == false){
 			step_dir[1] = 1;
 			HAL_GPIO_WritePin(DIR2_GPIO_Port, DIR2_Pin, GPIO_PIN_RESET);
 		}
 		
 		// Pulse Start
 		step_input[1] = step;
-		if((step_counter[1] == 0 && step_counter[1] != step) || (step_start[1] == true)){
+		if(step_counter[1] == 0 && step_counter[1] != step && step_state[1] == false){
+			step_start[1] = true;
+			HAL_TIM_Base_Start_IT(&htim7);
+		}
+		else if(step_start[1] == true && step_state[1] == false){
 			HAL_TIM_Base_Start_IT(&htim7);
 		}
 	}
@@ -2117,18 +2095,22 @@ void move_stepper(Joint_Num_t select_joint, uint16_t step, Stepper_Dir_t dir, ui
 		t_off[2] = step_period[2] - t_on[2];
 		
 		// Set Stepper Direction
-		if(dir == DIR_CW){
+		if(dir == DIR_CW && step_state[2] == false){
 			step_dir[2] = 0;
 			HAL_GPIO_WritePin(DIR3_GPIO_Port, DIR3_Pin, GPIO_PIN_SET);
 		}
-		else if(dir == DIR_CCW){
+		else if(dir == DIR_CCW && step_state[2] == false){
 			step_dir[2] = 1;
 			HAL_GPIO_WritePin(DIR3_GPIO_Port, DIR3_Pin, GPIO_PIN_RESET);
 		}
 		
 		// Pulse Start
 		step_input[2] = step;
-		if((step_counter[2] == 0 && step_counter[2] != step) || (step_start[2] == true)){
+		if(step_counter[2] == 0 && step_counter[2] != step && step_state[2] == false){
+			step_start[2] = true;
+			HAL_TIM_Base_Start_IT(&htim12);
+		}
+		else if(step_start[2] == true && step_state[2] == false){
 			HAL_TIM_Base_Start_IT(&htim12);
 		}
 	}
@@ -2142,18 +2124,22 @@ void move_stepper(Joint_Num_t select_joint, uint16_t step, Stepper_Dir_t dir, ui
 		t_off[3] = step_period[3] - t_on[3];
 		
 		// Set Stepper Direction
-		if(dir == DIR_CW){
+		if(dir == DIR_CW && step_state[3] == false){
 			step_dir[3] = 0;
 			HAL_GPIO_WritePin(DIR4_GPIO_Port, DIR4_Pin, GPIO_PIN_SET);
 		}
-		else if(dir == DIR_CCW){
+		else if(dir == DIR_CCW && step_state[3] == false){
 			step_dir[3] = 1;
 			HAL_GPIO_WritePin(DIR4_GPIO_Port, DIR4_Pin, GPIO_PIN_RESET);
 		}
 		
 		// Pulse Start
 		step_input[3] = step;
-		if((step_counter[3] == 0 && step_counter[3] != step) || (step_start[3] == true)){
+		if(step_counter[3] == 0 && step_counter[3] != step && step_state[3] == false){
+			step_start[3] = true;
+			HAL_TIM_Base_Start_IT(&htim13);
+		}
+		else if(step_start[3] == true && step_state[3] == false){
 			HAL_TIM_Base_Start_IT(&htim13);
 		}
 	}
@@ -2167,18 +2153,22 @@ void move_stepper(Joint_Num_t select_joint, uint16_t step, Stepper_Dir_t dir, ui
 		t_off[4] = step_period[4] - t_on[4];
 		
 		// Set Stepper Direction
-		if(dir == DIR_CW){
+		if(dir == DIR_CW && step_state[4] == false){
 			step_dir[4] = 0;
 			HAL_GPIO_WritePin(DIR5_GPIO_Port, DIR5_Pin, GPIO_PIN_SET);
 		}
-		else if(dir == DIR_CCW){
+		else if(dir == DIR_CCW && step_state[4] == false){
 			step_dir[4] = 1;
 			HAL_GPIO_WritePin(DIR5_GPIO_Port, DIR5_Pin, GPIO_PIN_RESET);
 		}
 		
 		// Pulse Start
 		step_input[4] = step;
-		if((step_counter[4] == 0 && step_counter[4] != step) || (step_start[4] == true)){
+		if(step_counter[4] == 0 && step_counter[4] != step && step_state[4] == false){
+			step_start[4] = true;
+			HAL_TIM_Base_Start_IT(&htim14);
+		}
+		else if(step_start[4] == true && step_state[4] == false){
 			HAL_TIM_Base_Start_IT(&htim14);
 		}
 	}
@@ -2192,18 +2182,22 @@ void move_stepper(Joint_Num_t select_joint, uint16_t step, Stepper_Dir_t dir, ui
 		t_off[5] = step_period[5] - t_on[5];
 		
 		// Set Stepper Direction
-		if(dir == DIR_CW){
+		if(dir == DIR_CW && step_state[5] == false){
 			step_dir[5] = 0;
 			HAL_GPIO_WritePin(DIR6_GPIO_Port, DIR6_Pin, GPIO_PIN_SET);
 		}
-		else if(dir == DIR_CCW){
+		else if(dir == DIR_CCW && step_state[5] == false){
 			step_dir[5] = 1;
 			HAL_GPIO_WritePin(DIR6_GPIO_Port, DIR6_Pin, GPIO_PIN_RESET);
 		}
 		
 		// Pulse Start
 		step_input[5] = step;
-		if((step_counter[5] == 0 && step_counter[5] != step) || (step_start[5] == true)){
+		if(step_counter[5] == 0 && step_counter[5] != step && step_state[5] == false){
+			step_start[5] = true;
+			HAL_TIM_Base_Start_IT(&htim15);
+		}
+		else if(step_start[5] == true && step_state[5] == false){
 			HAL_TIM_Base_Start_IT(&htim15);
 		}
 	}
@@ -2230,6 +2224,12 @@ void move_joint(Joint_Num_t select_joint, double input_angle, Speed_t set_speed)
 			if(prev_angle[0] < input_angle) move_stepper(select_joint, step_output[0], DIR_CW, stepper_freq[0]);
 			else if(prev_angle[0] > input_angle) move_stepper(select_joint, step_output[0], DIR_CCW, stepper_freq[0]);
 		}
+		
+		if(step_start[0] == true){
+			step_output[0] = 0;
+			if(command.move_sign == UNSIGNED_VAR) move_stepper(select_joint, step_output[0], DIR_CW, stepper_freq[0]);
+			else move_stepper(select_joint, step_output[0], DIR_CCW, stepper_freq[0]);
+		}
 	}
 	
 	// Joint 2 Move Control
@@ -2242,6 +2242,12 @@ void move_joint(Joint_Num_t select_joint, double input_angle, Speed_t set_speed)
 		if(prev_input_angle[1] != input_angle){
 			if(prev_angle[1] < input_angle) move_stepper(select_joint, step_output[1], DIR_CW, stepper_freq[1]);
 			else if(prev_angle[1] > input_angle) move_stepper(select_joint, step_output[1], DIR_CCW, stepper_freq[1]);
+		}
+		
+		if(step_start[1] == true){
+			step_output[1] = 0;
+			if(command.move_sign == UNSIGNED_VAR) move_stepper(select_joint, step_output[1], DIR_CW, stepper_freq[1]);
+			else move_stepper(select_joint, step_output[1], DIR_CCW, stepper_freq[1]);
 		}
 	}
 }
@@ -2311,14 +2317,27 @@ void encoder_read(void){
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-/* --- CUSTON RS232 FUNCTION ---*/
+/* --- CUSTON RS232 TRANSMIT FUNCTION ---*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void transmit_req_data(void){
+	Send_requested_data(&command, tx_current_pos, tx_current_angle, current_point, LINEAR, 100);
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/* --- CUSTON RS232 RECEIVE FUNCTION ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void receive_data(void){
 	Start_get_command(&command);
 	
-	if(HAL_GetTick() - prev_data_get > 100){
-		command.receive_data_state = false;
+	if(command.msg_get == true){
+		Get_command(&command);
+		command.msg_get = false;
+	}
+	
+	if(HAL_GetTick() - prev_data_get > 300 && command.msg_get == false){
 		command.type = NONE;
+		prev_data_get = HAL_GetTick();
 	}
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2349,13 +2368,13 @@ void show_menu(Oled_Menu_t sel_menu){
 		SSD1306_Puts("RS232 :", &Font_7x10, SSD1306_COLOR_WHITE);
 		SSD1306_GotoXY(50,25);
 		if(RS232_state == 0x00) SSD1306_Puts("Reset       ", &Font_7x10, SSD1306_COLOR_WHITE);
-		else if(RS232_state == 0x20) SSD1306_Puts("Ready       ", &Font_7x10, SSD1306_COLOR_WHITE);
-		else if(RS232_state == 0x24) SSD1306_Puts("Busy        ", &Font_7x10, SSD1306_COLOR_WHITE);
-		else if(RS232_state == 0x21) SSD1306_Puts("Busy tx     ", &Font_7x10, SSD1306_COLOR_WHITE);
-		else if(RS232_state == 0x22) SSD1306_Puts("Busy rx     ", &Font_7x10, SSD1306_COLOR_WHITE);
-		else if(RS232_state == 0x23) SSD1306_Puts("Busy all    ", &Font_7x10, SSD1306_COLOR_WHITE);
-		else if(RS232_state == 0xA0) SSD1306_Puts("Timeout     ", &Font_7x10, SSD1306_COLOR_WHITE);
-		else if(RS232_state == 0xE0) SSD1306_Puts("Error       ", &Font_7x10, SSD1306_COLOR_WHITE);
+		else if(RS232_state == HAL_UART_STATE_READY) SSD1306_Puts("Ready       ", &Font_7x10, SSD1306_COLOR_WHITE);
+		else if(RS232_state == HAL_UART_STATE_BUSY) SSD1306_Puts("Busy        ", &Font_7x10, SSD1306_COLOR_WHITE);
+		else if(RS232_state == HAL_UART_STATE_BUSY_TX) SSD1306_Puts("Busy tx     ", &Font_7x10, SSD1306_COLOR_WHITE);
+		else if(RS232_state == HAL_UART_STATE_BUSY_RX) SSD1306_Puts("Busy rx     ", &Font_7x10, SSD1306_COLOR_WHITE);
+		else if(RS232_state == HAL_UART_STATE_BUSY_TX_RX) SSD1306_Puts("Busy all    ", &Font_7x10, SSD1306_COLOR_WHITE);
+		else if(RS232_state == HAL_UART_STATE_TIMEOUT) SSD1306_Puts("Timeout     ", &Font_7x10, SSD1306_COLOR_WHITE);
+		else if(RS232_state == HAL_UART_STATE_ERROR) SSD1306_Puts("Error       ", &Font_7x10, SSD1306_COLOR_WHITE);
 		
 		SSD1306_GotoXY(0,37);
 		SSD1306_Puts("GETCOM:", &Font_7x10, SSD1306_COLOR_WHITE);

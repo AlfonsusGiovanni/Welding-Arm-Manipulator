@@ -226,8 +226,8 @@ typedef enum{
 //--- DATA COMMUNICATION TYPEDEF ---//
 //////////////////////////////////////
 typedef struct ALIGNED_8{	
-	bool send_data_state;
-	bool receive_data_state;
+	bool msg_sent;
+	bool msg_get;
 	
 	uint8_t data_buff[BUFF_SIZE];
 	uint8_t check_data_buff[BUFF_SIZE];

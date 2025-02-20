@@ -944,7 +944,7 @@ void ui_handler(void){
 		
 		
 		// MOVE VALUE CONTINUOUS **********
-		else increase_decrease_value = 2.5;
+		else increase_decrease_value = 0.0;
 		// ********************************
 		
 		
@@ -954,9 +954,9 @@ void ui_handler(void){
 			if(ctrl_mode_counter == 0){
 				for(int i=0; i<3; i++){
 					if(move_var_counter == i){
-						if(change_value_counter != 1) move_pos_value[i] += increase_decrease_value;
-						else move_pos_value[i] += distance_val;
-						Send_move(&command, CARTESIAN_CTRL, (Move_Mode_t)change_value_counter, (Move_Var_t)(i+1), UNSIGNED_VAR, move_pos_value[i]);
+						if(change_value_counter != 1) move_pos_value[i] = increase_decrease_value;
+						else move_pos_value[i] = distance_val;
+						Send_move(&command, CARTESIAN_CTRL, (Move_Mode_t)(change_value_counter+1), (Move_Var_t)(i+1), UNSIGNED_VAR, move_pos_value[i]);
 					}
 				}
 			}
@@ -965,9 +965,9 @@ void ui_handler(void){
 			else{
 				for(int i=0; i<6; i++){
 					if(move_var_counter == i){
-						if(change_value_counter != 1) move_angle_value[i] += increase_decrease_value;
-						else move_angle_value[i] += distance_val;
-						Send_move(&command, JOINT_CTRL, (Move_Mode_t)change_value_counter, (Move_Var_t)(i+4), UNSIGNED_VAR, move_angle_value[i]);
+						if(change_value_counter != 1) move_angle_value[i] = increase_decrease_value;
+						else move_angle_value[i] = distance_val;
+						Send_move(&command, JOINT_CTRL, (Move_Mode_t)(change_value_counter+1), (Move_Var_t)(i+4), UNSIGNED_VAR, move_angle_value[i]);
 					}
 				}
 			}
@@ -983,7 +983,7 @@ void ui_handler(void){
 					if(move_var_counter == i){
 						if(change_value_counter != 1) move_pos_value[i] -= increase_decrease_value;
 						else move_pos_value[i] -= distance_val;
-						Send_move(&command, CARTESIAN_CTRL, (Move_Mode_t)change_value_counter, (Move_Var_t)(i+1), SIGNED_VAR, move_pos_value[i]);
+						Send_move(&command, CARTESIAN_CTRL, (Move_Mode_t)(change_value_counter+1), (Move_Var_t)(i+1), SIGNED_VAR, move_pos_value[i]);
 					}
 				}
 			}
@@ -992,7 +992,7 @@ void ui_handler(void){
 					if(move_var_counter == i){
 						if(change_value_counter != 1) move_angle_value[i] -= increase_decrease_value;
 						else move_angle_value[i] -= distance_val;
-						Send_move(&command, JOINT_CTRL, (Move_Mode_t)change_value_counter, (Move_Var_t)(i+4), SIGNED_VAR, move_angle_value[i]);
+						Send_move(&command, JOINT_CTRL, (Move_Mode_t)(change_value_counter+1), (Move_Var_t)(i+4), SIGNED_VAR, move_angle_value[i]);
 					}
 				}
 			}
@@ -1214,16 +1214,16 @@ void ui_handler(void){
 			else if(change_value_counter == 2) increase_decrease_value = 0.1;
 			
 			// MOVE VALUE CONTINUOUS
-			else increase_decrease_value = 2.5;
+			else increase_decrease_value = 0.0;
 			
 			// INCLREASE VALUE 
 			if(keys == 'U' && HAL_GetTick() - prev_tick > debounce){
 				if(ctrl_mode_counter == 0){
 					for(int i=0; i<3; i++){
 						if(move_var_counter == i){
-							if(change_value_counter != 1) move_pos_value[i] += increase_decrease_value;
-							else move_pos_value[i] += distance_val;
-							Send_move(&command, CARTESIAN_CTRL, (Move_Mode_t)change_value_counter, (Move_Var_t)(i+1), UNSIGNED_VAR, move_pos_value[i]);
+							if(change_value_counter != 1) move_pos_value[i] = increase_decrease_value;
+							else move_pos_value[i] = distance_val;
+							Send_move(&command, CARTESIAN_CTRL, (Move_Mode_t)(change_value_counter+1), (Move_Var_t)(i+1), UNSIGNED_VAR, move_pos_value[i]);
 						}
 					}
 				}
@@ -1231,9 +1231,9 @@ void ui_handler(void){
 				else{
 					for(int i=0; i<6; i++){
 						if(move_var_counter == i){
-							if(change_value_counter != 1) move_angle_value[i] += increase_decrease_value;
-							else move_angle_value[i] += distance_val;
-							Send_move(&command, JOINT_CTRL, (Move_Mode_t)change_value_counter, (Move_Var_t)(i+4), UNSIGNED_VAR, move_angle_value[i]);
+							if(change_value_counter != 1) move_angle_value[i] = increase_decrease_value;
+							else move_angle_value[i] = distance_val;
+							Send_move(&command, JOINT_CTRL, (Move_Mode_t)(change_value_counter+1), (Move_Var_t)(i+4), UNSIGNED_VAR, move_angle_value[i]);
 						}
 					}
 				}
@@ -1247,7 +1247,7 @@ void ui_handler(void){
 						if(move_var_counter == i){
 							if(change_value_counter != 1) move_pos_value[i] -= increase_decrease_value;
 							else move_pos_value[i] -= distance_val;
-							Send_move(&command, CARTESIAN_CTRL, (Move_Mode_t)change_value_counter, (Move_Var_t)(i+1), SIGNED_VAR, move_pos_value[i]);
+							Send_move(&command, CARTESIAN_CTRL, (Move_Mode_t)(change_value_counter+1), (Move_Var_t)(i+1), SIGNED_VAR, move_pos_value[i]);
 						}
 					}
 				}
@@ -1256,7 +1256,7 @@ void ui_handler(void){
 						if(move_var_counter == i){
 							if(change_value_counter != 1) move_angle_value[i] -= increase_decrease_value;
 							else move_angle_value[i] -= distance_val;
-							Send_move(&command, JOINT_CTRL, (Move_Mode_t)change_value_counter, (Move_Var_t)(i+4), SIGNED_VAR, move_angle_value[i]);
+							Send_move(&command, JOINT_CTRL, (Move_Mode_t)(change_value_counter+1), (Move_Var_t)(i+4), SIGNED_VAR, move_angle_value[i]);
 						}
 					}
 				}

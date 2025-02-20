@@ -59,9 +59,23 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define Switch_Pin GPIO_PIN_1
-#define Switch_GPIO_Port GPIOA
-#define Switch_EXTI_IRQn EXTI1_IRQn
+#define LED_Pin GPIO_PIN_13
+#define LED_GPIO_Port GPIOC
+#define ENC_IN_Pin GPIO_PIN_0
+#define ENC_IN_GPIO_Port GPIOA
+#define LIMIT_SWITCH_Pin GPIO_PIN_1
+#define LIMIT_SWITCH_GPIO_Port GPIOA
+#define LIMIT_SWITCH_EXTI_IRQn EXTI1_IRQn
+#define DIR1_Pin GPIO_PIN_13
+#define DIR1_GPIO_Port GPIOB
+#define PUL1_Pin GPIO_PIN_14
+#define PUL1_GPIO_Port GPIOB
+#define ENC_OUT_Pin GPIO_PIN_8
+#define ENC_OUT_GPIO_Port GPIOA
+#define RS232_TX_Pin GPIO_PIN_9
+#define RS232_TX_GPIO_Port GPIOA
+#define RS232_RX_Pin GPIO_PIN_10
+#define RS232_RX_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 

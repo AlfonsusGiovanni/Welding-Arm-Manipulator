@@ -16,7 +16,7 @@ Date		: 10 Juli 2024
 #define HEADER3 0xFF
 
 /*RS232 COM BUFFER SIZE*/
-#define BUFF_SIZE 100
+#define BUFF_SIZE 80
 
 /*RS232 COM TIMEOUT*/
 #define RS232_TIMEOUT 100
@@ -181,12 +181,13 @@ typedef enum{
 //--- COMMAND FEEDBACK TYPEDEF ---//
 ////////////////////////////////////
 typedef enum{
-	AUTO_HOME_DONE = 0x01,
+	FEEDBACK_NONE,
+	AUTO_HOME_DONE,
 	DISTANCE_MOVE_DONE,
 	CURRENT_POINT_DONE,
 	ANGLE_LIMIT_WARNING,
 	MAIN_ONLINE,
-	PENDANT_ONLINE
+	PENDANT_ONLINE,
 }Feedback_t;
 ////////////////////////////////////
 
@@ -197,8 +198,8 @@ typedef struct{
 	UART_HandleTypeDef* huart;
 	
 	bool 
-	callback_state,
-	send_data_state;
+	msg_get,
+	msg_sent;
 	
 	double
 	move_value,

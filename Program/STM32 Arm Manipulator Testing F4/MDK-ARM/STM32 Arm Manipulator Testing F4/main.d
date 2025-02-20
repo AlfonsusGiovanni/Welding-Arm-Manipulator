@@ -33,6 +33,17 @@ stm32 arm manipulator testing f4\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm
 stm32 arm manipulator testing f4\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h
 stm32 arm manipulator testing f4\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h
 stm32 arm manipulator testing f4\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h
+stm32 arm manipulator testing f4\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os.h
+stm32 arm manipulator testing f4\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
+stm32 arm manipulator testing f4\main.o: ../Core/Inc/FreeRTOSConfig.h
+stm32 arm manipulator testing f4\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
+stm32 arm manipulator testing f4\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h
+stm32 arm manipulator testing f4\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/deprecated_definitions.h
+stm32 arm manipulator testing f4\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F/portmacro.h
+stm32 arm manipulator testing f4\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/mpu_wrappers.h
+stm32 arm manipulator testing f4\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h
+stm32 arm manipulator testing f4\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/list.h
+stm32 arm manipulator testing f4\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h
 stm32 arm manipulator testing f4\main.o: ../MDK-ARM/LCD_I2C.h
 stm32 arm manipulator testing f4\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h
 stm32 arm manipulator testing f4\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
@@ -40,4 +51,3 @@ stm32 arm manipulator testing f4\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\std
 stm32 arm manipulator testing f4\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h
 stm32 arm manipulator testing f4\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
 stm32 arm manipulator testing f4\main.o: ../MDK-ARM/AS5600_Driver.h
-stm32 arm manipulator testing f4\main.o: ../MDK-ARM/RS232_Driver.h

@@ -16,23 +16,21 @@ void RS232_Init(Data_Get_t* get, UART_HandleTypeDef* huart_handler){
 /*SEND AUTO HOME COMMAND*/
 void Send_auto_home(Data_Get_t* get){
 	uint8_t tx_buff[] = {HEADER1, HEADER2, HEADER3, AUTO_HOME_CMD};	
-	get->send_data_state = true; 
-	HAL_UART_Transmit(get->huart, tx_buff, sizeof(tx_buff), RS232_TIMEOUT);
+	HAL_UART_Transmit_IT(get->huart, tx_buff, sizeof(tx_buff));
 }
 
 /*SEND MAPPING MODE DATA COMMAND*/
 void Send_mapping(Data_Get_t* get, uint8_t point_num, Data_type_t point_type, Welding_Pattern_t pattern_type, uint8_t welding_speed, Mapping_State_t map_state){
 	uint8_t mapping_data[] = {HEADER1, HEADER2, HEADER3, MAPPING_MODE_CMD, point_num, point_type, pattern_type, welding_speed, map_state};	
-	get->send_data_state = true;
-	HAL_UART_Transmit(get->huart, mapping_data, sizeof(mapping_data), RS232_TIMEOUT);
+	HAL_UART_Transmit_IT(get->huart, mapping_data, sizeof(mapping_data));
 }
 
 
 /*SEND PREVIEW MODE DATA COMMAND*/
 void Send_preview(Data_Get_t* get, uint16_t point_num){
 	uint8_t preview[] = {HEADER1, HEADER2, HEADER3, RUNNING_CMD, point_num};	
-	get->send_data_state = true;
-	HAL_UART_Transmit(get->huart, preview, sizeof(preview), RS232_TIMEOUT);
+	
+	HAL_UART_Transmit_IT(get->huart, preview, sizeof(preview));
 }
 
 /*SEND MOVE COMMAND*/
@@ -47,22 +45,22 @@ void Send_move(Data_Get_t* get, Ctrl_Mode_t control_mode, Move_Var_t var_type, M
 		memcpy(new_value, &value, sizeof(double));
 		for(int i=0; i<8; i++) move_pos[i+7] = new_value[i];
 	}
-	get->send_data_state = true;
-	HAL_UART_Transmit(get->huart, move_pos, sizeof(move_pos), RS232_TIMEOUT);
+	
+	HAL_UART_Transmit_IT(get->huart, move_pos, sizeof(move_pos));
 }
 
 /*SEND RUNNING COMMAND*/
 void Send_running(Data_Get_t* get, Run_State_t state){
 	uint8_t run[] = {HEADER1, HEADER2, HEADER3, RUNNING_CMD, state};	
-	get->send_data_state = true;
-	HAL_UART_Transmit(get->huart, run, sizeof(run), RS232_TIMEOUT);
+	
+	HAL_UART_Transmit_IT(get->huart, run, sizeof(run));
 }
 
 /*SEND DATA REQUEST COMMAND*/
 void Req_data(Data_Get_t* get){
 	uint8_t req[] = {HEADER1, HEADER2, HEADER3, REQ_DATA_CMD};	
-	get->send_data_state = true;
-	HAL_UART_Transmit(get->huart, req, sizeof(req), RS232_TIMEOUT);
+	
+	HAL_UART_Transmit_IT(get->huart, req, sizeof(req));
 }
 
 /*SEND REQUESTED DATA COMMAND*/
@@ -108,35 +106,33 @@ void Send_requested_data(Data_Get_t* get, double* cartesian_value, double* joint
 	send_req[78] = pattern_type;
 	send_req[79] = welding_speed;	
 	
-	get->send_data_state = true;
-	HAL_UART_Transmit(get->huart, send_req, sizeof(send_req), RS232_TIMEOUT);
+	
+	HAL_UART_Transmit_IT(get->huart, send_req, sizeof(send_req));
 }
 
 /*SEND MOTOR STATE COMMAND*/
 void Send_motor_state(Data_Get_t* get, Motor_State_t state){
 	uint8_t motor_state[5] = {HEADER1, HEADER2, HEADER3, MOTOR_STATE_CMD, state};		
-	get->send_data_state = true;
-	HAL_UART_Transmit(get->huart, motor_state, sizeof(motor_state), RS232_TIMEOUT);
+	
+	HAL_UART_Transmit_IT(get->huart, motor_state, sizeof(motor_state));
 }
 
 /*SEND WELDER STATE COMMAND*/
 void Send_welder_state(Data_Get_t* get, Welder_State_t state){
 	uint8_t welder_state[5] = {HEADER1, HEADER2, HEADER3, WELDER_STATE_CMD, state};	
-	get->send_data_state = true;
-	HAL_UART_Transmit(get->huart, welder_state, sizeof(welder_state), RS232_TIMEOUT);
+	HAL_UART_Transmit_IT(get->huart, welder_state, sizeof(welder_state));
 }
 
 /*SEND FEDDBACK COMMAND*/
 void Send_feedback(Data_Get_t* get, Feedback_t fdbck){
 	uint8_t feed_buff[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, FEEDBACK_CMD, fdbck};		
-	get->send_data_state = true;
-	HAL_UART_Transmit_DMA(get->huart, feed_buff, sizeof(feed_buff));
+	HAL_UART_Transmit_IT(get->huart, feed_buff, sizeof(feed_buff));
 }
 
 /*SEND STANDBY COMMAND*/
 void Send_standby(Data_Get_t* get){
 	uint8_t standby_buff[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, STANDBY_CMD};		
-	HAL_UART_Transmit_DMA(get->huart, standby_buff, sizeof(standby_buff));
+	HAL_UART_Transmit_IT(get->huart, standby_buff, sizeof(standby_buff));
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -146,7 +142,7 @@ void Send_standby(Data_Get_t* get){
 
 /*START GET COM DATA*/
 void Start_get_command(Data_Get_t* get){
-	HAL_UART_Receive_DMA(get->huart, get->data_buff, BUFF_SIZE);
+	HAL_UART_Receive(get->huart, get->data_buff, BUFF_SIZE, 100);
 }
 
 /*GET COM DATA*/
@@ -261,6 +257,5 @@ void Get_command(Data_Get_t* get){
 			}
 		}
 	}
-	HAL_UART_Receive_DMA(get->huart, get->data_buff, BUFF_SIZE);
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
