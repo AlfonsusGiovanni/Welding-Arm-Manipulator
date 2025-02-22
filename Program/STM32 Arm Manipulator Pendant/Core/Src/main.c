@@ -177,7 +177,9 @@ pos_value[3], move_pos_value[3],
 A1, A2, A3, A4, A5, A6,
 moveX, moveY, moveZ,
 distance_val,
-max_distance = 300;
+max_axis_distance = 100,
+max_joint_distance = 90;
+
 
 char
 string_distance[20],
@@ -232,16 +234,17 @@ linear_mode[]				= "LINEAR",
 circular_mode[] 		= "CIRCULAR",
 wave_mode[]					= "WAVE",
 
-string_max_dist[] 	= "300      ",
+string_max_dist1[] 	= "100      ",
+string_max_dist2[] 	= "90       ",
 string_max_point[] 	= "250      ",
 string_max_speed[]	= "150      ";
 
 int16_t 
-ctrl_mode_counter,
-change_value_counter,
-move_var_counter,
-run_mode_counter,
-speed_mode_counter,
+ctrl_mode_counter,			// Change Control Mode - World or Joint
+move_mode_counter,			// Change Move Mode - Continuous, Distance, or Step
+move_var_counter,				// Change Move Variable - World Variable or Joint Variable
+run_mode_counter,				// Change Running Mode - Welding or Preview
+speed_mode_counter,			// Change Speed Mode - LOW, MED, HIGH
 mapping_menu_counter,
 mapped_point_counter,
 start_point_counter,
@@ -278,6 +281,7 @@ void blink_led(uint8_t delay_time, uint8_t count);
 // MENU HANDLER FUNCTION PROTOTYPE
 void ui_handler(void);
 void show_menu(LCD_Menu_t menu);
+void reset_counter(void);
 bool check_numkeys_pressed(void);
 
 // EEPROM HANDLER FUNCTION PROTOTYPE
@@ -295,7 +299,9 @@ void Format_mem(void);																																					// MEMORY FORMAT
 /*LCD MENU TIMER UPDATE*/
 //-----------------------------------------------------------
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
-	if(htim->Instance == TIM2) show_menu(select_menu);
+	if(htim->Instance == TIM2){
+		show_menu((LCD_Menu_t)select_menu);
+	}
 }
 //-----------------------------------------------------------
 
@@ -343,7 +349,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 }
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
-	command.send_data_state = false;
+	command.msg_sent = false;
 }
 //------------------------------------------------------
 
@@ -395,6 +401,7 @@ int main(void)
 		}
 	};
 	select_menu = BOOTING_MENU;
+	lcd_clear();
 	HAL_TIM_Base_Start_IT(&htim2);
 	blink_led(100, 2);
 	#endif
@@ -430,6 +437,7 @@ int main(void)
 	EEPROM_Init(&hi2c1, &eeprom1, MEM_SIZE_256Kb, 0xA0);
 	EEPROM_ByteRead(&eeprom1, 511, 0, eeprom1.dummy_byte, 1);
 	if(eeprom1.status != EEPROM_OK){
+		lcd_clear();
 		while(1){ 
 			select_menu = EEPROM_ERR_MENU;
 			blink_led(50, 1);
@@ -465,8 +473,9 @@ int main(void)
 	
 	/*ALL PREPARATION COMPLETED - BOOTING DONE*/
 	//------------------------------------------
-	select_menu = HOME_MENU;
 	lcd_clear();
+	select_menu = HOME_MENU;
+	HAL_Delay(100);
 	prep_done = true;
 	//------------------------------------------
 	
@@ -799,6 +808,7 @@ void blink_led(uint8_t delay_time, uint8_t count){
 void ui_handler(void){
 	Start_get_command(&command);
 	
+	// Get Request
 	if(command.type == SEND_REQ){
 		for(int i=0; i<6; i++){
 			if(i<3) pos_value[i] = command.Cartesian_pos_req[i];
@@ -806,6 +816,7 @@ void ui_handler(void){
 		}
 	}
 	
+	// Read Keypad
 	keys = Keypad_Read(&keypad);
 	if(keys != prev_keys && keys != 0x00){
 		lcd_clear();
@@ -878,6 +889,8 @@ void ui_handler(void){
 			move_var_counter = 0;
 			ctrl_mode_counter++;
 			if(ctrl_mode_counter > 1) ctrl_mode_counter = 0;
+			strcpy(string_distance, "0");
+			distance_val = 0;
 		}
 		// ***********************************************
 		
@@ -893,16 +906,18 @@ void ui_handler(void){
 		
 		// SELECT MOVE VALUE ***********************************
 		else if(keys == 'T' && prev_keys != keys){
-			change_value_counter++;
-			if(change_value_counter > 2) change_value_counter = 0;
+			move_mode_counter++;
+			if(move_mode_counter > 2) move_mode_counter = 0;
+			strcpy(string_distance, "0");
+			distance_val = 0;
 		}
 		// *****************************************************
 		
 		
 		// MOVE VALUE BY DISTANCE *************************************************************
-		else if((change_value_counter == 1 && check_numkeys_pressed() == true) || keys == '<'){
+		else if((move_mode_counter == 1 && check_numkeys_pressed() == true) || keys == '<'){
 			add_col = 0;
-			strcpy(string_distance, "0");
+			distance_val = 0;
 			
 			while(1){
 				saved_dist = false;
@@ -925,9 +940,17 @@ void ui_handler(void){
 				// SAVE VALUE
 				if(keys == '>' && prev_keys != keys){
 					sscanf(string_distance, "%f", &distance_val);
-					if(distance_val >= max_distance){
-						memcpy(string_distance, string_max_dist, sizeof(string_max_dist));
-						distance_val = max_distance;
+					if(ctrl_mode_counter == 0){
+						if(distance_val >= max_axis_distance){
+							memcpy(string_distance, string_max_dist1, sizeof(string_max_dist1));
+							distance_val = max_axis_distance;
+						}
+					}
+					else{
+						if(distance_val >= max_joint_distance){
+							memcpy(string_distance, string_max_dist2, sizeof(string_max_dist2));
+							distance_val = max_joint_distance;
+						}
 					}
 					saved_dist = true;
 					break;
@@ -939,7 +962,7 @@ void ui_handler(void){
 		
 		
 		// MOVE VALUE BY STEP *******************************************
-		else if(change_value_counter == 2) increase_decrease_value = 0.1;
+		else if(move_mode_counter == 2) increase_decrease_value = 0.1;
 		// **************************************************************
 		
 		
@@ -954,9 +977,9 @@ void ui_handler(void){
 			if(ctrl_mode_counter == 0){
 				for(int i=0; i<3; i++){
 					if(move_var_counter == i){
-						if(change_value_counter != 1) move_pos_value[i] = increase_decrease_value;
+						if(move_mode_counter != 1) move_pos_value[i] = increase_decrease_value;
 						else move_pos_value[i] = distance_val;
-						Send_move(&command, CARTESIAN_CTRL, (Move_Mode_t)(change_value_counter+1), (Move_Var_t)(i+1), UNSIGNED_VAR, move_pos_value[i]);
+						Send_move(&command, CARTESIAN_CTRL, (Move_Mode_t)(move_mode_counter+1), (Move_Var_t)(i+1), UNSIGNED_VAR, move_pos_value[i]);
 					}
 				}
 			}
@@ -965,9 +988,9 @@ void ui_handler(void){
 			else{
 				for(int i=0; i<6; i++){
 					if(move_var_counter == i){
-						if(change_value_counter != 1) move_angle_value[i] = increase_decrease_value;
+						if(move_mode_counter != 1) move_angle_value[i] = increase_decrease_value;
 						else move_angle_value[i] = distance_val;
-						Send_move(&command, JOINT_CTRL, (Move_Mode_t)(change_value_counter+1), (Move_Var_t)(i+4), UNSIGNED_VAR, move_angle_value[i]);
+						Send_move(&command, JOINT_CTRL, (Move_Mode_t)(move_mode_counter+1), (Move_Var_t)(i+4), UNSIGNED_VAR, move_angle_value[i]);
 					}
 				}
 			}
@@ -981,18 +1004,18 @@ void ui_handler(void){
 			if(ctrl_mode_counter == 0){
 				for(int i=0; i<3; i++){
 					if(move_var_counter == i){
-						if(change_value_counter != 1) move_pos_value[i] -= increase_decrease_value;
-						else move_pos_value[i] -= distance_val;
-						Send_move(&command, CARTESIAN_CTRL, (Move_Mode_t)(change_value_counter+1), (Move_Var_t)(i+1), SIGNED_VAR, move_pos_value[i]);
+						if(move_mode_counter != 1) move_pos_value[i] = -1*(increase_decrease_value);
+						else move_pos_value[i] = -1*(distance_val);
+						Send_move(&command, CARTESIAN_CTRL, (Move_Mode_t)(move_mode_counter+1), (Move_Var_t)(i+1), SIGNED_VAR, move_pos_value[i]);
 					}
 				}
 			}
 			else{
 				for(int i=0; i<6; i++){
 					if(move_var_counter == i){
-						if(change_value_counter != 1) move_angle_value[i] -= increase_decrease_value;
-						else move_angle_value[i] -= distance_val;
-						Send_move(&command, JOINT_CTRL, (Move_Mode_t)(change_value_counter+1), (Move_Var_t)(i+4), SIGNED_VAR, move_angle_value[i]);
+						if(move_mode_counter != 1) move_angle_value[i] = -1*(increase_decrease_value);
+						else move_angle_value[i] = -1*(distance_val);
+						Send_move(&command, JOINT_CTRL, (Move_Mode_t)(move_mode_counter+1), (Move_Var_t)(i+4), SIGNED_VAR, move_angle_value[i]);
 					}
 				}
 			}
@@ -1018,9 +1041,12 @@ void ui_handler(void){
 		preview_state = false;
 		welding_state = false;
 		
-		// BACT TO HOME MENU *****************
+		// BACK TO HOME MENU *****************
 		if(keys == '.' && prev_keys != keys){
 			select_menu = HOME_MENU;
+			reset_counter();
+			strcpy(string_distance, "0");
+			distance_val = 0;
 		}
 		// ***********************************
 		
@@ -1134,10 +1160,13 @@ void ui_handler(void){
 	
 	/* MAPPING MENU UI HANDLER */////////////////////////////////////////////////////////////////////////////////
 	else if(select_menu == MAPPING_MENU){
-		// MOVE TO PREPARATION MENU *********
+		// BACK TO PREPARATION MENU *********
 		if(keys == '.' && prev_keys != keys){
 			run_mode_counter = 0;
 			select_menu = PREP_MENU;
+			reset_counter();
+			strcpy(string_distance, "0");
+			distance_val = 0;
 		}
 		// **********************************
 		
@@ -1157,6 +1186,8 @@ void ui_handler(void){
 				move_var_counter = 0;
 				ctrl_mode_counter++;
 				if(ctrl_mode_counter > 1) ctrl_mode_counter = 0;
+				strcpy(string_distance, "0");
+				distance_val = 0;
 			}
 			
 			// CHANGE CURSOR FOR SELECT MOVE VARIABLE
@@ -1168,12 +1199,14 @@ void ui_handler(void){
 			
 			// SELECT MOVE VALUE
 			else if(keys == 'T' && prev_keys != keys){
-				change_value_counter++;
-				if(change_value_counter > 2) change_value_counter = 0;
+				move_mode_counter++;
+				if(move_mode_counter > 2) move_mode_counter = 0;
+				strcpy(string_distance, "0");
+				distance_val = 0;
 			}
 			
 			// MOVE VALUE BY DISTANCE
-			else if(check_numkeys_pressed() == true || keys == '<'){
+			else if((move_mode_counter == 1 && check_numkeys_pressed() == true) || keys == '<'){
 				add_col = 0;
 				*string_distance = '0';
 				
@@ -1190,9 +1223,17 @@ void ui_handler(void){
 					// SAVE VALUE
 					else if(keys == '>' && prev_keys != keys){
 						sscanf(string_distance, "%f", &distance_val);
-						if(distance_val >= max_distance){
-							memcpy(string_distance, string_max_dist, sizeof(string_max_dist));
-							distance_val = max_distance;
+						if(ctrl_mode_counter == 0){
+							if(distance_val >= max_axis_distance){
+								memcpy(string_distance, string_max_dist1, sizeof(string_max_dist1));
+								distance_val = max_axis_distance;
+							}
+						}
+						else{
+							if(distance_val >= max_joint_distance){
+								memcpy(string_distance, string_max_dist2, sizeof(string_max_dist2));
+								distance_val = max_joint_distance;
+							}
 						}
 						saved_dist = true;
 						break;
@@ -1211,7 +1252,7 @@ void ui_handler(void){
 			}
 			
 			// MOVE VALUE BY STEP
-			else if(change_value_counter == 2) increase_decrease_value = 0.1;
+			else if(move_mode_counter == 2) increase_decrease_value = 0.1;
 			
 			// MOVE VALUE CONTINUOUS
 			else increase_decrease_value = 0.0;
@@ -1221,9 +1262,9 @@ void ui_handler(void){
 				if(ctrl_mode_counter == 0){
 					for(int i=0; i<3; i++){
 						if(move_var_counter == i){
-							if(change_value_counter != 1) move_pos_value[i] = increase_decrease_value;
+							if(move_mode_counter != 1) move_pos_value[i] = increase_decrease_value;
 							else move_pos_value[i] = distance_val;
-							Send_move(&command, CARTESIAN_CTRL, (Move_Mode_t)(change_value_counter+1), (Move_Var_t)(i+1), UNSIGNED_VAR, move_pos_value[i]);
+							Send_move(&command, CARTESIAN_CTRL, (Move_Mode_t)(move_mode_counter+1), (Move_Var_t)(i+1), UNSIGNED_VAR, move_pos_value[i]);
 						}
 					}
 				}
@@ -1231,9 +1272,9 @@ void ui_handler(void){
 				else{
 					for(int i=0; i<6; i++){
 						if(move_var_counter == i){
-							if(change_value_counter != 1) move_angle_value[i] = increase_decrease_value;
+							if(move_mode_counter != 1) move_angle_value[i] = increase_decrease_value;
 							else move_angle_value[i] = distance_val;
-							Send_move(&command, JOINT_CTRL, (Move_Mode_t)(change_value_counter+1), (Move_Var_t)(i+4), UNSIGNED_VAR, move_angle_value[i]);
+							Send_move(&command, JOINT_CTRL, (Move_Mode_t)(move_mode_counter+1), (Move_Var_t)(i+4), UNSIGNED_VAR, move_angle_value[i]);
 						}
 					}
 				}
@@ -1245,18 +1286,18 @@ void ui_handler(void){
 				if(ctrl_mode_counter == 0){
 					for(int i=0; i<3; i++){
 						if(move_var_counter == i){
-							if(change_value_counter != 1) move_pos_value[i] -= increase_decrease_value;
-							else move_pos_value[i] -= distance_val;
-							Send_move(&command, CARTESIAN_CTRL, (Move_Mode_t)(change_value_counter+1), (Move_Var_t)(i+1), SIGNED_VAR, move_pos_value[i]);
+							if(move_mode_counter != 1) move_pos_value[i] = -1*(increase_decrease_value);
+							else move_pos_value[i] = -1*(distance_val);
+							Send_move(&command, CARTESIAN_CTRL, (Move_Mode_t)(move_mode_counter+1), (Move_Var_t)(i+1), SIGNED_VAR, move_pos_value[i]);
 						}
 					}
 				}
 				else{
 					for(int i=0; i<6; i++){
 						if(move_var_counter == i){
-							if(change_value_counter != 1) move_angle_value[i] -= increase_decrease_value;
-							else move_angle_value[i] -= distance_val;
-							Send_move(&command, JOINT_CTRL, (Move_Mode_t)(change_value_counter+1), (Move_Var_t)(i+4), SIGNED_VAR, move_angle_value[i]);
+							if(move_mode_counter != 1) move_angle_value[i] = -1*(increase_decrease_value);
+							else move_angle_value[i] = -1*(distance_val);
+							Send_move(&command, JOINT_CTRL, (Move_Mode_t)(move_mode_counter+1), (Move_Var_t)(i+4), SIGNED_VAR, move_angle_value[i]);
 						}
 					}
 				}
@@ -1442,7 +1483,7 @@ void ui_handler(void){
 				if(keys != prev_keys && keys != 0x00) lcd_clear();
 				
 				if(command.feedback == CURRENT_POINT_DONE){
-					change_value_counter = 0;
+					move_mode_counter = 0;
 					ctrl_mode_counter = 0;
 					move_var_counter = 0;
 					select_menu = HOME_MENU;
@@ -1535,7 +1576,7 @@ void ui_handler(void){
 			Send_running(&command, RUNNING_STOP);
 			if(command.feedback == AUTO_HOME_DONE){
 				ctrl_mode_counter = 0,
-				change_value_counter = 0,
+				move_mode_counter = 0,
 				move_var_counter = 0,
 				run_mode_counter = 0,
 				select_menu = HOME_MENU;
@@ -1663,12 +1704,12 @@ void show_menu(LCD_Menu_t menu){
 		
 		// CONTINUES MOVE **************************************
 		lcd_set_cursor(0, 3);	
-		if(change_value_counter == 0) lcd_printstr(cont_change);
+		if(move_mode_counter == 0) lcd_printstr(cont_change);
 		// *****************************************************
 		
 		
 		// DISTANCE MOVE ***********************
-		else if(change_value_counter == 1){
+		else if(move_mode_counter == 1){
 			lcd_printstr(dist_change);
 			lcd_set_cursor(6, 3);	
 			lcd_printstr(string_distance);
@@ -1686,12 +1727,12 @@ void show_menu(LCD_Menu_t menu){
 		
 		
 		// STEP MOVE ************************************************
-		else if(change_value_counter == 2) lcd_printstr(step_change);
+		else if(move_mode_counter == 2) lcd_printstr(step_change);
 		// **********************************************************
 		
 		
 		// SHOW CURRENT MENU *********
-		if(change_value_counter != 1){
+		if(move_mode_counter != 1){
 			lcd_set_cursor(7, 3);
 			lcd_printstr(home_menu);
 		}
@@ -1828,9 +1869,9 @@ void show_menu(LCD_Menu_t menu){
 		
 		// CONTINUES MOVE **************************************
 		lcd_set_cursor(0, 3);	
-		if(change_value_counter == 0) lcd_printstr(cont_change);
+		if(move_mode_counter == 0) lcd_printstr(cont_change);
 		
-		else if(change_value_counter == 1){
+		else if(move_mode_counter == 1){
 			lcd_printstr(dist_change);
 			lcd_set_cursor(6, 3);	
 			lcd_printstr(string_distance);
@@ -1848,7 +1889,7 @@ void show_menu(LCD_Menu_t menu){
 		
 		
 		// DISTANCE MOVE ***********************
-		else if(change_value_counter == 1){
+		else if(move_mode_counter == 1){
 			lcd_printstr(dist_change);
 			lcd_set_cursor(6, 3);	
 			lcd_printstr(string_distance);
@@ -1866,12 +1907,12 @@ void show_menu(LCD_Menu_t menu){
 		
 		
 		// STEP MOVE ************************************************
-		else if(change_value_counter == 2) lcd_printstr(step_change);
+		else if(move_mode_counter == 2) lcd_printstr(step_change);
 		// **********************************************************
 		
 		
 		// SHOW CURRENT MENU *********
-		if(change_value_counter != 1){
+		if(move_mode_counter != 1){
 			lcd_set_cursor(7, 3);
 			lcd_printstr(mapping_menu);
 		}
@@ -2221,6 +2262,16 @@ void show_menu(LCD_Menu_t menu){
 		}
 	}
 	///////////////////////////////////
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*--- RESET COUNTER ---*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void reset_counter(void){
+	ctrl_mode_counter = 0;
+	move_mode_counter = 0;
+	move_var_counter = 0;
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 

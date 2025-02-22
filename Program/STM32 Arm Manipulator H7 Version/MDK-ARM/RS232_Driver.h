@@ -78,9 +78,9 @@ typedef enum{
 //--- MOVE VARIABLE TYPEDEF ---//
 /////////////////////////////////
 typedef enum{
-	CARTESIAN_X = 0x01,
-	CARTESIAN_Y,
-	CARTESIAN_Z,
+	AXIS_X = 0x01,
+	AXIS_Y,
+	AXIS_Z,
 	
 	JOINT_1,
 	JOINT_2,
@@ -231,7 +231,6 @@ typedef struct ALIGNED_8{
 	
 	uint8_t data_buff[BUFF_SIZE];
 	uint8_t check_data_buff[BUFF_SIZE];
-	uint8_t data_size;
 	uint8_t welding_point;
 	uint8_t welding_speed;
 

@@ -29,6 +29,30 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
+typedef enum{
+	AXIS_X = 0x01,
+	AXIS_Y,
+	AXIS_Z,
+	
+	JOINT_1,
+	JOINT_2,
+	JOINT_3,
+	JOINT_4,
+	JOINT_5,
+	JOINT_6,
+}Move_Var_t;
+
+typedef enum{
+	LOW = 0x01,
+	MED,
+	HIGH,
+}Speed_t;
+
+typedef enum{
+	DIR_CW,
+	DIR_CCW
+}Stepper_Dir_t;
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -38,6 +62,46 @@
 //#define TEST_COM
 #define TEST_STEPPER
 //#define TEST_LIMIT_SWITCH
+
+/* STEPPER SET */
+//----------------------------
+#define MICROSTEP_FACTOR1	1
+#define MICROSTEP_FACTOR2	2
+#define MICROSTEP_FACTOR3	4
+#define MICROSTEP_FACTOR4	8
+#define MICROSTEP_FACTOR5	16
+#define MICROSTEP_FACTOR6	32
+
+#define MICROSTEP_VALUE1 	200
+#define MICROSTEP_VALUE2 	400
+#define MICROSTEP_VALUE3 	800
+#define MICROSTEP_VALUE4 	1600
+#define MICROSTEP_VALUE5	3200
+#define MICROSTEP_VALUE6 	6400
+
+#define STEPPER1_RATIO		90
+#define	STEPPER2_RATIO		36
+#define	STEPPER3_RATIO		36
+#define	STEPPER4_RATIO		9
+#define	STEPPER5_RATIO		90
+#define	STEPPER6_RATIO		9
+
+#define STEPPER1_MAXSPD		420
+#define STEPPER2_MAXSPD		315
+#define STEPPER3_MAXSPD		420
+#define STEPPER4_MAXSPD		420
+#define STEPPER5_MAXSPD		420
+#define STEPPER6_MAXSPD		420
+
+#define SET_DUTY_CYCLE		0.25
+//----------------------------
+
+\
+/*ROBOT SET*/
+//---------------------
+#define JOINT_NUM			6
+#define AXIS_NUM			3
+//---------------------
 
 /* USER CODE END PD */
 
@@ -57,11 +121,11 @@ TIM_HandleTypeDef htim4;
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 
-/* Definitions for ProcessData */
-osThreadId_t ProcessDataHandle;
-const osThreadAttr_t ProcessData_attributes = {
-  .name = "ProcessData",
-  .stack_size = 128 * 4,
+/* Definitions for mainTask */
+osThreadId_t mainTaskHandle;
+const osThreadAttr_t mainTask_attributes = {
+  .name = "mainTask",
+  .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for TransmitData */
@@ -85,38 +149,225 @@ const osMessageQueueAttr_t rxBuff_attributes = {
 };
 /* USER CODE BEGIN PV */
 
+// PARAMETER VARIABLE ----
+double
+joint_positive_axisLim[6],
+joint_negative_axisLim[6],
+joint_max_traveldist[6],
+joint_step_per_deg[6],
+joint_deg_per_step[6];
+
+bool
+limit_switch_state[6];
+
+uint8_t
+robot_axis[6] = {
+	AXIS_X,
+	AXIS_Y,
+	AXIS_Z
+},
+
+robot_joint[6] = {
+	JOINT_1,
+	JOINT_2,
+	JOINT_3,
+	JOINT_4,
+	JOINT_5,
+	JOINT_6
+};
+//------------------------
+
+
+// EEPROM VARIABLE ---
+double 
+array_pos_start[3],
+array_pos_end[3],
+array_ang_start[6],
+array_ang_end[6];
+
+uint8_t
+page_data_byte[128],
+
+saved_pos[24], 
+read_saved_pos[24],
+read_saved_posX[8],
+read_saved_posY[8],
+read_saved_posZ[8],
+
+saved_angle[48], 
+read_saved_angle[48],
+read_saved_angle1[8],
+read_saved_angle2[8],
+read_saved_angle3[8],
+read_saved_angle4[8],
+read_saved_angle5[8],
+read_saved_angle6[8],
+
+welding_pattern,
+read_saved_pattern[1];
+//--------------------
+
+
+// INVERSE KINEMATICS VARIABLE
+
+
+// FORWARD KINEMATICS VARIABLE
+
+
+// MOVE VARIABLE ---
+double
+current_position[3],
+delta_move_pos[3],
+prev_position[3],
+
+current_angle[6],
+delta_move_ang[6],
+prev_angle[6],
+prev_input_angle[6];
+
+uint8_t
+direction,
+current_point,
+current_speed;
+//------------------
+
+
+// STEPPER VARIABLE -------
+unsigned long
+rpm_timer;
+
+bool
+step_start[6],
+step_limit[6],
+step_dir[6],
+step_state[6];
+
+uint16_t
+rpm_counter,
+stepper_rpm[6],
+stepper_freq[6],
+t_on[6],
+t_off[6],
+step_input[6],
+step_output[6],
+step_freq[6],
+step_period[6],
+stepper_stepfactor[6],
+
+stepper_microstep[6] = {
+	MICROSTEP_VALUE3,
+	MICROSTEP_VALUE3,
+	MICROSTEP_VALUE3,
+	MICROSTEP_VALUE3,
+	MICROSTEP_VALUE3,
+	MICROSTEP_VALUE3,
+},
+
+stepper_ratio[6] = {
+	STEPPER1_RATIO,
+	STEPPER2_RATIO,
+	STEPPER3_RATIO,
+	STEPPER4_RATIO,
+	STEPPER5_RATIO,
+	STEPPER6_RATIO,
+};
+
+uint32_t
+timer_counter[6],
+step_counter[6],
+current_step[6];
+
+double
+max_joint_speed,
+joint_rpm,
+joint_delta_angle[6];
+//-----------------------
+
+
+// RS232 VARIABLE ---
+bool
+waiting = false;
+
+double
+tx_current_pos[3],
+tx_current_angle[6],
+tx_welding_point,
+tx_welding_pattern,
+
+rx_move_position[3],
+rx_move_angle[6];
+
+uint8_t
+get_buff[80],
+rx_savepoint,
+rx_patterntype[200],
+rx_pointtype,
+rx_rotate_mode,
+rx_rotate_value[8];
+
+uint8_t
+struct_size;
+//-------------------
+
+
+// OLED LCD VARIABLE ----------
+uint8_t 
+refresh_counter,
+selected_menu;
+
+char 
+title[]  = "   WELDING ARM V1",
+error1[] = "EEPROM1 ERROR    ",
+error2[] = "EEPROM2 ERROR    ";
+//-----------------------------
+
+
+// ENCODER VARIABLE -----
+uint32_t 
+enc_counter[6],
+pwm_freq[6], 
+cycle_time[6];
+
+uint8_t
+enc_mag_status[6];
+
+float
+min_duty_cycle = 2.9,
+max_duty_cycle = 97.1,
+duty_cycle[6],
+enc_angle[6],
+cal_value[6],
+cal_enc_angle[6],
+prev_cal_enc_angle[6],
+reduced_cal_enc_angle[6],
+enc_joint_angle[6],
+prev_enc_joint_angle[6];
+//-----------------------
+
+
+// POWER VARIABLE ---
+uint8_t pwr_status;
+//-------------------
+
+
+// TIMER VARIABLE 
+unsigned long
+prev_data_get;
+//---------------
+
+
+// TESTING VARIABLE
+bool
+btn_state,
+get_data_flag;
+
 unsigned long
 get_data_timer;
 
-bool
-get_data_flag,
-btn_state = false;
-
 uint8_t
-rx_buff[5],
 processed_buff[5],
-enc_mag_status = 0;
+rx_buff[5];
 
-uint32_t 
-tim_counter1 = 0,
-tim_counter2 = 0,
-pulse1 = 0,
-pulse2 = 0,
-rev_counter = 0,
-Frequency = 0, 
-Period = 0,
-CycleTime = 0;
-
-float 
-min_duty = 2.9,
-max_duty = 97.1,
-angle_zeroing = 0.0,
-angle = 0.0,
-zero_angle = 0.0,
-prev_zero_angle = 0.0,
-reduced_zero_angle = 0.0,
-joint_angle = 0.0,
-Duty = 0.0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -129,11 +380,18 @@ static void MX_USART1_UART_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_USART2_UART_Init(void);
-void StartProcessData(void *argument);
+void StartMainTask(void *argument);
 void StartTransmit(void *argument);
 void StartReceive(void *argument);
 
 /* USER CODE BEGIN PFP */
+
+void disable_stepper(void);
+void enable_stepper(void);
+void move_stepper(uint8_t select_joint, uint16_t step, Stepper_Dir_t dir, uint16_t input_freq);
+void move_joint(uint8_t select_joint, double input_angle, Speed_t set_speed);
+void move_world(uint8_t move_var, double move_pos, Speed_t set_speed);
+
 
 /* USER CODE END PFP */
 
@@ -266,8 +524,8 @@ int main(void)
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
-  /* creation of ProcessData */
-  ProcessDataHandle = osThreadNew(StartProcessData, NULL, &ProcessData_attributes);
+  /* creation of mainTask */
+  mainTaskHandle = osThreadNew(StartMainTask, NULL, &mainTask_attributes);
 
   /* creation of TransmitData */
   TransmitDataHandle = osThreadNew(StartTransmit, NULL, &TransmitData_attributes);
@@ -748,14 +1006,14 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE END 4 */
 
-/* USER CODE BEGIN Header_StartProcessData */
+/* USER CODE BEGIN Header_StartMainTask */
 /**
-  * @brief  Function implementing the ProcessData thread.
+  * @brief  Function implementing the mainTask thread.
   * @param  argument: Not used
   * @retval None
   */
-/* USER CODE END Header_StartProcessData */
-void StartProcessData(void *argument)
+/* USER CODE END Header_StartMainTask */
+void StartMainTask(void *argument)
 {
   /* USER CODE BEGIN 5 */
   /* Infinite loop */
@@ -829,12 +1087,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   /* USER CODE BEGIN Callback 0 */
 	if(htim->Instance == TIM3){
-		tim_counter1++;
-		if(tim_counter1 < 25) HAL_GPIO_WritePin(PUL1_GPIO_Port, PUL1_Pin, GPIO_PIN_SET);
-		else if(tim_counter1 >= 25 && tim_counter1 < 99) HAL_GPIO_WritePin(PUL1_GPIO_Port, PUL1_Pin, GPIO_PIN_RESET);
-		else if(tim_counter1 == 99){
-			pulse1++;
-			tim_counter1 = 0;
+		timer_counter[0]++;
+		if(timer_counter[0] < 25) HAL_GPIO_WritePin(PUL1_GPIO_Port, PUL1_Pin, GPIO_PIN_SET);
+		else if(timer_counter[0] >= 25 && timer_counter[0] < 99) HAL_GPIO_WritePin(PUL1_GPIO_Port, PUL1_Pin, GPIO_PIN_RESET);
+		else if(timer_counter[0] == 99){
+			step_counter[0]++;
+			timer_counter[0] = 0;
 		}
 	}
 	
