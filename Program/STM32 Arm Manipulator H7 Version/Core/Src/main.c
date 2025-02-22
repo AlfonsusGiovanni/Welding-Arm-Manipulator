@@ -194,6 +194,7 @@ joint_step_per_deg[6],
 joint_deg_per_step[6];
 
 bool
+home = false,
 limit_switch_state[6];
 
 uint8_t
@@ -314,6 +315,7 @@ step_start[6],
 step_limit[6],
 step_dir[6],
 step_dir_inv[6],
+step_home_dir[6],
 step_state[6];
 
 uint16_t
@@ -528,6 +530,7 @@ void inverse_kinematics(double Xpos_input, double Ypos_input, double Zpos_input)
 // Main Function
 void move_joint(uint8_t select_joint, double input_angle, Speed_t set_speed);
 void move_world(uint8_t move_var, double move_pos, Speed_t set_speed);
+bool check_limit(void);
 bool homing(void);
 
 // Encoder Function
@@ -768,13 +771,6 @@ int main(void)
 		else if(stepper_microstep[i] == MICROSTEP_VALUE5) stepper_stepfactor[i] = MICROSTEP_FACTOR5;
 		else if(stepper_microstep[i] == MICROSTEP_VALUE6) stepper_stepfactor[i] = MICROSTEP_FACTOR6;
 	}
-	
-	step_dir[0] = 0;		// Clockwise
-	step_dir[1] = 0;		// Clockwise
-	step_dir[2] = 0;		// Clockwise
-	step_dir[3] = 0;		// Clockwise
-	step_dir[4] = 0;		// Clockwise
-	step_dir[5] = 0;		// Clockwise
 
 	step_dir_inv[0] = 0;	// Not Inverted
 	step_dir_inv[1] = 0;	// Not Inverted
@@ -782,6 +778,13 @@ int main(void)
 	step_dir_inv[3] = 0;	// Not Inverted
 	step_dir_inv[4] = 0;	// Not Inverted
 	step_dir_inv[5] = 0;	// Not Inverted
+	
+	step_home_dir[0] = DIR_CW;
+	step_home_dir[1] = DIR_CW;
+	step_home_dir[2] = DIR_CW;
+	step_home_dir[3] = DIR_CW;
+	step_home_dir[4] = DIR_CW;
+	step_home_dir[5] = DIR_CW;
 	
 	for(int i=0; i<JOINT_NUM; i++){
 		joint_max_traveldist[i] = joint_positive_axisLim[i] + joint_negative_axisLim[i];
@@ -2056,11 +2059,11 @@ void move_stepper(uint8_t select_joint, uint16_t step, Stepper_Dir_t dir, uint16
 			// Set Stepper Direction
 			if(dir == DIR_CW && step_state[i] == false){
 				step_dir[i] = 0;
-				HAL_GPIO_WritePin(stepper_gpio_port[i+6], stepper_gpio_pin[i+6], GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(stepper_gpio_port[i+6], stepper_gpio_pin[i+6], GPIO_PIN_SET);
 			}
 			else if(dir == DIR_CCW && step_state[i] == false){
 				step_dir[i] = 1;
-				HAL_GPIO_WritePin(stepper_gpio_port[i+6], stepper_gpio_pin[i+6], GPIO_PIN_SET);
+				HAL_GPIO_WritePin(stepper_gpio_port[i+6], stepper_gpio_pin[i+6], GPIO_PIN_RESET);
 			}
 			
 			// Pulse Start
@@ -2086,7 +2089,7 @@ void move_joint(uint8_t select_joint, double input_angle, Speed_t set_speed){
 		if(select_joint == robot_joint[i]){
 			// Calculate Step
 			if(step_limit[i] == true){
-				step_output[i] = input_angle / joint_deg_per_step[i];
+				step_output[i] = abs((int)(input_angle / joint_deg_per_step[i]));
 			}
 			
 			// Synchronize Joint RPM
@@ -2095,8 +2098,10 @@ void move_joint(uint8_t select_joint, double input_angle, Speed_t set_speed){
 			
 			// Step Move
 			if(input_angle > 0){
-				if(prev_angle[i] < input_angle) move_stepper(robot_joint[i], step_output[i], DIR_CW, stepper_freq[i]);
-				else if(prev_angle[i] > input_angle) move_stepper(robot_joint[i], step_output[i], DIR_CCW, stepper_freq[i]);
+				move_stepper(robot_joint[i], step_output[i], DIR_CW, stepper_freq[i]);
+			}
+			else if(input_angle < 0){
+				move_stepper(robot_joint[i], step_output[i], DIR_CCW, stepper_freq[i]);
 			}
 			
 			// Continuous Move
@@ -2121,10 +2126,40 @@ void move_world(uint8_t move_var, double move_pos, Speed_t set_speed){
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
+/* --- LIMIT SWITCH STATE CHECK FUNCTION ---*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+bool check_limit(void){
+	if(limit_switch_state[0] && limit_switch_state[1] && limit_switch_state[2] && limit_switch_state[3] && limit_switch_state[4] && limit_switch_state[5]){
+		for(int i=0; i<JOINT_NUM; i++){
+			step_start[i] = true;
+			step_limit[i] = false;
+		}
+		return true;
+	}
+	else{
+		for(int i=0; i<JOINT_NUM; i++){
+			step_start[i] = false;
+			step_limit[i] = false;
+		}
+		return false;
+	}
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
 /* --- JOINT ANGLE HOMING FUNCTION ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 bool homing(void){
-	return false;
+	joint_rpm = 4;
+	while(check_limit() == false){
+		for(int i=0; i<JOINT_NUM; i++){
+			// Synchronize Joint RPM
+			stepper_rpm[i] = joint_rpm * stepper_ratio[i];
+			stepper_freq[i] = stepper_rpm[i] * stepper_microstep[i] / 60;
+			move_stepper(robot_joint[i], 0, (Stepper_Dir_t)step_home_dir[i], stepper_freq[i]);
+		}
+	}
+	return true;
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
