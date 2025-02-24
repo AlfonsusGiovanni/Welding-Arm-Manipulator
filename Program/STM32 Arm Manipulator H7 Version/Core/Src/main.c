@@ -82,11 +82,11 @@ typedef enum{
 
 /* SYSTEM CONFIGURATION */
 //----------------------
-#define USE_EEPROM
+//#define USE_EEPROM
 #define USE_RS232
 #define USE_OLED
 #define USE_STEPPER
-//#define USE_ENCODER
+#define USE_ENCODER
 
 //#define TEST_EEPROM
 //#define TEST_RS232
@@ -151,10 +151,17 @@ typedef enum{
 
 \
 /*ROBOT SET*/
-//---------------------
-#define JOINT_NUM			6
-#define AXIS_NUM			3
-//---------------------
+//-------------------------------
+#define JOINT_NUM					6
+#define AXIS_NUM					3
+
+#define JOINT1_MAX_ANGLE	360.0f
+#define JOINT2_MAX_ANGLE	360.0f
+#define JOINT3_MAX_ANGLE	360.0f
+#define JOINT4_MAX_ANGLE	360.0f
+#define JOINT5_MAX_ANGLE	360.0f
+#define JOINT6_MAX_ANGLE	360.0f
+//-------------------------------
 
 
 /* USER CODE END PD */
@@ -436,44 +443,69 @@ enc_tim_handler[6] = {
 };
 
 GPIO_TypeDef*
-ecn_gpio_port[6] = {
+enc_gpio_port[12] = {
 	ENC1A_GPIO_Port,
 	ENC2A_GPIO_Port,
 	ENC3A_GPIO_Port,
 	ENC4A_GPIO_Port,
 	ENC5A_GPIO_Port,
-	ENC6A_GPIO_Port
+	ENC6A_GPIO_Port,
+	
+	ENC1B_GPIO_Port,
+	ENC2B_GPIO_Port,
+	ENC3B_GPIO_Port,
+	ENC4B_GPIO_Port,
+	ENC5B_GPIO_Port,
+	ENC6B_GPIO_Port
 };
 
 uint16_t
-ecn_gpio_pin[6] = {
+enc_gpio_pin[12] = {
 	ENC1A_Pin,
 	ENC2A_Pin,
 	ENC3A_Pin,
 	ENC4A_Pin,
 	ENC5A_Pin,
-	ENC6A_Pin
+	ENC6A_Pin,
+	
+	ENC1B_Pin,
+	ENC2B_Pin,
+	ENC3B_Pin,
+	ENC4B_Pin,
+	ENC5B_Pin,
+	ENC6B_Pin
 };
 
 uint32_t 
 enc_counter[6],
-pwm_freq[6], 
-cycle_time[6];
+pwm_freq[6],
+high_time[6],
+period_time[6];
 
 uint8_t
 enc_mag_status[6];
 
-float
+double
 min_duty_cycle = 2.9,
 max_duty_cycle = 97.1,
 duty_cycle[6],
+diff_angle[6],
 enc_angle[6],
 cal_value[6],
 cal_enc_angle[6],
 prev_cal_enc_angle[6],
 reduced_cal_enc_angle[6],
 enc_joint_angle[6],
-prev_enc_joint_angle[6];
+prev_enc_joint_angle[6],
+max_joint_angle[6] = {
+	JOINT1_MAX_ANGLE,
+	JOINT2_MAX_ANGLE,
+	JOINT3_MAX_ANGLE,
+	JOINT4_MAX_ANGLE,
+	JOINT5_MAX_ANGLE,
+	JOINT6_MAX_ANGLE
+},
+min_joint_angle = 0.0001;
 //-----------------------
 
 
@@ -602,10 +634,18 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 	for(int i=0; i<JOINT_NUM; i++){
 		if(htim->Instance == enc_tim_instance[i]){
-			cycle_time[i] = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
-			if(cycle_time[i] != 0){
-				duty_cycle[i] = (HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2)*100.0) / cycle_time[i];
-				pwm_freq[i] = (100000000/cycle_time[i]);
+			
+			if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2){
+				high_time[i] = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
+			}
+			
+			if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1){
+				period_time[i] = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+			}
+			
+			if(period_time[i] != 0){
+				duty_cycle[i] = high_time[i] * 100 / period_time[i];
+				pwm_freq[i] = (1000000/period_time[i]);
 				enc_angle[i] = (((duty_cycle[i] - min_duty_cycle) * 360) / (max_duty_cycle - min_duty_cycle));
 				cal_enc_angle[i] = fmod((enc_angle[i] - cal_value[i] + 360), 360);
 				reduced_cal_enc_angle[i] = cal_enc_angle[i] / stepper_ratio[i];
@@ -613,7 +653,12 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 				if(prev_cal_enc_angle[i] > 350 && cal_enc_angle[i] < 10) enc_counter[i]++;
 				else if(prev_cal_enc_angle[i] < 10 && cal_enc_angle[i] > 350) enc_counter[i]--;
 				
-				enc_joint_angle[i] = reduced_cal_enc_angle[i] + (enc_counter[i] * 360);
+				enc_joint_angle[i] = reduced_cal_enc_angle[i] + (enc_counter[i] * (360 / stepper_ratio[i]));
+				
+				if(enc_joint_angle[i] <= min_joint_angle) enc_joint_angle[i] = min_joint_angle;
+				else if (enc_joint_angle[i] >= max_joint_angle[i]) enc_joint_angle[i] = max_joint_angle[i];
+				
+				prev_cal_enc_angle[i] = cal_enc_angle[i];
 			}
 		}
 	}
@@ -756,6 +801,9 @@ int main(void)
 	/* ENCODER SETUP */
 	#ifdef USE_ENCODER
 	encoder_init();
+	HAL_Delay(500);
+	encoder_reset();
+	HAL_Delay(1000);
 	#endif
 	
 	
@@ -934,7 +982,7 @@ int main(void)
 		tx_current_pos[2] = 45.22;
 		
 		tx_current_angle[0] = 70.28;
-		tx_current_angle[1] = 90.55;
+		tx_current_angle[1] = enc_joint_angle[1];
 		tx_current_angle[2] = 45.78;
 		tx_current_angle[3] = 100.11;
 		tx_current_angle[4] = 30.17;
@@ -1081,7 +1129,7 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 0;
+  htim1.Init.Prescaler = 99;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim1.Init.Period = 65535;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -1104,7 +1152,7 @@ static void MX_TIM1_Init(void)
   sSlaveConfig.InputTrigger = TIM_TS_TI1FP1;
   sSlaveConfig.TriggerPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sSlaveConfig.TriggerPrescaler = TIM_ICPSC_DIV1;
-  sSlaveConfig.TriggerFilter = 4;
+  sSlaveConfig.TriggerFilter = 5;
   if (HAL_TIM_SlaveConfigSynchro(&htim1, &sSlaveConfig) != HAL_OK)
   {
     Error_Handler();
@@ -1112,7 +1160,7 @@ static void MX_TIM1_Init(void)
   sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 4;
+  sConfigIC.ICFilter = 5;
   if (HAL_TIM_IC_ConfigChannel(&htim1, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
@@ -1157,7 +1205,7 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 0;
+  htim2.Init.Prescaler = 99;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim2.Init.Period = 4294967295;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -1179,7 +1227,7 @@ static void MX_TIM2_Init(void)
   sSlaveConfig.InputTrigger = TIM_TS_TI1FP1;
   sSlaveConfig.TriggerPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sSlaveConfig.TriggerPrescaler = TIM_ICPSC_DIV1;
-  sSlaveConfig.TriggerFilter = 4;
+  sSlaveConfig.TriggerFilter = 5;
   if (HAL_TIM_SlaveConfigSynchro(&htim2, &sSlaveConfig) != HAL_OK)
   {
     Error_Handler();
@@ -1187,7 +1235,7 @@ static void MX_TIM2_Init(void)
   sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 4;
+  sConfigIC.ICFilter = 5;
   if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
@@ -1231,7 +1279,7 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 0;
+  htim3.Init.Prescaler = 99;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim3.Init.Period = 65535;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -1253,7 +1301,7 @@ static void MX_TIM3_Init(void)
   sSlaveConfig.InputTrigger = TIM_TS_TI1FP1;
   sSlaveConfig.TriggerPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sSlaveConfig.TriggerPrescaler = TIM_ICPSC_DIV1;
-  sSlaveConfig.TriggerFilter = 4;
+  sSlaveConfig.TriggerFilter = 5;
   if (HAL_TIM_SlaveConfigSynchro(&htim3, &sSlaveConfig) != HAL_OK)
   {
     Error_Handler();
@@ -1261,7 +1309,7 @@ static void MX_TIM3_Init(void)
   sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 4;
+  sConfigIC.ICFilter = 5;
   if (HAL_TIM_IC_ConfigChannel(&htim3, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
@@ -1305,7 +1353,7 @@ static void MX_TIM4_Init(void)
 
   /* USER CODE END TIM4_Init 1 */
   htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 0;
+  htim4.Init.Prescaler = 99;
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim4.Init.Period = 65535;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -1327,7 +1375,7 @@ static void MX_TIM4_Init(void)
   sSlaveConfig.InputTrigger = TIM_TS_TI1FP1;
   sSlaveConfig.TriggerPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sSlaveConfig.TriggerPrescaler = TIM_ICPSC_DIV1;
-  sSlaveConfig.TriggerFilter = 4;
+  sSlaveConfig.TriggerFilter = 5;
   if (HAL_TIM_SlaveConfigSynchro(&htim4, &sSlaveConfig) != HAL_OK)
   {
     Error_Handler();
@@ -1335,7 +1383,7 @@ static void MX_TIM4_Init(void)
   sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 4;
+  sConfigIC.ICFilter = 5;
   if (HAL_TIM_IC_ConfigChannel(&htim4, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
@@ -1379,7 +1427,7 @@ static void MX_TIM5_Init(void)
 
   /* USER CODE END TIM5_Init 1 */
   htim5.Instance = TIM5;
-  htim5.Init.Prescaler = 0;
+  htim5.Init.Prescaler = 99;
   htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim5.Init.Period = 4294967295;
   htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -1401,7 +1449,7 @@ static void MX_TIM5_Init(void)
   sSlaveConfig.InputTrigger = TIM_TS_TI1FP1;
   sSlaveConfig.TriggerPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sSlaveConfig.TriggerPrescaler = TIM_ICPSC_DIV1;
-  sSlaveConfig.TriggerFilter = 4;
+  sSlaveConfig.TriggerFilter = 5;
   if (HAL_TIM_SlaveConfigSynchro(&htim5, &sSlaveConfig) != HAL_OK)
   {
     Error_Handler();
@@ -1409,7 +1457,7 @@ static void MX_TIM5_Init(void)
   sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 4;
+  sConfigIC.ICFilter = 5;
   if (HAL_TIM_IC_ConfigChannel(&htim5, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
@@ -1453,7 +1501,7 @@ static void MX_TIM8_Init(void)
 
   /* USER CODE END TIM8_Init 1 */
   htim8.Instance = TIM8;
-  htim8.Init.Prescaler = 0;
+  htim8.Init.Prescaler = 99;
   htim8.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim8.Init.Period = 65535;
   htim8.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -1476,7 +1524,7 @@ static void MX_TIM8_Init(void)
   sSlaveConfig.InputTrigger = TIM_TS_TI1FP1;
   sSlaveConfig.TriggerPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sSlaveConfig.TriggerPrescaler = TIM_ICPSC_DIV1;
-  sSlaveConfig.TriggerFilter = 4;
+  sSlaveConfig.TriggerFilter = 5;
   if (HAL_TIM_SlaveConfigSynchro(&htim8, &sSlaveConfig) != HAL_OK)
   {
     Error_Handler();
@@ -1484,7 +1532,7 @@ static void MX_TIM8_Init(void)
   sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 4;
+  sConfigIC.ICFilter = 5;
   if (HAL_TIM_IC_ConfigChannel(&htim8, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
@@ -2059,11 +2107,11 @@ void move_stepper(uint8_t select_joint, uint16_t step, Stepper_Dir_t dir, uint16
 			// Set Stepper Direction
 			if(dir == DIR_CW && step_state[i] == false){
 				step_dir[i] = 0;
-				HAL_GPIO_WritePin(stepper_gpio_port[i+6], stepper_gpio_pin[i+6], GPIO_PIN_SET);
+				HAL_GPIO_WritePin(stepper_gpio_port[i+6], stepper_gpio_pin[i+6], GPIO_PIN_RESET);
 			}
 			else if(dir == DIR_CCW && step_state[i] == false){
 				step_dir[i] = 1;
-				HAL_GPIO_WritePin(stepper_gpio_port[i+6], stepper_gpio_pin[i+6], GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(stepper_gpio_port[i+6], stepper_gpio_pin[i+6], GPIO_PIN_SET);
 			}
 			
 			// Pulse Start
@@ -2167,29 +2215,12 @@ bool homing(void){
 /* --- ENCODER INITIALIZE FUNCTION ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void encoder_init(void){
-	// Encoder Joint 1
-	HAL_TIM_IC_Start_IT(&htim4, TIM_CHANNEL_1);
-	HAL_TIM_IC_Start_IT(&htim4, TIM_CHANNEL_2);
-	
-	// Encoder Joint 2
-	HAL_TIM_IC_Start_IT(&htim8, TIM_CHANNEL_1);
-	HAL_TIM_IC_Start_IT(&htim8, TIM_CHANNEL_2);
-	
-	// Encoder Joint 3
-	HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
-	HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_2);
-	
-	// Encoder Joint 4
-	HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1);
-	HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_2);
-	
-	// Encoder Joint 5
-	HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_1);
-	HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2);
-	
-	// Encoder Joint 6
-	HAL_TIM_IC_Start_IT(&htim5, TIM_CHANNEL_1);
-	HAL_TIM_IC_Start_IT(&htim5, TIM_CHANNEL_2);
+	for(int i=0; i<JOINT_NUM; i++){
+		HAL_TIM_IC_Start_IT(enc_tim_handler[i], TIM_CHANNEL_1);
+		HAL_TIM_IC_Start_IT(enc_tim_handler[i], TIM_CHANNEL_2);
+		
+		HAL_GPIO_WritePin(enc_gpio_port[i], enc_gpio_pin[i], GPIO_PIN_SET);
+	}
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -2197,6 +2228,10 @@ void encoder_init(void){
 /* --- ENCODER COUNTER RESET FUNCTION ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void encoder_reset(void){
+	for(int i=0; i<JOINT_NUM; i++){
+		cal_value[i] = enc_angle[i];
+		enc_joint_angle[i] = 0.0;
+	}
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
