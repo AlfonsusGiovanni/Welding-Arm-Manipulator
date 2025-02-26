@@ -117,7 +117,7 @@ typedef enum{
 //-----------------------------------
 
 /* STEPPER SET */
-//----------------------------
+//-----------------------------
 #define MICROSTEP_FACTOR1	1
 #define MICROSTEP_FACTOR2	2
 #define MICROSTEP_FACTOR3	4
@@ -146,10 +146,10 @@ typedef enum{
 #define STEPPER5_MAXSPD		420
 #define STEPPER6_MAXSPD		420
 
-#define SET_DUTY_CYCLE		0.25
-//----------------------------
+#define SET_DUTY_CYCLE		0.25f
+//-----------------------------
 
-\
+
 /*ROBOT SET*/
 //-------------------------------
 #define JOINT_NUM					6
@@ -161,6 +161,13 @@ typedef enum{
 #define JOINT4_MAX_ANGLE	360.0f
 #define JOINT5_MAX_ANGLE	360.0f
 #define JOINT6_MAX_ANGLE	360.0f
+
+#define JOINT1_MIN_ANGLE	0.0001f
+#define JOINT2_MIN_ANGLE	0.0001f
+#define JOINT3_MIN_ANGLE	0.0001f
+#define JOINT4_MIN_ANGLE	0.0001f
+#define JOINT5_MIN_ANGLE	0.0001f
+#define JOINT6_MIN_ANGLE	0.0001f
 //-------------------------------
 
 
@@ -189,11 +196,12 @@ TIM_HandleTypeDef htim16;
 TIM_HandleTypeDef htim17;
 
 UART_HandleTypeDef huart4;
+DMA_HandleTypeDef hdma_uart4_tx;
 
 /* USER CODE BEGIN PV */
 
 // PARAMETER VARIABLE ----
-double
+float
 joint_positive_axisLim[6],
 joint_negative_axisLim[6],
 joint_max_traveldist[6],
@@ -223,7 +231,7 @@ robot_joint[6] = {
 
 
 // EEPROM VARIABLE ---
-double 
+float 
 array_pos_start[3],
 array_pos_end[3],
 array_ang_start[6],
@@ -232,20 +240,20 @@ array_ang_end[6];
 uint8_t
 page_data_byte[128],
 
-saved_pos[24], 
-read_saved_pos[24],
-read_saved_posX[8],
-read_saved_posY[8],
-read_saved_posZ[8],
+saved_pos[12], 
+read_saved_pos[12],
+read_saved_posX[4],
+read_saved_posY[4],
+read_saved_posZ[4],
 
-saved_angle[48], 
-read_saved_angle[48],
-read_saved_angle1[8],
-read_saved_angle2[8],
-read_saved_angle3[8],
-read_saved_angle4[8],
-read_saved_angle5[8],
-read_saved_angle6[8],
+saved_angle[24], 
+read_saved_angle[24],
+read_saved_angle1[4],
+read_saved_angle2[4],
+read_saved_angle3[4],
+read_saved_angle4[4],
+read_saved_angle5[4],
+read_saved_angle6[4],
 
 welding_pattern,
 read_saved_pattern[1];
@@ -259,7 +267,7 @@ read_saved_pattern[1];
 
 
 // MOVE VARIABLE ---
-double
+float
 current_position[3],
 delta_move_pos[3],
 prev_position[3],
@@ -325,6 +333,9 @@ step_dir_inv[6],
 step_home_dir[6],
 step_state[6];
 
+uint8_t
+joint_rpm;
+
 uint16_t
 rpm_counter,
 stepper_rpm[6],
@@ -376,18 +387,17 @@ timer_counter[6],
 step_counter[6],
 current_step[6];
 
-double
-max_joint_speed,
-joint_rpm,
+float
 joint_delta_angle[6];
 //-----------------------
 
 
 // RS232 VARIABLE ---
-bool
-waiting = false;
+unsigned long
+prev_time_send,
+prev_time_get;
 
-double
+float
 tx_current_pos[3],
 tx_current_angle[6],
 tx_welding_point,
@@ -397,6 +407,7 @@ rx_move_position[3],
 rx_move_angle[6];
 
 uint8_t
+send_data_interval = 50,
 get_buff[80],
 rx_savepoint,
 rx_patterntype[200],
@@ -486,9 +497,11 @@ uint8_t
 enc_mag_status[6];
 
 double
+duty_cycle[6];
+
+float
 min_duty_cycle = 2.9,
 max_duty_cycle = 97.1,
-duty_cycle[6],
 diff_angle[6],
 enc_angle[6],
 cal_value[6],
@@ -505,7 +518,14 @@ max_joint_angle[6] = {
 	JOINT5_MAX_ANGLE,
 	JOINT6_MAX_ANGLE
 },
-min_joint_angle = 0.0001;
+min_joint_angle[6] = {
+	JOINT1_MIN_ANGLE,
+	JOINT2_MIN_ANGLE,
+	JOINT3_MIN_ANGLE,
+	JOINT4_MIN_ANGLE,
+	JOINT5_MIN_ANGLE,
+	JOINT6_MIN_ANGLE,
+};
 //-----------------------
 
 
@@ -513,18 +533,12 @@ min_joint_angle = 0.0001;
 uint8_t pwr_status;
 //-------------------
 
-
-// TIMER VARIABLE 
-unsigned long
-prev_data_get;
-//---------------
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_TIM5_Init(void);
+static void MX_DMA_Init(void);
 static void MX_TIM8_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_UART4_Init(void);
@@ -537,14 +551,15 @@ static void MX_TIM3_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_TIM15_Init(void);
 static void MX_TIM16_Init(void);
+static void MX_TIM5_Init(void);
 static void MX_TIM17_Init(void);
 /* USER CODE BEGIN PFP */
 
 // EEPROM Function
-void save_weldingpos_world(uint16_t welding_point, uint8_t start_addr, double* pos_data, size_t size);
-void read_weldingpos_world(uint16_t welding_point, uint8_t start_addr, double* stored_data, size_t size);
-void save_weldingpos_angle(uint16_t welding_point, uint8_t start_addr, double* angle_data, size_t size);
-void read_weldingpos_angle(uint16_t welding_point, uint8_t start_addr, double* stored_data, size_t size);
+void save_weldingpos_world(uint16_t welding_point, uint8_t start_addr, float* pos_data, size_t size);
+void read_weldingpos_world(uint16_t welding_point, uint8_t start_addr, float* stored_data, size_t size);
+void save_weldingpos_angle(uint16_t welding_point, uint8_t start_addr, float* angle_data, size_t size);
+void read_weldingpos_angle(uint16_t welding_point, uint8_t start_addr, float* stored_data, size_t size);
 void save_weldingpos_pattern(uint16_t welding_point, uint8_t select_pattern);
 void read_weldingpos_pattern(uint16_t welding_point, uint8_t store_pattern);
 void read_all_weldingdata(uint16_t welding_point);
@@ -556,12 +571,12 @@ void enable_stepper(void);
 void move_stepper(uint8_t select_joint, uint16_t step, Stepper_Dir_t dir, uint16_t input_freq);
 
 // Calculation Function
-void forward_kinematics(double J1_input, double J2_input, double J3_input, double J4_input, double J5_input, double J6_input);
-void inverse_kinematics(double Xpos_input, double Ypos_input, double Zpos_input);
+void forward_kinematics(float J1_input, float J2_input, float J3_input, float J4_input, float J5_input, float J6_input);
+void inverse_kinematics(float Xpos_input, float Ypos_input, float Zpos_input);
 
 // Main Function
-void move_joint(uint8_t select_joint, double input_angle, Speed_t set_speed);
-void move_world(uint8_t move_var, double move_pos, Speed_t set_speed);
+void move_joint(uint8_t select_joint, float input_angle, Speed_t set_speed);
+void move_world(uint8_t move_var, float move_pos, Speed_t set_speed);
 bool check_limit(void);
 bool homing(void);
 
@@ -589,13 +604,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	if(huart->Instance == UART4){
 		RS232_state = check_state();
 		command.msg_get = true;
-		prev_data_get = HAL_GetTick();
+		prev_time_get = HAL_GetTick();
 	}
 }
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 	if(huart->Instance == UART4){
-		RS232_state = check_state();
 		command.msg_sent = true;
 	}
 }
@@ -655,7 +669,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 				
 				enc_joint_angle[i] = reduced_cal_enc_angle[i] + (enc_counter[i] * (360 / stepper_ratio[i]));
 				
-				if(enc_joint_angle[i] <= min_joint_angle) enc_joint_angle[i] = min_joint_angle;
+				if(enc_joint_angle[i] <= min_joint_angle[i]) enc_joint_angle[i] = min_joint_angle[i];
 				else if (enc_joint_angle[i] >= max_joint_angle[i]) enc_joint_angle[i] = max_joint_angle[i];
 				
 				prev_cal_enc_angle[i] = cal_enc_angle[i];
@@ -735,7 +749,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_TIM5_Init();
+  MX_DMA_Init();
   MX_TIM8_Init();
   MX_I2C1_Init();
   MX_UART4_Init();
@@ -748,6 +762,7 @@ int main(void)
   MX_TIM4_Init();
   MX_TIM15_Init();
   MX_TIM16_Init();
+  MX_TIM5_Init();
   MX_TIM17_Init();
   /* USER CODE BEGIN 2 */
 	
@@ -843,7 +858,7 @@ int main(void)
 	
 	
 	#ifdef TEST_EEPROM
-	double 
+	float 
 	test_pos_start[3] = {-40.96, 12.15, -37.42},
 	test_pos_end[3] = {-20.96, 2.15, -37.42},
 	test_angle_start[6] = {70.55, -45.5, 90.58, 150.45, 55.17, 178.77},
@@ -1823,6 +1838,22 @@ static void MX_UART4_Init(void)
 }
 
 /**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Stream0_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream0_IRQn);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -1970,9 +2001,9 @@ static void MX_GPIO_Init(void)
 
 /*--- SAVE WELDING POINT POSITION VALUE ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void save_weldingpos_world(uint16_t welding_point, uint8_t start_addr, double* pos_data, size_t size){
-	for(int i=0; i<24; i++) saved_pos[i] = 0;
-	for(size_t i=0; i<size; i++) memcpy(&saved_pos[i*8], &pos_data[i], sizeof(double));
+void save_weldingpos_world(uint16_t welding_point, uint8_t start_addr, float* pos_data, size_t size){
+	for(int i=0; i<12; i++) saved_pos[i] = 0;
+	for(size_t i=0; i<size; i++) memcpy(&saved_pos[i*4], &pos_data[i], sizeof(float));
 	
 	EEPROM_PageWrite(&eeprom1, welding_point, start_addr, saved_pos, sizeof(saved_pos));
 	HAL_Delay(10);
@@ -1982,21 +2013,21 @@ void save_weldingpos_world(uint16_t welding_point, uint8_t start_addr, double* p
 
 /*--- READ WELDING POINT POSITION VALUE ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void read_weldingpos_world(uint16_t welding_point, uint8_t start_addr, double* stored_data, size_t size){
-	for(int i=0; i<24; i++) read_saved_pos[i] = 0;
+void read_weldingpos_world(uint16_t welding_point, uint8_t start_addr, float* stored_data, size_t size){
+	for(int i=0; i<12; i++) read_saved_pos[i] = 0;
 	for(size_t i=0; i<size; i++) stored_data[i] = 0;
 	
 	EEPROM_PageRead(&eeprom1, welding_point, start_addr, read_saved_pos, sizeof(read_saved_pos));
 	
-	for(int i=0; i<8; i++){
+	for(int i=0; i<4; i++){
 		read_saved_posX[i] = read_saved_pos[i];
-		read_saved_posY[i] = read_saved_pos[i+8];
-		read_saved_posZ[i] = read_saved_pos[i+16];
+		read_saved_posY[i] = read_saved_pos[i+4];
+		read_saved_posZ[i] = read_saved_pos[i+8];
 	}
 	
-	memcpy(&stored_data[0], read_saved_posX, sizeof(double));
-	memcpy(&stored_data[1], read_saved_posY, sizeof(double));
-	memcpy(&stored_data[2], read_saved_posZ, sizeof(double));
+	memcpy(&stored_data[0], read_saved_posX, sizeof(float));
+	memcpy(&stored_data[1], read_saved_posY, sizeof(float));
+	memcpy(&stored_data[2], read_saved_posZ, sizeof(float));
 	HAL_Delay(10);
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2004,9 +2035,9 @@ void read_weldingpos_world(uint16_t welding_point, uint8_t start_addr, double* s
 
 /*--- SAVE WELDING POINT ANGLE VALUE ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void save_weldingpos_angle(uint16_t welding_point, uint8_t start_addr, double* angle_data, size_t size){
-	for(int i=0; i<48; i++) saved_angle[i] = 0;
-	for(size_t i=0; i<size; i++) memcpy(&saved_angle[i*8], &angle_data[i], sizeof(double));
+void save_weldingpos_angle(uint16_t welding_point, uint8_t start_addr, float* angle_data, size_t size){
+	for(int i=0; i<24; i++) saved_angle[i] = 0;
+	for(size_t i=0; i<size; i++) memcpy(&saved_angle[i*4], &angle_data[i], sizeof(float));
 	
 	EEPROM_PageWrite(&eeprom1, welding_point, start_addr, saved_angle, sizeof(saved_angle));
 	HAL_Delay(10);
@@ -2016,27 +2047,27 @@ void save_weldingpos_angle(uint16_t welding_point, uint8_t start_addr, double* a
 
 /*--- SAVE WELDING POINT ANGLE VALUE ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void read_weldingpos_angle(uint16_t welding_point, uint8_t start_addr, double* stored_data, size_t size){
-	for(int i=0; i<48; i++) read_saved_angle[i] = 0;
+void read_weldingpos_angle(uint16_t welding_point, uint8_t start_addr, float* stored_data, size_t size){
+	for(int i=0; i<24; i++) read_saved_angle[i] = 0;
 	for(size_t i=0; i<size; i++) stored_data[i] = 0;
 	
 	EEPROM_PageRead(&eeprom1, welding_point, start_addr, read_saved_angle, sizeof(read_saved_angle));
 	
-	for(int i=0; i<8; i++){
+	for(int i=0; i<4; i++){
 		read_saved_angle1[i] = read_saved_angle[i];
-		read_saved_angle2[i] = read_saved_angle[i+8];
-		read_saved_angle3[i] = read_saved_angle[i+16];
-		read_saved_angle4[i] = read_saved_angle[i+24];
-		read_saved_angle5[i] = read_saved_angle[i+32];
-		read_saved_angle6[i] = read_saved_angle[i+40];
+		read_saved_angle2[i] = read_saved_angle[i+4];
+		read_saved_angle3[i] = read_saved_angle[i+8];
+		read_saved_angle4[i] = read_saved_angle[i+12];
+		read_saved_angle5[i] = read_saved_angle[i+16];
+		read_saved_angle6[i] = read_saved_angle[i+20];
 	}
 	
-	memcpy(&stored_data[0], read_saved_angle1, sizeof(double));
-	memcpy(&stored_data[1], read_saved_angle2, sizeof(double));
-	memcpy(&stored_data[2], read_saved_angle3, sizeof(double));
-	memcpy(&stored_data[3], read_saved_angle4, sizeof(double));
-	memcpy(&stored_data[4], read_saved_angle5, sizeof(double));
-	memcpy(&stored_data[5], read_saved_angle6, sizeof(double));
+	memcpy(&stored_data[0], read_saved_angle1, sizeof(float));
+	memcpy(&stored_data[1], read_saved_angle2, sizeof(float));
+	memcpy(&stored_data[2], read_saved_angle3, sizeof(float));
+	memcpy(&stored_data[3], read_saved_angle4, sizeof(float));
+	memcpy(&stored_data[4], read_saved_angle5, sizeof(float));
+	memcpy(&stored_data[5], read_saved_angle6, sizeof(float));
 	HAL_Delay(10);
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2127,7 +2158,7 @@ void move_stepper(uint8_t select_joint, uint16_t step, Stepper_Dir_t dir, uint16
 
 /* --- JOINT BASE MOVE FUNCTION ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void move_joint(uint8_t select_joint, double input_angle, Speed_t set_speed){
+void move_joint(uint8_t select_joint, float input_angle, Speed_t set_speed){
 	// Joint RPM Set
 	if(set_speed == LOW) joint_rpm = 2;
 	else if(set_speed == MED) joint_rpm = 3;
@@ -2165,7 +2196,7 @@ void move_joint(uint8_t select_joint, double input_angle, Speed_t set_speed){
 
 /* --- WORLD BASE MOVE FUNCTION ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void move_world(uint8_t move_var, double move_pos, Speed_t set_speed){
+void move_world(uint8_t move_var, float move_pos, Speed_t set_speed){
 	// Joint RPM Set
 	if(set_speed == LOW) joint_rpm = 2;
 	else if(set_speed == MED) joint_rpm = 3;
@@ -2241,12 +2272,15 @@ void encoder_reset(void){
 void encoder_read(void){
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
+ 
 
 /* --- CUSTON RS232 TRANSMIT FUNCTION ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void transmit_req_data(void){
-	Send_requested_data(&command, tx_current_pos, tx_current_angle, current_point, LINEAR, 100);
+	if(HAL_GetTick() - prev_time_send > send_data_interval){
+		Send_requested_data(&command, tx_current_pos, tx_current_angle, current_point, LINEAR, 100);
+		prev_time_send = HAL_GetTick();
+	}
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -2261,9 +2295,9 @@ void receive_data(void){
 		command.msg_get = false;
 	}
 	
-	if(HAL_GetTick() - prev_data_get > 300 && command.msg_get == false){
+	if(HAL_GetTick() - prev_time_get > 300 && command.msg_get == false){
 		command.type = NONE;
-		prev_data_get = HAL_GetTick();
+		prev_time_get = HAL_GetTick();
 	}
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

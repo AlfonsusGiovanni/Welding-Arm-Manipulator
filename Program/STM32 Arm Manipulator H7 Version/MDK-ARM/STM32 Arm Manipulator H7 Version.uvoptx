@@ -205,30 +205,35 @@
         <Ww>
           <count>0</count>
           <WinNumber>2</WinNumber>
-          <ItemText>command.type</ItemText>
+          <ItemText>command.msg_get</ItemText>
         </Ww>
         <Ww>
           <count>1</count>
           <WinNumber>2</WinNumber>
-          <ItemText>command.control_mode</ItemText>
+          <ItemText>command.type</ItemText>
         </Ww>
         <Ww>
           <count>2</count>
           <WinNumber>2</WinNumber>
-          <ItemText>command.move_mode</ItemText>
+          <ItemText>command.control_mode</ItemText>
         </Ww>
         <Ww>
           <count>3</count>
           <WinNumber>2</WinNumber>
-          <ItemText>command.move_variable</ItemText>
+          <ItemText>command.move_mode</ItemText>
         </Ww>
         <Ww>
           <count>4</count>
           <WinNumber>2</WinNumber>
-          <ItemText>command.move_sign</ItemText>
+          <ItemText>command.move_variable</ItemText>
         </Ww>
         <Ww>
           <count>5</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>command.move_sign</ItemText>
+        </Ww>
+        <Ww>
+          <count>6</count>
           <WinNumber>2</WinNumber>
           <ItemText>command.move_value</ItemText>
         </Ww>

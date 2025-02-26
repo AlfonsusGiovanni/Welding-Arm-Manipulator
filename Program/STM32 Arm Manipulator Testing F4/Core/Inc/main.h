@@ -72,10 +72,6 @@ void Error_Handler(void);
 #define PUL1_GPIO_Port GPIOB
 #define ENC_OUT_Pin GPIO_PIN_8
 #define ENC_OUT_GPIO_Port GPIOA
-#define RS232_TX_Pin GPIO_PIN_9
-#define RS232_TX_GPIO_Port GPIOA
-#define RS232_RX_Pin GPIO_PIN_10
-#define RS232_RX_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 

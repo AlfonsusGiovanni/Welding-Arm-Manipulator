@@ -40,3 +40,4 @@ stm32 arm manipulator testing f4\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\std
 stm32 arm manipulator testing f4\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h
 stm32 arm manipulator testing f4\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
 stm32 arm manipulator testing f4\main.o: ../MDK-ARM/AS5600_Driver.h
+stm32 arm manipulator testing f4\main.o: ../MDK-ARM/RS232_Driver.h

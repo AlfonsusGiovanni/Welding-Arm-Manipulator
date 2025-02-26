@@ -23,19 +23,21 @@
 /* USER CODE BEGIN Includes */
 #include "LCD_I2C.h"
 #include "AS5600_Driver.h"
+#include "RS232_Driver.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+Data_Get_t main_command;
+Data_Get_t pendant_command;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-#define TEST_ENCODER
-//#define TEST_COM
-//#define TEST_LIMIT_SWITCH
+//#define TEST_ENCODER
+#define TEST_COM
+#define TEST_LIMIT_SWITCH
 
 /* USER CODE END PD */
 
@@ -52,6 +54,7 @@ TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart1;
+UART_HandleTypeDef huart6;
 
 /* USER CODE BEGIN PV */
 
@@ -67,7 +70,7 @@ uint8_t
 stepper_ratio = 90,
 enc_mag_status,
 processed_buff[5],
-rx_buff[5];
+rx_buff[80];
 
 uint16_t
 stepper_microstep = 800;
@@ -99,10 +102,12 @@ static void MX_TIM2_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_USART6_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 void uart_receive(uint8_t *msg_buff, uint16_t len);
 void uart_transmit(uint8_t *msg, uint16_t len);
+void process_data(uint8_t *data, uint16_t len);
 
 /* USER CODE END PFP */
 
@@ -141,8 +146,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	if(huart->Instance == USART1){
 		get_data_timer = HAL_GetTick();
 		get_data_flag = true;
-		osMessageQueuePut(rxBuffHandle, &rx_buff, 0, 10);
-		HAL_UART_Receive_IT(&huart2, rx_buff, sizeof(rx_buff));
 	}
 }
 #endif
@@ -189,6 +192,7 @@ int main(void)
   MX_TIM1_Init();
   MX_USART1_UART_Init();
   MX_TIM3_Init();
+  MX_USART6_UART_Init();
   /* USER CODE BEGIN 2 */
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
 	HAL_Delay(1000);
@@ -201,6 +205,11 @@ int main(void)
 	HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_2);
 	#endif
 	
+	#ifdef TEST_COM
+	RS232_Init(&main_command, &huart1);
+	RS232_Init(&pendant_command, &huart6);
+	#endif
+	
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
   /* USER CODE END 2 */
 
@@ -208,6 +217,12 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
 	{
+		uint8_t tx_buff[80] = {0xFF, 0x5A, 0xFF, 0x0A, 0x01};
+		HAL_UART_Transmit_IT(&huart1, tx_buff, 80);
+//		Send_feedback(&main_command, MAIN_ONLINE);
+		
+		Start_get_command(&pendant_command, rx_buff);
+		Get_command(&pendant_command, rx_buff);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -522,6 +537,39 @@ static void MX_USART1_UART_Init(void)
   /* USER CODE BEGIN USART1_Init 2 */
 
   /* USER CODE END USART1_Init 2 */
+
+}
+
+/**
+  * @brief USART6 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART6_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART6_Init 0 */
+
+  /* USER CODE END USART6_Init 0 */
+
+  /* USER CODE BEGIN USART6_Init 1 */
+
+  /* USER CODE END USART6_Init 1 */
+  huart6.Instance = USART6;
+  huart6.Init.BaudRate = 115200;
+  huart6.Init.WordLength = UART_WORDLENGTH_8B;
+  huart6.Init.StopBits = UART_STOPBITS_1;
+  huart6.Init.Parity = UART_PARITY_NONE;
+  huart6.Init.Mode = UART_MODE_TX_RX;
+  huart6.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart6.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart6) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART6_Init 2 */
+
+  /* USER CODE END USART6_Init 2 */
 
 }
 

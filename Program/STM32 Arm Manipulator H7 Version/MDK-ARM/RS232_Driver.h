@@ -19,10 +19,10 @@ Date		: 10 Juli 2024
 #define HEADER3 0xFF
 
 /*RS232 COM BUFFER SIZE*/
-#define BUFF_SIZE 80
+#define BUFF_SIZE 40
 
 /*RS232 COM TIMEOUT*/
-#define RS232_TIMEOUT 100
+#define RS232_TIMEOUT 5
 
 /*RS232 COM COMMAND*/
 #define AUTO_HOME_CMD				0x01	// Robot Homing Command
@@ -236,14 +236,14 @@ typedef struct ALIGNED_8{
 
 	uint8_t padding2[7];
 	
-	double move_value;
-	double Cartesian_pos[3];
-	double Cartesian_pos_req[3];
-	double Joint_angle[6];
-	double Joint_angle_req[6];
+	float move_value;
+	float Cartesian_pos[3];
+	float Cartesian_pos_req[3];
+	float Joint_angle[6];
+	float Joint_angle_req[6];
 
-	double Cartesian_send[3];
-	double Joint_send[6];
+	float Cartesian_send[3];
+	float Joint_send[6];
 
 	Command_t type;
 	Ctrl_Mode_t control_mode;
@@ -277,12 +277,12 @@ void Send_auto_home(Data_Get_t* get);
 void Send_mapping(Data_Get_t* get, uint8_t point_num, Data_type_t point_type, Welding_Pattern_t pattern_type, uint8_t welding_speed, Mapping_State_t map_state);
 void Send_preview(Data_Get_t* get, uint16_t point_num);
 
-void Send_move(Data_Get_t* get, Ctrl_Mode_t control_mode, Move_Mode_t move_mode, Move_Var_t var_type, Move_Sign_t move_sign, double value);
+void Send_move(Data_Get_t* get, Ctrl_Mode_t control_mode, Move_Mode_t move_mode, Move_Var_t var_type, Move_Sign_t move_sign, float value);
 void Send_running(Data_Get_t* get, Run_State_t state);
 
 void Req_data(Data_Get_t* get);
  
-void Send_requested_data(Data_Get_t* get, double* cartesian_value, double* joint_value, uint8_t welding_point, Welding_Pattern_t pattern_type, uint8_t welding_speed);
+void Send_requested_data(Data_Get_t* get, float* cartesian_value, float* joint_value, uint8_t welding_point, Welding_Pattern_t pattern_type, uint8_t welding_speed);
 
 void Send_motor_state(Data_Get_t* get, Motor_State_t state);
 void Send_welder_state(Data_Get_t* get, Welder_State_t state);
