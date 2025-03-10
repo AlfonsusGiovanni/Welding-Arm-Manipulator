@@ -24,20 +24,23 @@
 #include "LCD_I2C.h"
 #include "AS5600_Driver.h"
 #include "RS232_Driver.h"
+#include "ArmRobot_Math.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 Data_Get_t main_command;
 Data_Get_t pendant_command;
+Kinematics_t kinematics;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
 //#define TEST_ENCODER
-#define TEST_COM
-#define TEST_LIMIT_SWITCH
+//#define TEST_COM
+//#define TEST_LIMIT_SWITCH
+#define TEST_FORWARD_KINEMATICS
 
 /* USER CODE END PD */
 
@@ -57,6 +60,33 @@ UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart6;
 
 /* USER CODE BEGIN PV */
+
+// PARAMETER VARIABLE
+double
+joint_d[6] = {
+	191.0, 0.0, 0.0,
+	575.0, 0.0, 65.0,
+},
+
+joint_a[6] = {
+	23.5, 650.0, 0.0,
+	0.0, 0.0, 0.0, 
+},
+
+joint_alpha[6] = {
+	-90.0, 0.0, 90.0,
+	-90.0, 90.0, 0.0,
+};
+
+// INVERSE KINEMATICS VARIABLE
+double
+ik_pos_input[6],
+ik_angle_output[6];
+
+// FORWARD KINEMATICS VARIABLE
+double
+fk_angle_input[6],
+fk_pos_output[6];
 
 // TESTING VARIABLE
 bool
@@ -198,8 +228,10 @@ int main(void)
 	HAL_Delay(1000);
 	
 	#ifdef TEST_ENCODER
-//	AS5600_Init(&hi2c1, DIGITAL_PWM);
-//	enc_mag_status = Get_Magnet_Status();
+	AS5600_Init(&hi2c1, DIGITAL_PWM);
+	enc_mag_status = Get_Magnet_Status();
+	HAL_Delay(50);
+	AS5600_Burn();
 	
 	HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
 	HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_2);
@@ -210,6 +242,13 @@ int main(void)
 	RS232_Init(&pendant_command, &huart6);
 	#endif
 	
+	#ifdef TEST_FORWARD_KINEMATICS
+	DHparam_init(&kinematics, joint_d, joint_a, joint_alpha);
+	tollframe_init(&kinematics, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+	forward_transform_matrix(&kinematics);
+	calculate_all_link(&kinematics);
+	#endif
+	
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
   /* USER CODE END 2 */
 
@@ -217,13 +256,20 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
 	{
-		uint8_t tx_buff[80] = {0xFF, 0x5A, 0xFF, 0x0A, 0x01};
-		HAL_UART_Transmit_IT(&huart1, tx_buff, 80);
-//		Send_feedback(&main_command, MAIN_ONLINE);
+		fk_angle_input[0] = 0;
+		fk_angle_input[1] = 0;
+		fk_angle_input[2] = 0;
+		fk_angle_input[3] = 0;
+		fk_angle_input[4] = 0;
+		fk_angle_input[5] = 0;
+		  
+		kinematics.j5_enc_angle = fk_angle_input[4];
 		
-		Start_get_command(&pendant_command, rx_buff);
-		Get_command(&pendant_command, rx_buff);
-    /* USER CODE END WHILE */
+		run_forward_kinematic(&kinematics, fk_angle_input);
+		run_inverse_kinematic(&kinematics, kinematics.axis_pos_out[0], kinematics.axis_pos_out[1], kinematics.axis_pos_out[2], kinematics.axis_rot_out[0], kinematics.axis_rot_out[1], kinematics.axis_rot_out[2]);
+		find_jacobian_variable(&kinematics);
+		check_singularity(&kinematics);
+		/* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
   }

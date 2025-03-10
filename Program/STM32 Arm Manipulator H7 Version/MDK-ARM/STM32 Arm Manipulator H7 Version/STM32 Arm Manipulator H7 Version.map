@@ -1339,13 +1339,13 @@ Removing Unused input sections from the image.
     Removing main.o(.bss), (12 bytes).
     Removing main.o(.bss), (24 bytes).
     Removing main.o(.bss), (24 bytes).
-    Removing main.o(.bss), (12 bytes).
-    Removing main.o(.bss), (12 bytes).
-    Removing main.o(.bss), (12 bytes).
     Removing main.o(.bss), (24 bytes).
     Removing main.o(.bss), (24 bytes).
     Removing main.o(.bss), (24 bytes).
-    Removing main.o(.bss), (24 bytes).
+    Removing main.o(.bss), (48 bytes).
+    Removing main.o(.bss), (48 bytes).
+    Removing main.o(.bss), (48 bytes).
+    Removing main.o(.bss), (48 bytes).
     Removing main.o(.bss), (24 bytes).
     Removing main.o(.bss), (24 bytes).
     Removing main.o(.bss), (80 bytes).
@@ -1999,7 +1999,7 @@ Removing Unused input sections from the image.
     Removing system_stm32h7xx.o(.rrx_text), (6 bytes).
     Removing system_stm32h7xx.o(i.SystemCoreClockUpdate), (320 bytes).
 
-678 unused section(s) (total 68028 bytes) removed from the image.
+678 unused section(s) (total 68160 bytes) removed from the image.
 
 ==============================================================================
 

@@ -267,7 +267,7 @@ read_saved_pattern[1];
 
 
 // MOVE VARIABLE ---
-float
+double
 current_position[3],
 delta_move_pos[3],
 prev_position[3],
