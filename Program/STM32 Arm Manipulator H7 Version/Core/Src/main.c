@@ -23,6 +23,7 @@
 /* USER CODE BEGIN Includes */
 #include "EEPROM_lib.h"
 #include "RS232_Driver.h"
+#include "ArmRobot_Math.h"
 #include "ssd1306.h"
 #include "stdbool.h"
 #include "stdlib.h"
@@ -45,6 +46,12 @@ Data_Get_t command;
 // ----------------
 
 
+/* KINEMATICS TYPEDEF */
+// ---------------------
+Kinematics_t kinematics;
+// ---------------------
+
+
 /* OLED TYPEDEF */
 // --------------------
 typedef enum{
@@ -63,6 +70,25 @@ typedef enum{
 	DIR_CW,
 	DIR_CCW
 }Stepper_Dir_t;
+// ---------------------
+
+
+/*  LIMIT TYPE TYPEDEF */
+// ----------------------
+typedef enum{
+	ALL_LIMIT_CHECK,
+	SOFT_LIMIT_CHECK,
+	HARD_LIMIT_CHECK,
+}Limit_t;
+// ----------------------
+
+
+/* HOMING MODE TYPEDEF*/
+// ---------------------
+typedef enum{
+	ENCODER_LIMIT,
+	SWITCH_LIMIT,
+}Homing_Mode_t;
 // ---------------------
 
 
@@ -87,12 +113,14 @@ typedef enum{
 #define USE_OLED
 #define USE_STEPPER
 #define USE_ENCODER
+//#define USE_KINEMATICS
 
 //#define TEST_EEPROM
 //#define TEST_RS232
 //#define TEST_OLED
 //#define TEST_STEPPER
 //#define TEST_ENCODER
+//#define TEST_KINEMATICS
 
 #define MAIN_PROGRAM
 //----------------------
@@ -102,11 +130,11 @@ typedef enum{
 #define EEPROM1_ADDRESS					0xA0	// PRIMARY EEPROM ADDRESS
 #define EEPROM2_ADDRESS					0xA1	// SECONDARY EEPROM ADDRESS
 
-#define SP_POS_BYTE_ADDR				0x00	// START POINT POSITION ADDR
-#define EP_POS_BYTE_ADDR				0x18	// END POINT POSITION ADDR
-#define SP_ANG_BYTE_ADDR				0x30	// START POINT ANGLE ADDR
-#define EP_ANG_BYTE_ADDR				0x48	// END POINT ANGLE ADDR
-#define PATTERN_BYTE_ADDR				0x60	// PATTERN ADDR
+#define SP_POS_BYTE_ADDR				0x00	// START POINT POSITION ADDR (12 Bytes)
+#define SP_ANG_BYTE_ADDR				0x0C	// START POINT ANGLE ADDR	(24 Bytes)
+#define EP_POS_BYTE_ADDR				0x24	// END POINT POSITION ADDR (12 Bytes)
+#define EP_ANG_BYTE_ADDR				0x30	// END POINT ANGLE ADDR	(24 Bytes)
+#define PATTERN_BYTE_ADDR				0x48	// PATTERN ADDR (1 Byte)
 //-----------------------------------
 
 /* EEPROM PATTERN SET */
@@ -200,16 +228,24 @@ DMA_HandleTypeDef hdma_uart4_tx;
 
 /* USER CODE BEGIN PV */
 
-// PARAMETER VARIABLE ----
-float
-joint_positive_axisLim[6],
-joint_negative_axisLim[6],
+// PARAMETER VARIABLE -------
+double
+joint_positive_axisLim[6] = {
+	170, 90, 60,
+	165, 105, 155,
+},
+joint_negative_axisLim[6] = {
+	-170, -60, -90,
+	-165, -105, 155,
+},
 joint_max_traveldist[6],
 joint_step_per_deg[6],
 joint_deg_per_step[6];
 
 bool
 home = false,
+soft_limit = false,
+hard_limit = false,
 limit_switch_state[6];
 
 uint8_t
@@ -227,7 +263,23 @@ robot_joint[6] = {
 	JOINT_5,
 	JOINT_6
 };
-//------------------------
+
+double
+joint_d[6] = {
+	191.0, 0.0, 0.0,
+	575.0, 0.0, 65.0,
+},
+
+joint_a[6] = {
+	23.5, 650.0, 0.0,
+	0.0, 0.0, 0.0, 
+},
+
+joint_alpha[6] = {
+	-90.0, 0.0, 90.0,
+	-90.0, 90.0, 0.0,
+};
+//---------------------------
 
 
 // EEPROM VARIABLE ---
@@ -261,14 +313,19 @@ read_saved_pattern[1];
 
 
 // INVERSE KINEMATICS VARIABLE
-
+double
+ik_pos_input[6],
+ik_angle_output[6];
 
 // FORWARD KINEMATICS VARIABLE
-
+double
+fk_angle_input[6],
+fk_pos_output[6];
 
 // MOVE VARIABLE ---
 double
 current_position[3],
+current_rotation[3],
 delta_move_pos[3],
 prev_position[3],
 
@@ -323,6 +380,7 @@ stepper_gpio_port[12] = {
 };
 
 unsigned long
+step_timer,
 rpm_timer;
 
 bool
@@ -332,9 +390,6 @@ step_dir[6],
 step_dir_inv[6],
 step_home_dir[6],
 step_state[6];
-
-uint8_t
-joint_rpm;
 
 uint16_t
 rpm_counter,
@@ -388,18 +443,21 @@ step_counter[6],
 current_step[6];
 
 float
+joint_rpm;
+
+double
 joint_delta_angle[6];
 //-----------------------
 
 
-// RS232 VARIABLE ---
+// RS232 VARIABLE -------
 unsigned long
 prev_time_send,
 prev_time_get;
 
 float
-tx_current_pos[3],
-tx_current_angle[6],
+tx_pos[3],
+tx_angle[6],
 tx_welding_point,
 tx_welding_pattern,
 
@@ -417,7 +475,7 @@ rx_rotate_value[8];
 
 uint8_t
 struct_size;
-//-------------------
+//----------------------
 
 
 // OLED LCD VARIABLE ----------
@@ -497,9 +555,7 @@ uint8_t
 enc_mag_status[6];
 
 double
-duty_cycle[6];
-
-float
+duty_cycle[6],
 min_duty_cycle = 2.9,
 max_duty_cycle = 97.1,
 diff_angle[6],
@@ -510,6 +566,7 @@ prev_cal_enc_angle[6],
 reduced_cal_enc_angle[6],
 enc_joint_angle[6],
 prev_enc_joint_angle[6],
+
 max_joint_angle[6] = {
 	JOINT1_MAX_ANGLE,
 	JOINT2_MAX_ANGLE,
@@ -571,22 +628,27 @@ void enable_stepper(void);
 void move_stepper(uint8_t select_joint, uint16_t step, Stepper_Dir_t dir, uint16_t input_freq);
 
 // Calculation Function
-void forward_kinematics(float J1_input, float J2_input, float J3_input, float J4_input, float J5_input, float J6_input);
-void inverse_kinematics(float Xpos_input, float Ypos_input, float Zpos_input);
+void forward_kinematics(double J1_input, double J2_input, double J3_input, double J4_input, double J5_input, double J6_input);
+void inverse_kinematics(double Xpos_input, double Ypos_input, double Zpos_input);
 
 // Main Function
-void move_joint(uint8_t select_joint, float input_angle, Speed_t set_speed);
-void move_world(uint8_t move_var, float move_pos, Speed_t set_speed);
-bool check_limit(void);
-bool homing(void);
+void move_joint(uint8_t select_joint, double input_angle, Speed_t set_speed);
+void move_world(uint8_t move_var, double move_pos, Speed_t set_speed);
+void welder_on(void);
+void welder_off(void);
+void welding_preview(void);
+void welding_start(void);
+void update_value(void);
+void check_limit(Limit_t check_mode);
+bool homing(Homing_Mode_t mode);
 
 // Encoder Function
 void encoder_init(void);
 void encoder_reset(void);
-void encoder_read(void);
 
 // Custom RS232 Function
-void transmit_req_data(void);
+void send_mapped_data(void);
+void send_ang_pos_data(void);
 void receive_data(void);
 
 // OLED Function
@@ -631,7 +693,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 				step_counter[i]++;
 			}
 			
-			if(((step_counter[i] >= step_input[i]) && step_limit[i] == true) || (step_limit[i] == false && step_start[i] == false)){
+			if(((step_counter[i] >= step_input[i]) && step_limit[i] == true) || (step_limit[i] == false && step_start[i] == false) || soft_limit == true){
 				HAL_TIM_Base_Stop_IT(stepper_tim_handler[i]);
 				timer_counter[i] = 0;
 				step_counter[i] = 0;
@@ -681,6 +743,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 
 
 /* EXTI BUTTON CALLBACK */
+//---------------------------------------------------------------------------------------------
 void HAL_GPIO_EXTI_CALLBACK(uint16_t GPIO_PIN){
 	// Limit 1 
 	if(GPIO_PIN == LIMIT1_Pin){
@@ -712,6 +775,7 @@ void HAL_GPIO_EXTI_CALLBACK(uint16_t GPIO_PIN){
 		limit_switch_state[5] = (HAL_GPIO_ReadPin(LIMIT6_GPIO_Port, LIMIT6_Pin) == GPIO_PIN_RESET);
 	}
 }
+//---------------------------------------------------------------------------------------------
 
 /* USER CODE END 0 */
 
@@ -822,6 +886,17 @@ int main(void)
 	#endif
 	
 	
+	/* USE KINEMATICS */
+	#ifdef USE_KINEMATICS
+	DHparam_init(&kinematics, joint_d, joint_a, joint_alpha);
+	tollframe_init(&kinematics, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+	forward_transform_matrix(&kinematics);
+	calculate_all_link(&kinematics);
+	
+	run_forward_kinematic(&kinematics, enc_joint_angle);
+	#endif
+	
+	
 	/* STEPPER SETUP */
 	#ifdef USE_STEPPER
 	enable_stepper();
@@ -887,19 +962,20 @@ int main(void)
 		#ifdef TEST_RS232 
 		receive_data();
 		
-		tx_current_angle[0] = 70.28;
-		tx_current_angle[1] = 90.55;
-		tx_current_angle[2] = 45.78;
-		tx_current_angle[3] = 100.11;
-		tx_current_angle[4] = 30.17;
-		tx_current_angle[5] = 15.99;
+		tx_angle[0] = 70.28;
+		tx_angle[1] = 90.55;
+		tx_angle[2] = 45.78;
+		tx_angle[3] = 100.11;
+		tx_angle[4] = 30.17;
+		tx_angle[5] = 15.99;
 		
-		tx_current_pos[0] = 100.55;
-		tx_current_pos[1] = 20.67;
-		tx_current_pos[2] = 45.22;
+		tx_pos[0] = 100.55;
+		tx_pos[1] = 20.67;
+		tx_pos[2] = 45.22;
 		#endif
 		
 		#ifdef TEST_OLED
+		
 		#endif
 		
 		#ifdef TEST_STEPPER
@@ -907,41 +983,83 @@ int main(void)
 		#endif
 		
 		#ifdef TEST_ENCODER
+		
 		#endif
 		
-		#ifdef MAIN_PROGRAM		
+		#ifdef MAIN_PROGRAM	
+		// Update Value
+		update_value();
+		
+		// Receive RS-232 Data
 		receive_data();
 		
 		// Check Auto Home Command
 		if(command.type == AUTO_HOME){
-			while(1){
-				if(homing() == false) continue;
-				else{
-					Send_feedback(&command, AUTO_HOME_DONE);
-				}
+			if(homing(ENCODER_LIMIT) == true){
+				home = true;
+				Send_feedback(&command, AUTO_HOME_DONE);
 			}
 		}
 		
 		// Check Mapping Command
 		else if(command.type == MAPPING){
+			if(command.mapping_state == SAVE_VALUE){
+				if(command.welding_point_type == START_POINT){
+					save_weldingpos_world(command.welding_point_num, SP_POS_BYTE_ADDR, (float*)current_position, sizeof(current_position));
+					save_weldingpos_angle(command.welding_point_num, SP_ANG_BYTE_ADDR, (float*)current_angle, sizeof(current_angle));
+				}
+				else if(command.welding_point_type == END_POINT){
+					save_weldingpos_world(command.welding_point_num, EP_POS_BYTE_ADDR, (float*)current_position, sizeof(current_position));
+					save_weldingpos_angle(command.welding_point_num, EP_ANG_BYTE_ADDR, (float*)current_angle, sizeof(current_angle));
+					save_weldingpos_pattern(command.welding_point_num, command.pattern_type);
+				}
+			}
+			else if(command.mapping_state == DELETE_VALUE){
+				if(command.welding_point_type == START_POINT){
+					uint8_t sp_reset[36];
+					memset(sp_reset, 0x00, 36);
+					EEPROM_PageWrite(&eeprom1, command.welding_point_num, SP_POS_BYTE_ADDR, sp_reset, sizeof(sp_reset));
+				}
+				else if(command.welding_point_type == END_POINT){
+					uint8_t ep_reset[37];
+					memset(ep_reset, 0x00, 37);
+					EEPROM_PageWrite(&eeprom1, command.welding_point_num, EP_POS_BYTE_ADDR, ep_reset, sizeof(ep_reset));
+				}
+			}
 		}
 		
 		// Check Preview Command
 		else if(command.type == PREVIEW){
+			// On progress
 		}
 		
 		// Check Move Command
-		else if(command.type == MOVE){
+		else if(command.type == MOVE){	
 			if(command.control_mode == CARTESIAN_CTRL){
+				check_limit(ALL_LIMIT_CHECK);
+				
 				for(int i=0; i<AXIS_NUM; i++){
 					if(command.move_variable == robot_axis[i]){
 						if(command.move_mode == CONTINUOUS){
+							move_world(command.move_variable, rx_move_position[i], MED);
+						}
+						else if(command.move_mode == DISTANCE){
+							step_limit[i] = true;
+							step_start[i] = false;
+							rx_move_position[i] = command.move_value;
+							move_world(command.move_variable, rx_move_position[i], MED);
+						}
+						else if(command.move_mode == STEP){
+							
 						}
 					}
+					else rx_move_position[i] = 0.0;
 				}
 			}
 			
 			else if(command.control_mode == JOINT_CTRL){	
+				check_limit(HARD_LIMIT_CHECK);
+				
 				for(int i=0; i<JOINT_NUM; i++){
 					if(command.move_variable == robot_joint[i]){
 						if(command.move_mode == CONTINUOUS){
@@ -954,18 +1072,16 @@ int main(void)
 							step_start[i] = false;
 							rx_move_angle[i] = command.move_value;
 						}
-						move_joint(robot_joint[i], rx_move_angle[i], MED);
+						move_joint(robot_joint[i], rx_move_angle[i], LOW);
 					}
+					else rx_move_angle[i] = 0.0;
 				}
 			}
 		}
 		
 		// Check Run Command
 		else if(command.type == RUN){
-		}
-		
-		// Check Send Requested Data Command
-		else if(command.type == SEND_REQ){
+			// On progress
 		}
 		
 		// Check Motor State Command
@@ -976,10 +1092,15 @@ int main(void)
 		
 		// Check Welder State Command
 		else if(command.type == WELDER_STATE){
+			if(command.welder_state == WELDER_OFF) welder_off();
+			else if(command.welder_state == WELDER_ON) welder_on();
 		}
 		
-		// Check Feedback
-		else if(command.type == FEEDBACK){
+		// Check Reset State Command
+		else if(command.type == RESET_STATE){
+			soft_limit = false;
+			hard_limit = false;
+			kinematics.singularity = false;
 		}
 		
 		// Check None Command
@@ -991,19 +1112,15 @@ int main(void)
 			}
 		}
 		
-		// Send Current Position
-		tx_current_pos[0] = 100.55;
-		tx_current_pos[1] = 20.67;
-		tx_current_pos[2] = 45.22;
+		// Check Request Command
+		if(command.type == REQ_DATA){
+			send_mapped_data();
+		}
+		else{
+			send_ang_pos_data();
+		}
 		
-		tx_current_angle[0] = 70.28;
-		tx_current_angle[1] = enc_joint_angle[1];
-		tx_current_angle[2] = 45.78;
-		tx_current_angle[3] = 100.11;
-		tx_current_angle[4] = 30.17;
-		tx_current_angle[5] = 15.99;
-		
-		transmit_req_data();
+		// Show Menu
 		show_menu(MAIN_MENU);
 		#endif
     /* USER CODE END WHILE */
@@ -2158,11 +2275,15 @@ void move_stepper(uint8_t select_joint, uint16_t step, Stepper_Dir_t dir, uint16
 
 /* --- JOINT BASE MOVE FUNCTION ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void move_joint(uint8_t select_joint, float input_angle, Speed_t set_speed){
+void move_joint(uint8_t select_joint, double input_angle, Speed_t set_speed){
 	// Joint RPM Set
-	if(set_speed == LOW) joint_rpm = 2;
-	else if(set_speed == MED) joint_rpm = 3;
+	if(set_speed == LOW) joint_rpm = 1;
+	else if(set_speed == MED) joint_rpm = 2;
 	else if(set_speed == HIGH) joint_rpm = 4;
+	
+	if((input_angle > 0 && input_angle < 5) || (input_angle > -5 && input_angle < 0)){
+		joint_rpm = 0.5;
+	}
 	
 	for(int i=0; i<JOINT_NUM; i++){
 		if(select_joint == robot_joint[i]){
@@ -2196,31 +2317,98 @@ void move_joint(uint8_t select_joint, float input_angle, Speed_t set_speed){
 
 /* --- WORLD BASE MOVE FUNCTION ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void move_world(uint8_t move_var, float move_pos, Speed_t set_speed){
+void move_world(uint8_t move_var, double move_pos, Speed_t set_speed){
 	// Joint RPM Set
 	if(set_speed == LOW) joint_rpm = 2;
 	else if(set_speed == MED) joint_rpm = 3;
 	else if(set_speed == HIGH) joint_rpm = 4;
+	
+	run_inverse_kinematic(&kinematics, rx_move_position[0], rx_move_position[1], rx_move_position[2], kinematics.axis_rot_out[0], kinematics.axis_rot_out[1], kinematics.axis_rot_out[2]);
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/* --- WELDER TURN ON FUNCTION ---*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void welder_on(void){
+	HAL_GPIO_WritePin(MIG_SW_IN_GPIO_Port, MIG_SW_IN_Pin, GPIO_PIN_SET);
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/* --- WELDER TURN OFF FUNCTION ---*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void welder_off(void){
+	HAL_GPIO_WritePin(MIG_SW_IN_GPIO_Port, MIG_SW_IN_Pin, GPIO_PIN_RESET);
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/* --- WELDING POINT PREVIEW FUNCTION ---*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void welding_preview(void){
+
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/* --- WELDING START FUNCTION ---*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void welding_start(void){
+
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/* --- UPDATE JOINT ANGLE AND POSITION VALUE FUNCTION ---*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void update_value(void){
+	run_forward_kinematic(&kinematics, enc_joint_angle);
+	
+	for(int i=0; i<JOINT_NUM; i++){
+		if(i<3){
+			current_position[i] = kinematics.axis_pos_out[i];
+			current_rotation[i] = kinematics.axis_rot_out[i];
+		}
+		current_angle[i] = enc_joint_angle[i];
+	}
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 /* --- LIMIT SWITCH STATE CHECK FUNCTION ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-bool check_limit(void){
-	if(limit_switch_state[0] && limit_switch_state[1] && limit_switch_state[2] && limit_switch_state[3] && limit_switch_state[4] && limit_switch_state[5]){
+void check_limit(Limit_t check_mode){
+	if(check_mode == ALL_LIMIT_CHECK){
 		for(int i=0; i<JOINT_NUM; i++){
-			step_start[i] = true;
-			step_limit[i] = false;
+			if(enc_joint_angle[i] >= joint_positive_axisLim[i] || enc_joint_angle[i] <= joint_negative_axisLim[i]){
+				hard_limit = true;
+			}
+			else hard_limit = false;
 		}
-		return true;
+		
+		check_singularity(&kinematics);
+		if(kinematics.singularity == true){
+			soft_limit = true;
+		}
+		else soft_limit = false;
 	}
-	else{
-		for(int i=0; i<JOINT_NUM; i++){
-			step_start[i] = false;
-			step_limit[i] = false;
+	
+	else if(check_mode == SOFT_LIMIT_CHECK){
+		check_singularity(&kinematics);
+		if(kinematics.singularity == true){
+			soft_limit = true;
 		}
-		return false;
+		else soft_limit = false;
+	}
+	
+	else if(check_mode == HARD_LIMIT_CHECK){
+		for(int i=0; i<JOINT_NUM; i++){
+			if(enc_joint_angle[i] >= joint_positive_axisLim[i] || enc_joint_angle[i] <= joint_negative_axisLim[i]){
+				hard_limit = true;
+			}
+			else hard_limit = false;
+		}
 	}
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2228,17 +2416,31 @@ bool check_limit(void){
 
 /* --- JOINT ANGLE HOMING FUNCTION ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-bool homing(void){
-	joint_rpm = 4;
-	while(check_limit() == false){
-		for(int i=0; i<JOINT_NUM; i++){
-			// Synchronize Joint RPM
-			stepper_rpm[i] = joint_rpm * stepper_ratio[i];
-			stepper_freq[i] = stepper_rpm[i] * stepper_microstep[i] / 60;
-			move_stepper(robot_joint[i], 0, (Stepper_Dir_t)step_home_dir[i], stepper_freq[i]);
+bool homing(Homing_Mode_t mode){
+	bool state;
+	joint_rpm = 4;	
+	
+	// Calculate each joint delta angle
+	
+	while(1){
+		if(mode == ENCODER_LIMIT){
+			for(int i=0; i<JOINT_NUM; i++){
+				if(enc_joint_angle[i] >= -0.01 || enc_joint_angle[i] <= 0.01){
+					state = true;
+					break;
+				}
+			}
+		}
+		
+		else if(mode == SWITCH_LIMIT){
+			if(limit_switch_state[0] & limit_switch_state[1] & limit_switch_state[2] & limit_switch_state[3] & limit_switch_state[4] & limit_switch_state[5]){
+				state = true;
+				break;
+			}
 		}
 	}
-	return true;
+	
+	return state;
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -2267,18 +2469,79 @@ void encoder_reset(void){
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-/* --- ENCODER READ FUNCTION ---*/
+// --- SEND MAPPED WELDING DATA FUNCTION --- */
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void encoder_read(void){
+void send_mapped_data(void){
+	if(command.requested_data == MAPPED_START_POINT){
+		read_weldingpos_world(command.welding_point_num, SP_POS_BYTE_ADDR, array_pos_start, sizeof(array_ang_start));
+		HAL_Delay(1);
+		read_weldingpos_angle(command.welding_point_num, SP_ANG_BYTE_ADDR, array_ang_start, sizeof(array_ang_start));
+		HAL_Delay(1);
+		
+		tx_pos[0] = array_pos_start[0];
+		tx_pos[1] = array_pos_start[1];
+		tx_pos[2] = array_pos_start[2];
+		
+		tx_angle[0] = array_ang_start[0];
+		tx_angle[1] = array_ang_start[1];
+		tx_angle[2] = array_ang_start[2];
+		tx_angle[3] = array_ang_start[3];
+		tx_angle[4] = array_ang_start[4];
+		tx_angle[5] = array_ang_start[5];	
+	}
+	else if(command.requested_data == MAPPED_END_POINT){
+		read_weldingpos_world(command.welding_point_num, EP_POS_BYTE_ADDR, array_pos_end, sizeof(array_pos_end));
+		HAL_Delay(1);
+		read_weldingpos_angle(command.welding_point_num, EP_ANG_BYTE_ADDR, array_ang_end, sizeof(array_ang_end));
+		HAL_Delay(1);
+		
+		tx_pos[0] = array_pos_end[0];
+		tx_pos[1] = array_pos_end[1];
+		tx_pos[2] = array_pos_end[2];
+		
+		tx_angle[0] = array_ang_end[0];
+		tx_angle[1] = array_ang_end[1];
+		tx_angle[2] = array_ang_end[2];
+		tx_angle[3] = array_ang_end[3];
+		tx_angle[4] = array_ang_end[4];
+		tx_angle[5] = array_ang_end[5];	
+	}
+	
+	if(HAL_GetTick() - prev_time_send > send_data_interval){
+		Send_requested_data(&command, tx_pos, tx_angle, current_point, LINEAR, LOW);
+		prev_time_send = HAL_GetTick();
+	}
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- 
+
 
 /* --- CUSTON RS232 TRANSMIT FUNCTION ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void transmit_req_data(void){
+void send_ang_pos_data(void){
+//	tx_pos[0] = (float)kinematics.axis_pos_out[0];
+//	tx_pos[1] = (float)kinematics.axis_pos_out[1];
+//	tx_pos[2] = (float)kinematics.axis_pos_out[2];
+//	
+//	tx_angle[0] = (float)enc_joint_angle[0];
+//	tx_angle[1] = (float)enc_joint_angle[1];
+//	tx_angle[2] = (float)enc_joint_angle[2];
+//	tx_angle[3] = (float)enc_joint_angle[3];
+//	tx_angle[4] = (float)enc_joint_angle[4];
+//	tx_angle[5] = (float)enc_joint_angle[5];	
+	
+	tx_pos[0] = 12.3;
+	tx_pos[1] = 12.3;
+	tx_pos[2] = 12.3;
+	
+	tx_angle[0] = 90.5;
+	tx_angle[1] = (float)enc_joint_angle[1];
+	tx_angle[2] = 90.5;
+	tx_angle[3] = 90.5;
+	tx_angle[4] = 90.5;
+	tx_angle[5] = 90.5;
+	
 	if(HAL_GetTick() - prev_time_send > send_data_interval){
-		Send_requested_data(&command, tx_current_pos, tx_current_angle, current_point, LINEAR, 100);
+		Send_requested_data(&command, tx_pos, tx_angle, current_point, LINEAR, LOW);
 		prev_time_send = HAL_GetTick();
 	}
 }
@@ -2349,7 +2612,7 @@ void show_menu(Oled_Menu_t sel_menu){
 		else if(command.type == MOTOR_STATE) SSD1306_Puts("Step State  ", &Font_7x10, SSD1306_COLOR_WHITE);
 		else if(command.type == WELDER_STATE) SSD1306_Puts("Weld State  ", &Font_7x10, SSD1306_COLOR_WHITE);
 		else if(command.type == FEEDBACK) SSD1306_Puts("Feedback    ", &Font_7x10, SSD1306_COLOR_WHITE);
-		else if(command.type == STANDBY) SSD1306_Puts("Standby     ", &Font_7x10, SSD1306_COLOR_WHITE);
+		else if(command.type == RESET_STATE) SSD1306_Puts("Reset State ", &Font_7x10, SSD1306_COLOR_WHITE);
 		else SSD1306_Puts("None        ", &Font_7x10, SSD1306_COLOR_WHITE);
 	
 		SSD1306_GotoXY(0,49);

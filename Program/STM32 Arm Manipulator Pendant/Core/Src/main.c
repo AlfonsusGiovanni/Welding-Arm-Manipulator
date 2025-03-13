@@ -119,7 +119,6 @@ Data_Get_t command;
 //#define EMERGENCY_TEST
 //----------------------
 
-
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -349,7 +348,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 }
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
-	command.msg_sent = false;
+	command.msg_sent = true;
 }
 //------------------------------------------------------
 
@@ -781,7 +780,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(EMERGENCY_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 4, 0);
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 10, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
@@ -971,7 +970,7 @@ void ui_handler(void){
 		// ********************************
 		
 		
-		// INCLREASE VALUE *****************************************************************************************
+		// INCLREASE VALUE *****************************************************************************************************************
 		if(keys == 'U' && HAL_GetTick() - prev_tick > debounce){
 			// Cartesian Increase Value Control
 			if(ctrl_mode_counter == 0){
@@ -996,10 +995,10 @@ void ui_handler(void){
 			}
 			prev_tick = HAL_GetTick();
 		}
-		// *********************************************************************************************************
+		// ********************************************************************************************************************************
 		
 		
-		// DECREASE VALUE *******************************************************************
+		// DECREASE VALUE *****************************************************************************************************************
 		else if(keys == 'D' && HAL_GetTick() - prev_tick > debounce){
 			if(ctrl_mode_counter == 0){
 				for(int i=0; i<3; i++){
@@ -1021,14 +1020,16 @@ void ui_handler(void){
 			}
 			prev_tick = HAL_GetTick();
 		}
-		// **********************************************************************************
+		// *********************************************************************************************************************************
 		
 		
 		// MOVE TO PREPARATION MENU *********
 		if(keys == '#' && prev_keys != keys){
 			home_state = false;
 			run_mode_counter = 0;
+			mapped_point_counter = 0;  
 			select_menu = PREP_MENU;
+			strcpy(string_preview, "-");
 		}
 		// **********************************
 	}
@@ -1055,6 +1056,7 @@ void ui_handler(void){
 		else if(keys == 'Q' && prev_keys != keys){
 			run_mode_counter++;
 			if(run_mode_counter > 2) run_mode_counter = 0;
+			strcpy(string_preview, "-");
 		}
 		// *********************************************
 		
@@ -1083,7 +1085,7 @@ void ui_handler(void){
 		// ****************************************************************************************
 		
 		
-		// PREVIEW PREPARATION MENU ****************************************************
+		// PREVIEW PREPARATION MENU **************************************************
 		else if(run_mode_counter == 1){
 			// CHECK FIRST NUMKEY INPUT
 			if(check_numkeys_pressed() == true || keys == '<'){
@@ -1129,19 +1131,13 @@ void ui_handler(void){
 				mapping_menu_counter = 0;
 			}
 		}
-		// **********************************************************************
+		// **************************************************************************
 		
 		
-		// WELDING PREPARATION MENU ***************************
-		else if(run_mode_counter == 2){
-			// CHANGE RUNNING SPEED
-			if(keys == 'W' && prev_keys != keys){
-				speed_mode_counter++;
-				if(speed_mode_counter > 2) speed_mode_counter = 0;
-			}
-			
+		// WELDING PREPARATION MENU **************
+		else if(run_mode_counter == 2){			
 			// WELDING RUN
-			else if(keys == '#' && prev_keys != keys){
+			if(keys == '#' && prev_keys != keys){
 				welding_state = true;
 				Send_running(&command, RUNNING_START);
 				select_menu = WELDING_MENU;
@@ -1153,22 +1149,22 @@ void ui_handler(void){
 				preview_speed = 0;
 			}
 		}
-		// ****************************************************		
+		// ***************************************
 	}
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	
 	
 	/* MAPPING MENU UI HANDLER */////////////////////////////////////////////////////////////////////////////////
 	else if(select_menu == MAPPING_MENU){
-		// BACK TO PREPARATION MENU *********
-		if(keys == '.' && prev_keys != keys){
+		// BACK TO PREPARATION MENU **************************************
+		if(keys == '.' && prev_keys != keys && mapping_menu_counter == 0){
 			run_mode_counter = 0;
 			select_menu = PREP_MENU;
 			reset_counter();
 			strcpy(string_distance, "0");
 			distance_val = 0;
 		}
-		// **********************************
+		// ***************************************************************
 		
 		
 		// CHANGE MAPPING MENU *********************************
@@ -1179,7 +1175,7 @@ void ui_handler(void){
 		// *****************************************************
 		
 		
-		// MAPPING MENU 1 ***************************************************************************************************
+		// MAPPING MENU 1 **************************************************************************************************************************
 		if(mapping_menu_counter == 0){
 			// CHANGE MOVE CONTROL
 			if(keys == 'W' && prev_keys != keys){
@@ -1246,7 +1242,7 @@ void ui_handler(void){
 						if(add_col == 0) string_distance[add_col] = '0';
 						else string_distance[add_col] = ' ';
 					}
-		
+			
 					prev_keys = keys;
 				}
 			}
@@ -1304,15 +1300,20 @@ void ui_handler(void){
 				prev_tick = HAL_GetTick();
 			}
 		}
-		// ********************************************************************************************************************************
+		// *****************************************************************************************************************************************
 		
 		
-		// MAPPING MENU 2 **************************************************************
+		// MAPPING MENU 2 ***************************************************************************
 		else if(mapping_menu_counter == 1){
 			// CHANGE CURSOR FOR SELECT WELDING POINT
 			if(keys == 'R' && prev_keys != keys){
 				move_var_counter++;
 				if(move_var_counter > 1) move_var_counter = 0;
+			}
+			
+			// BACK TO MAPPING MENU 1
+			else if(keys == '.' && prev_keys != keys){
+				mapping_menu_counter = 0;
 			}
 			
 			// INCLREASE VALUE
@@ -1347,13 +1348,20 @@ void ui_handler(void){
 			else if(keys == '>' && prev_keys != keys && mapping_menu_counter != 0){
 				if(move_var_counter == 0 && start_point_counter != 0){
 					mapped_start_array[start_point_counter] = true;
-					Send_mapping(&command, start_point_counter, START_POINT, NOT_SET, 0, SAVE_VALUE);
+					for(int i=0; i<50; i++){
+						Send_mapping(&command, start_point_counter, START_POINT, NOT_SET, LOW, SAVE_VALUE);
+						HAL_Delay(5);
+					}
 				}
 				else if(move_var_counter == 1 && end_point_counter != 0){
 					mapped_end_array[end_point_counter] = true;
-					Send_mapping(&command, end_point_counter, END_POINT, NOT_SET, 0, SAVE_VALUE);
+					for(int i=0; i<50; i++){
+						Send_mapping(&command, end_point_counter, END_POINT, NOT_SET, LOW, SAVE_VALUE);
+						HAL_Delay(5);
+					}
 				}
 				
+				lcd_clear();  
 				select_menu = POINT_SET_MENU;
 				HAL_Delay(1500);
 				lcd_clear();
@@ -1364,23 +1372,33 @@ void ui_handler(void){
 			else if(keys == '<' && prev_keys != keys && mapping_menu_counter != 0){
 				if(move_var_counter == 0){
 					mapped_start_array[start_point_counter] = false;
-					Send_mapping(&command, start_point_counter, START_POINT, NOT_SET, 0, DELETE_VALUE);
+					for(int i=0; i<50; i++){
+						Delete_WeldingData(start_point_counter);
+						Send_mapping(&command, start_point_counter, START_POINT, NOT_SET, LOW, DELETE_VALUE);
+						HAL_Delay(5);
+					}
 				}
 				else if(move_var_counter == 1){
 					mapped_end_array[end_point_counter] = false;
-					Send_mapping(&command, end_point_counter, END_POINT, NOT_SET, 0, DELETE_VALUE);
+					for(int i=0; i<50; i++){
+						Delete_WeldingData(end_point_counter);
+						Send_mapping(&command, end_point_counter, END_POINT, NOT_SET, LOW, DELETE_VALUE);
+						HAL_Delay(5);
+					}
 				}
 				
+				lcd_clear();  
 				select_menu = POINT_UNSET_MENU;
+				Update_Data(UPDATE_ALL);
 				HAL_Delay(1500);
 				lcd_clear();
 				select_menu = MAPPING_MENU;
 			}
 		}
-		// *****************************************************************************
+		// *******************************************************************************************
 		
 		
-		// MAPPING MENU 3 ****************************************************************************************
+		// MAPPING MENU 3 ********************************************************************************************************************
 		else if(mapping_menu_counter == 2){
 			// CHANGE PATTERN
 			if(keys == 'W' && prev_keys != keys){
@@ -1389,41 +1407,14 @@ void ui_handler(void){
 			}
 			
 			// CHANGE MAPPED POINT MOVE SPEED
-			else if(check_numkeys_pressed() == true || keys == '<'){
-				add_col = 0;
-				*string_speed = '0';
-				
-				while(1){
-					saved_speed = false;
-					if(keys != prev_keys && keys != 0x00) lcd_clear();
-					
-					// INSERT VALUE
-					if(check_numkeys_pressed() == true && prev_keys != keys && add_col < 3){
-						string_speed[add_col] = keys;
-						add_col++;
-					}
-					
-					// SET SPEED VALUE
-					else if(keys == '>' && prev_keys != keys){
-						running_speed = atoi(string_speed);
-						if(running_speed >= max_speed){
-							memcpy(string_speed, string_speed, sizeof(string_speed));
-							running_speed = max_speed;
-						}
-						saved_speed = true;
-						break;
-					}
-					
-					// UNSET SPEED VALUE
-					else if(keys == '<' && prev_keys != keys){
-						if(add_col > 0) add_col-=1;
-						
-						if(add_col == 0) string_speed[add_col] = '0';
-						else string_speed[add_col] = ' ';
-					}
-		
-					prev_keys = keys;
-				}
+			else if(keys == 'R' && prev_keys != keys){
+				speed_mode_counter++;
+				if(speed_mode_counter > 3) speed_mode_counter = 0;
+			}
+			
+			// BACK TO MAPPING MENU 1
+			else if(keys == '.' && prev_keys != keys){
+				mapping_menu_counter = 0;
 			}
 			
 			// SAVE ALL MAPPING POINT DATA PATTERN
@@ -1431,25 +1422,13 @@ void ui_handler(void){
 				if((mapped_start_array[start_point_counter] & mapped_end_array[end_point_counter]) == true){
 					total_mapped_points = 0;
 					
-					if(pattern_sel_counter == 0){
-						Send_mapping(&command, start_point_counter&end_point_counter, PATTERN, NOT_SET, running_speed, SAVE_VALUE);
-						Save_WeldingData(start_point_counter, NOT_SET, running_speed);
+					for(int i=0; i<50; i++){
+						if(command.msg_sent == true){
+							Send_mapping(&command, start_point_counter&end_point_counter, PATTERN, (Welding_Pattern_t) pattern_sel_counter, (Speed_t)speed_mode_counter, SAVE_VALUE);
+							command.msg_sent = false;
+						}
 					}
-					
-					else if(pattern_sel_counter == 1){
-						Send_mapping(&command, start_point_counter&end_point_counter, PATTERN, DOT, running_speed, SAVE_VALUE);
-						Save_WeldingData(start_point_counter, DOT, running_speed);
-					}
-					
-					else if(pattern_sel_counter == 2){
-						Send_mapping(&command, start_point_counter&end_point_counter, PATTERN, LINEAR, running_speed, SAVE_VALUE);
-						Save_WeldingData(start_point_counter, LINEAR, running_speed);
-					}
-					
-					else if(pattern_sel_counter == 3){
-						Send_mapping(&command, start_point_counter&end_point_counter, PATTERN, CIRCULAR, running_speed, SAVE_VALUE);
-						Save_WeldingData(start_point_counter, CIRCULAR, running_speed);
-					}
+					Save_WeldingData(start_point_counter, pattern_sel_counter, speed_mode_counter);
 					HAL_Delay(50);
 					
 					select_menu = MAPPING_SAVE_MENU;
@@ -1468,7 +1447,7 @@ void ui_handler(void){
 				}
 			}
 		}
-		// *******************************************************************************************************
+		// ***********************************************************************************************************************************
 	}
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	
@@ -1480,6 +1459,8 @@ void ui_handler(void){
 		
 		if((preview_point & mapped_points[preview_point-1]) == preview_point && preview_point != 0 && preview_speed != 0){
 			while(1){
+				keys = Keypad_Read(&keypad);
+				
 				if(keys != prev_keys && keys != 0x00) lcd_clear();
 				
 				if(command.feedback == CURRENT_POINT_DONE){
@@ -1512,9 +1493,9 @@ void ui_handler(void){
 	
 	/* WELDING MENU HANDLER *//////////////////////////////////
 	else if(select_menu == WELDING_MENU){
-		preview_point = command.welding_point;
+		preview_point = command.welding_point_num;
 		preview_pattern = command.pattern_type;
-		preview_speed = command.welding_speed;
+		preview_speed = command.running_speed;
 		
 		// PAUSE MENU ***********************
 		if(keys == 'Q' && prev_keys != keys){
@@ -1741,9 +1722,9 @@ void show_menu(LCD_Menu_t menu){
 	///////////////////////////////////////////////////////////////
 	
 	
-	/* PREPARATION MENU */////////////////////////////////////
+	/* PREPARATION MENU *///////////////////////////////////////
 	else if(menu == PREP_MENU){
-		// MAPPING PREP *****************
+		// MAPPING PREP ******************************************
 		if(run_mode_counter == 0){
 			lcd_set_cursor(0, 0);
 			lcd_printstr("Mapped Points");
@@ -1756,7 +1737,7 @@ void show_menu(LCD_Menu_t menu){
 			lcd_set_cursor(0, 3);
 			lcd_printstr(mapping_mode);
 		}
-		// ******************************
+		// *******************************************************
 		
 		
 		// PREVIEW PREP ********************
@@ -1775,27 +1756,17 @@ void show_menu(LCD_Menu_t menu){
 		// *********************************
 		
 		
-		// WELDING PREP *******************************************
-		if(run_mode_counter == 2){
+		// WELDING PREP ********************
+		if(run_mode_counter == 2){	
 			lcd_set_cursor(0, 0);
-			lcd_printstr("Set Speed");
-			lcd_set_cursor(17, 0);
-			if(speed_mode_counter == 0) lcd_printstr(low_speed);
-			else if(speed_mode_counter == 1) lcd_printstr(med_speed);
-			else if(speed_mode_counter == 2){
-				lcd_set_cursor(16, 0);
-				lcd_printstr(high_speed);
-			}
-			
-			lcd_set_cursor(0, 1);
 			lcd_printstr("Total Mapped");
-			lcd_set_cursor(17, 1);
+			lcd_set_cursor(17, 0);
 			lcd_printint(total_mapped_points);
 			
 			lcd_set_cursor(0, 3);
 			lcd_printstr(welding_mode);
 		}
-		// ********************************************************
+		// *********************************
 		
 		
 		// SHOW CURRENT MENU ******
@@ -1803,7 +1774,7 @@ void show_menu(LCD_Menu_t menu){
 		lcd_printstr(preparation);
 		// ************************
 	}
-	//////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////
 	
 	
 	/* MAPPING MENU 1 *////////////////////////////////////////////
@@ -1976,14 +1947,23 @@ void show_menu(LCD_Menu_t menu){
 		
 		lcd_set_cursor(0, 1);
 		lcd_printstr("Move Spd");
-		if(!saved_speed) lcd_printstr("*");
-		else lcd_printstr(" ");
 		
-		lcd_set_cursor(12, 1);
-		lcd_printstr(string_speed);
-		
-		lcd_set_cursor(16, 1);
-		lcd_printstr("mm/s");
+		if(speed_mode_counter == 0){
+			lcd_set_cursor(14, 1);
+			lcd_printstr(not_set_mode);
+		}
+		else if(speed_mode_counter == LOW){
+			lcd_set_cursor(17, 1);
+			lcd_printstr(low_speed);
+		}
+		else if(speed_mode_counter == MED){
+			lcd_set_cursor(17, 1);
+			lcd_printstr(med_speed);
+		}
+		else if(speed_mode_counter == HIGH){
+			lcd_set_cursor(16, 1);
+			lcd_printstr(high_speed);
+		}
 		
 		lcd_set_cursor(0, 3);
 		lcd_printstr(mapping_menu);
@@ -2005,7 +1985,9 @@ void show_menu(LCD_Menu_t menu){
 		lcd_set_cursor(0, 1);
 		lcd_printstr("Welding Speed");
 		lcd_set_cursor(17, 1);
-		lcd_printint(preview_speed);
+		if(preview_speed == LOW) lcd_printstr(low_speed);
+		else if(preview_speed == MED) lcd_printstr(low_speed);
+		else if(preview_speed == HIGH) lcd_printstr(high_speed);
 		
 		lcd_set_cursor(0, 3);
 		lcd_printstr(preview_menu);
@@ -2316,6 +2298,7 @@ void Read_WeldingData(uint16_t welding_point, uint8_t* stored_data){
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void Update_Data(Mem_Update_t update_type){
 	if(update_type == UPDATE_ALL){
+		total_mapped_points = 0; 
 		for(uint16_t i=1; i<max_welding_point; i++){
 			Read_WeldingData(i, stored_welding_data);
 			
@@ -2330,7 +2313,6 @@ void Update_Data(Mem_Update_t update_type){
 				mapped_pattern[i-1] = 0;
 				mapped_speed[i-1] 	= 0;
 			}
-			
 			HAL_Delay(1);
 		}
 	}

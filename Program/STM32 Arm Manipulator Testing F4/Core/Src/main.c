@@ -269,7 +269,7 @@ int main(void)
 		run_inverse_kinematic(&kinematics, kinematics.axis_pos_out[0], kinematics.axis_pos_out[1], kinematics.axis_pos_out[2], kinematics.axis_rot_out[0], kinematics.axis_rot_out[1], kinematics.axis_rot_out[2]);
 		find_jacobian_variable(&kinematics);
 		check_singularity(&kinematics);
-		/* USER CODE END WHILE */
+    /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
   }

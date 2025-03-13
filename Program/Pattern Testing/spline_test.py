@@ -46,7 +46,7 @@ y_points = [0, 1, 0, -1, 0, 1, 0]  # y coordinates
 
 # Generate waypoints
 points_num = len(x_points)
-iteration = 0.05
+iteration = 0.1
 point_accuracy = int(points_num / iteration)
 
 x_values = [0] * (point_accuracy+1)

@@ -439,6 +439,11 @@
               <FilePath>.\DWT_Delay.c</FilePath>
             </File>
             <File>
+              <FileName>ArmRobot_Math.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ArmRobot_Math.c</FilePath>
+            </File>
+            <File>
               <FileName>stm32h7xx_hal_cortex.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_cortex.c</FilePath>

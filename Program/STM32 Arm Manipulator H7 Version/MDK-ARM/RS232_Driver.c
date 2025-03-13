@@ -23,7 +23,7 @@ void Send_auto_home(Data_Get_t* get){
 }
 
 /*SEND MAPPING MODE DATA COMMAND*/
-void Send_mapping(Data_Get_t* get, uint8_t point_num, Data_type_t point_type, Welding_Pattern_t pattern_type, uint8_t welding_speed, Mapping_State_t map_state){
+void Send_mapping(Data_Get_t* get, uint8_t point_num, Data_type_t point_type, Welding_Pattern_t pattern_type, Speed_t welding_speed, Mapping_State_t map_state){
 	uint8_t mapping_data[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, MAPPING_MODE_CMD, point_num, point_type, pattern_type, welding_speed, map_state};	
 	HAL_UART_Transmit_IT(huart, mapping_data, sizeof(mapping_data));
 }
@@ -53,13 +53,13 @@ void Send_running(Data_Get_t* get, Run_State_t state){
 }
 
 /*SEND DATA REQUEST COMMAND*/
-void Req_data(Data_Get_t* get){
-	uint8_t req[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, REQ_DATA_CMD};	
+void Req_data(Data_Get_t* get, Req_t data){
+	uint8_t req[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, REQ_DATA_CMD, data};	
 	HAL_UART_Transmit_IT(huart, req, sizeof(req));
 }
 
 /*SEND REQUESTED DATA COMMAND*/
-void Send_requested_data(Data_Get_t* get, float* cartesian_value, float* joint_value, uint8_t welding_point, Welding_Pattern_t pattern_type, uint8_t welding_speed){		
+void Send_requested_data(Data_Get_t* get, float* cartesian_value, float* joint_value, uint8_t welding_point, Welding_Pattern_t pattern_type, Speed_t welding_speed){		
 	uint8_t send_req[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, SEND_REQ_CMD};
 	
 	memcpy(&send_req[4], &cartesian_value[0], sizeof(float));
@@ -72,21 +72,10 @@ void Send_requested_data(Data_Get_t* get, float* cartesian_value, float* joint_v
 	memcpy(&send_req[28], &joint_value[3], sizeof(float));
 	memcpy(&send_req[32], &joint_value[4], sizeof(float));
 	memcpy(&send_req[36], &joint_value[5], sizeof(float));
-				
-//	memcpy(&get->Cartesian_send[0], &cartesian_value[0], sizeof(float));
-//	memcpy(&get->Cartesian_send[1], &cartesian_value[1], sizeof(float));
-//	memcpy(&get->Cartesian_send[2], &cartesian_value[2], sizeof(float));
-//	
-//	memcpy(&get->Joint_send[0], &joint_value[0], sizeof(float));
-//	memcpy(&get->Joint_send[1], &joint_value[1], sizeof(float));
-//	memcpy(&get->Joint_send[2], &joint_value[2], sizeof(float));
-//	memcpy(&get->Joint_send[3], &joint_value[3], sizeof(float));
-//	memcpy(&get->Joint_send[4], &joint_value[4], sizeof(float));
-//	memcpy(&get->Joint_send[5], &joint_value[5], sizeof(float));
 	
-	send_req[37] = welding_point;
-	send_req[38] = pattern_type;
-	send_req[39] = welding_speed;	
+	send_req[40] = welding_point;
+	send_req[41] = pattern_type;
+	send_req[42] = welding_speed;	
 	
 	HAL_UART_Transmit(huart, send_req, sizeof(send_req), RS232_TIMEOUT);
 }
@@ -110,8 +99,8 @@ void Send_feedback(Data_Get_t* get, Feedback_t fdbck){
 }
 
 /*SEND STANDBY COMMAND*/
-void Send_standby(Data_Get_t* get){
-	uint8_t standby_buff[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, STANDBY_CMD};		
+void Send_state_reset(Data_Get_t* get){
+	uint8_t standby_buff[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, RESET_CMD};		
 	HAL_UART_Transmit_IT(huart, standby_buff, sizeof(standby_buff));
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -142,6 +131,12 @@ void Get_command(Data_Get_t* get){
 			//CHECK MAPPING MODE COMMAND
 			else if(rx_buff[i+3] == MAPPING_MODE_CMD){
 				get->type = MAPPING;
+				
+				get->welding_point_num = rx_buff[i+4];
+				get->welding_point_type = rx_buff[i+5];
+				get->pattern_type = (Welding_Pattern_t) rx_buff[i+6];
+				get->running_speed = (Speed_t) rx_buff[i+7];
+				get->mapping_state = (Mapping_State_t) rx_buff[i+8];
 			}
 			
 			//CHECK MOVE COMMAND
@@ -167,6 +162,7 @@ void Get_command(Data_Get_t* get){
 			//CHECK REQ POSITION COMMAND
 			else if(rx_buff[i+3] == REQ_DATA_CMD){
 				get->type = REQ_DATA;
+				get->requested_data = (Req_t) rx_buff[i+4];
 			}
 			
 			//CHECK SEND REQ COMMAND
@@ -221,9 +217,9 @@ void Get_command(Data_Get_t* get){
 					memcpy(&get->Joint_angle_req[5], converted_Joint6, sizeof(float));
 				}
 				
-				get->welding_point = rx_buff[i+37];
-				get->pattern_type = (Welding_Pattern_t) rx_buff[i+38];
-				get->welding_speed = rx_buff[i+39];	
+				get->welding_point_num = rx_buff[i+40];
+				get->pattern_type = (Welding_Pattern_t) rx_buff[i+41];
+				get->running_speed = (Speed_t) rx_buff[i+42];	
 			}
 			
 			//CHECK MOTOR STATE COMMAND
@@ -244,9 +240,9 @@ void Get_command(Data_Get_t* get){
 				get->feedback = (Feedback_t) rx_buff[i+4];
 			}
 			
-			//CHECK STANDBY COMMAND
-			else if(rx_buff[i+3] == STANDBY_CMD){
-				get->type = STANDBY;
+			//CHECK RESET STATE COMMAND
+			else if(rx_buff[i+3] == RESET_CMD){
+				get->type = RESET_STATE;
 			}
 			memcpy(&get->data_buff, rx_buff, sizeof(rx_buff));
 		}

@@ -8,6 +8,7 @@
 "stm32 arm manipulator h7 version\rs232_driver.o"
 "stm32 arm manipulator h7 version\ssd1306.o"
 "stm32 arm manipulator h7 version\dwt_delay.o"
+"stm32 arm manipulator h7 version\armrobot_math.o"
 "stm32 arm manipulator h7 version\stm32h7xx_hal_cortex.o"
 "stm32 arm manipulator h7 version\stm32h7xx_hal_rcc.o"
 "stm32 arm manipulator h7 version\stm32h7xx_hal_rcc_ex.o"

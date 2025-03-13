@@ -25,6 +25,7 @@
 "stm32 arm manipulator testing f4\stm32f4xx_hal_tim.o"
 "stm32 arm manipulator testing f4\stm32f4xx_hal_tim_ex.o"
 "stm32 arm manipulator testing f4\stm32f4xx_hal_uart.o"
+"stm32 arm manipulator testing f4\interpolation.o"
 "stm32 arm manipulator testing f4\system_stm32f4xx.o"
 --strict --scatter "STM32 Arm Manipulator Testing F4\STM32 Arm Manipulator Testing F4.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols

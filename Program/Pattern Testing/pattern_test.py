@@ -33,8 +33,8 @@ for t in np.arange(0, 1+pg.iteration, pg.iteration):
     X_pos = trajectory1.calculate(0, t)
     Y_pos = pg.get_pattern_point(20, iteration_counter)
 
-    #draw.goto(X_pos, Y_pos)
-    #draw.pendown()
+    draw.goto(X_pos, Y_pos)
+    draw.pendown()
     draw.teleport(X_pos, Y_pos)
     draw.dot(5, "red")
 

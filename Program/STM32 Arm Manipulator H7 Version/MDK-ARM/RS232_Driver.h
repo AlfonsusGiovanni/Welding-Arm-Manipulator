@@ -19,7 +19,7 @@ Date		: 10 Juli 2024
 #define HEADER3 0xFF
 
 /*RS232 COM BUFFER SIZE*/
-#define BUFF_SIZE 40
+#define BUFF_SIZE 45
 
 /*RS232 COM TIMEOUT*/
 #define RS232_TIMEOUT 5
@@ -35,7 +35,7 @@ Date		: 10 Juli 2024
 #define MOTOR_STATE_CMD			0x08	// Motor State Command
 #define WELDER_STATE_CMD		0x09	// Welder State Command
 #define FEEDBACK_CMD				0x0A	// Feedback Command
-#define STANDBY_CMD					0x0B	// Standby Command
+#define RESET_CMD						0x0B	// Standby Command
 
 //--- COMMAND TYPE TYPEDEF ---//
 ////////////////////////////////
@@ -50,7 +50,7 @@ typedef enum{
 	MOTOR_STATE,
 	WELDER_STATE,
 	FEEDBACK,
-	STANDBY,
+	RESET_STATE,
 	NONE,
 }Command_t;
 ////////////////////////////////
@@ -81,13 +81,17 @@ typedef enum{
 	AXIS_X = 0x01,
 	AXIS_Y,
 	AXIS_Z,
-	
+
 	JOINT_1,
 	JOINT_2,
 	JOINT_3,
 	JOINT_4,
 	JOINT_5,
 	JOINT_6,
+	
+	AXIS_RX,
+	AXIS_RY,
+	AXIS_RZ,
 }Move_Var_t;
 /////////////////////////////////
 
@@ -155,9 +159,8 @@ typedef enum{
 //--- REQUESTED TYPEDEF ---//
 ////////////////////////////////
 typedef enum{
-	SEND_POSITION = 0x01,
-	SEND_ANGLE,
-	SEND_WELDING_DATA,
+	MAPPED_START_POINT = 0x01,
+	MAPPED_END_POINT
 }Req_t;
 ////////////////////////////////
 
@@ -194,11 +197,13 @@ typedef enum{
 ////////////////////////////////////
 typedef enum{
 	AUTO_HOME_DONE = 0x01,
+	SAVE_DONE,
 	DISTANCE_MOVE_DONE,
 	CURRENT_POINT_DONE,
-	ANGLE_LIMIT_WARNING,
 	MAIN_ONLINE,
-	PENDANT_ONLINE
+	PENDANT_ONLINE,
+	ANGLE_SOFT_LIMIT,
+	ANGLE_HARD_LIMIT,
 }Feedback_t;
 ////////////////////////////////////
 
@@ -231,8 +236,8 @@ typedef struct ALIGNED_8{
 	
 	uint8_t data_buff[BUFF_SIZE];
 	uint8_t check_data_buff[BUFF_SIZE];
-	uint8_t welding_point;
-	uint8_t welding_speed;
+	uint8_t welding_point_num;
+	uint8_t welding_point_type;
 
 	uint8_t padding2[7];
 	
@@ -255,7 +260,7 @@ typedef struct ALIGNED_8{
 	Welding_Pattern_t pattern_type;
 	Data_type_t data_type;
 	Mapping_State_t mapping_state;
-	Req_t requested_variable;
+	Req_t requested_data;
 	Motor_State_t motor_state;
 	Welder_State_t welder_state;
 	Speed_t running_speed;
@@ -274,22 +279,22 @@ void RS232_Init(UART_HandleTypeDef* huart_handler);
 /*TRANSMITING COMMAND*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void Send_auto_home(Data_Get_t* get);
-void Send_mapping(Data_Get_t* get, uint8_t point_num, Data_type_t point_type, Welding_Pattern_t pattern_type, uint8_t welding_speed, Mapping_State_t map_state);
+void Send_mapping(Data_Get_t* get, uint8_t point_num, Data_type_t point_type, Welding_Pattern_t pattern_type, Speed_t welding_speed, Mapping_State_t map_state);
 void Send_preview(Data_Get_t* get, uint16_t point_num);
 
 void Send_move(Data_Get_t* get, Ctrl_Mode_t control_mode, Move_Mode_t move_mode, Move_Var_t var_type, Move_Sign_t move_sign, float value);
 void Send_running(Data_Get_t* get, Run_State_t state);
 
-void Req_data(Data_Get_t* get);
+void Req_data(Data_Get_t* get, Req_t data);
  
-void Send_requested_data(Data_Get_t* get, float* cartesian_value, float* joint_value, uint8_t welding_point, Welding_Pattern_t pattern_type, uint8_t welding_speed);
+void Send_requested_data(Data_Get_t* get, float* cartesian_value, float* joint_value, uint8_t welding_point, Welding_Pattern_t pattern_type, Speed_t welding_speed);
 
 void Send_motor_state(Data_Get_t* get, Motor_State_t state);
 void Send_welder_state(Data_Get_t* get, Welder_State_t state);
 
 void Send_feedback(Data_Get_t* get, Feedback_t fdbck);
 
-void Send_standby(Data_Get_t* get);
+void Send_reset_state(Data_Get_t* get);
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 /*RECIEVING COMMAND*/
