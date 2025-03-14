@@ -32,7 +32,7 @@
 "stm32 arm manipulator pendant rtos\stream_buffer.o"
 "stm32 arm manipulator pendant rtos\tasks.o"
 "stm32 arm manipulator pendant rtos\timers.o"
-"stm32 arm manipulator pendant rtos\cmsis_os.o"
+"stm32 arm manipulator pendant rtos\cmsis_os2.o"
 "stm32 arm manipulator pendant rtos\heap_4.o"
 "stm32 arm manipulator pendant rtos\port.o"
 --strict --scatter "STM32 Arm Manipulator Pendant RTOS\STM32 Arm Manipulator Pendant RTOS.sct"

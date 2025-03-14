@@ -29,12 +29,14 @@
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
+typedef StaticTask_t osStaticThreadDef_t;
+typedef StaticEventGroup_t osStaticEventGroupDef_t;
 /* USER CODE BEGIN PTD */
 
 //--- LCD MENU TYPEDEF ---//
 ////////////////////////////
 typedef enum{
-	EMERGENCY_MENU1,
+	EMERGENCY_MENU1 = 1,
 	EMERGENCY_MENU2,
 	EMERGENCY_MENU3,
 	BOOTING_MENU,
@@ -138,9 +140,50 @@ TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart1;
 
-osThreadId interfaceTaskHandle;
-osThreadId receiveTaskHandle;
-osThreadId lcdTaskHandle;
+/* Definitions for interfaceTask */
+osThreadId_t interfaceTaskHandle;
+uint32_t interfaceTaskBuffer[ 256 ];
+osStaticThreadDef_t interfaceTaskControlBlock;
+const osThreadAttr_t interfaceTask_attributes = {
+  .name = "interfaceTask",
+  .cb_mem = &interfaceTaskControlBlock,
+  .cb_size = sizeof(interfaceTaskControlBlock),
+  .stack_mem = &interfaceTaskBuffer[0],
+  .stack_size = sizeof(interfaceTaskBuffer),
+  .priority = (osPriority_t) osPriorityHigh,
+};
+/* Definitions for receiveTask */
+osThreadId_t receiveTaskHandle;
+uint32_t receiveTaskBuffer[ 128 ];
+osStaticThreadDef_t receiveTaskControlBlock;
+const osThreadAttr_t receiveTask_attributes = {
+  .name = "receiveTask",
+  .cb_mem = &receiveTaskControlBlock,
+  .cb_size = sizeof(receiveTaskControlBlock),
+  .stack_mem = &receiveTaskBuffer[0],
+  .stack_size = sizeof(receiveTaskBuffer),
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for lcdTask */
+osThreadId_t lcdTaskHandle;
+uint32_t lcdTaskBuffer[ 128 ];
+osStaticThreadDef_t lcdTaskControlBlock;
+const osThreadAttr_t lcdTask_attributes = {
+  .name = "lcdTask",
+  .cb_mem = &lcdTaskControlBlock,
+  .cb_size = sizeof(lcdTaskControlBlock),
+  .stack_mem = &lcdTaskBuffer[0],
+  .stack_size = sizeof(lcdTaskBuffer),
+  .priority = (osPriority_t) osPriorityRealtime,
+};
+/* Definitions for lcdUpdate */
+osEventFlagsId_t lcdUpdateHandle;
+osStaticEventGroupDef_t lcdUpdateControlBlock;
+const osEventFlagsAttr_t lcdUpdate_attributes = {
+  .name = "lcdUpdate",
+  .cb_mem = &lcdUpdateControlBlock,
+  .cb_size = sizeof(lcdUpdateControlBlock),
+};
 /* USER CODE BEGIN PV */
 
 /*PENDANT GLOBAL VARIABLE*/
@@ -279,9 +322,9 @@ static void MX_I2C2_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
-void StartInterfaceTask(void const * argument);
-void StartReceiveTask(void const * argument);
-void StartLCDTask(void const * argument);
+void StartInterfaceTask(void *argument);
+void StartReceiveTask(void *argument);
+void StartLCDTask(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -292,6 +335,8 @@ void blink_led(uint8_t delay_time, uint8_t count);
 void ui_handler(void);
 void show_menu(LCD_Menu_t menu);
 void reset_counter(void);
+void lcd_update(void);
+void change_menu(LCD_Menu_t menu);
 bool check_numkeys_pressed(void);
 
 // EEPROM HANDLER FUNCTION PROTOTYPE
@@ -403,10 +448,9 @@ int main(void)
 			blink_led(50, 1);
 		}
 	};
-	select_menu = BOOTING_MENU;
 	lcd_clear();
 	HAL_Delay(10);
-	show_menu(select_menu);
+	show_menu(BOOTING_MENU);
 	blink_led(100, 2);
 	#endif
 	//---------------------------------
@@ -442,9 +486,9 @@ int main(void)
 	EEPROM_ByteRead(&eeprom1, 511, 0, eeprom1.dummy_byte, 1);
 	if(eeprom1.status != EEPROM_OK){
 		lcd_clear();
-		HAL_Delay(5);
+		HAL_Delay(10);
 		while(1){ 
-			select_menu = EEPROM_ERR_MENU;
+			show_menu(EEPROM_ERR_MENU);
 			blink_led(50, 1);
 		}
 	}
@@ -470,8 +514,6 @@ int main(void)
 	
 	Keypad_Init(&keypad, makeKeymap(key), num_rows, num_cols);
 	blink_led(100, 2);
-	
-	HAL_TIM_Base_Start_IT(&htim3);
 	#endif
 	//---------------------------------------------------------
 	
@@ -481,7 +523,7 @@ int main(void)
 	lcd_clear();
 	HAL_Delay(5);
 	select_menu = HOME_MENU;
-	HAL_Delay(100);
+	HAL_Delay(500);
 	prep_done = true;
 	//------------------------------------------
 	
@@ -494,6 +536,9 @@ int main(void)
 	
 
   /* USER CODE END 2 */
+
+  /* Init scheduler */
+  osKernelInitialize();
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
@@ -512,21 +557,26 @@ int main(void)
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
-  /* definition and creation of interfaceTask */
-  osThreadDef(interfaceTask, StartInterfaceTask, osPriorityNormal, 0, 256);
-  interfaceTaskHandle = osThreadCreate(osThread(interfaceTask), NULL);
+  /* creation of interfaceTask */
+  interfaceTaskHandle = osThreadNew(StartInterfaceTask, NULL, &interfaceTask_attributes);
 
-  /* definition and creation of receiveTask */
-  osThreadDef(receiveTask, StartReceiveTask, osPriorityLow, 0, 128);
-  receiveTaskHandle = osThreadCreate(osThread(receiveTask), NULL);
+  /* creation of receiveTask */
+  receiveTaskHandle = osThreadNew(StartReceiveTask, NULL, &receiveTask_attributes);
 
-  /* definition and creation of lcdTask */
-  osThreadDef(lcdTask, StartLCDTask, osPriorityHigh, 0, 128);
-  lcdTaskHandle = osThreadCreate(osThread(lcdTask), NULL);
+  /* creation of lcdTask */
+  lcdTaskHandle = osThreadNew(StartLCDTask, NULL, &lcdTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
+
+  /* Create the event(s) */
+  /* creation of lcdUpdate */
+  lcdUpdateHandle = osEventFlagsNew(&lcdUpdate_attributes);
+
+  /* USER CODE BEGIN RTOS_EVENTS */
+  /* add events, ... */
+  /* USER CODE END RTOS_EVENTS */
 
   /* Start scheduler */
   osKernelStart();
@@ -836,8 +886,6 @@ void blink_led(uint8_t delay_time, uint8_t count){
 /*--- USER INTERFACE HANDLER ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void ui_handler(void){
-	Start_get_command(&command);
-	
 	// Get Request
 	if(command.type == SEND_REQ){
 		for(int i=0; i<6; i++){
@@ -849,24 +897,19 @@ void ui_handler(void){
 	// Read Keypad
 	keys = Keypad_Read(&keypad);
 	if(keys != prev_keys && keys != 0x00){
-		lcd_clear();
-		osDelay(5);
+		lcd_update();
 	}
 	
 	/* EMERGENCY MENU HANDLER *////////////////////////////////////////////////
 	if(select_menu == EMERGENCY_MENU1){
 		if(HAL_GPIO_ReadPin(EMERGENCY_GPIO_Port, EMERGENCY_Pin) == GPIO_PIN_SET){
-			lcd_clear();
-			osDelay(5);
-			select_menu = HOMING_MENU;
+			change_menu(HOMING_MENU);
 		}
 	}
 	
 	else if(select_menu == EMERGENCY_MENU2 || select_menu == EMERGENCY_MENU3){
 		if(keys == '.' && prev_keys != keys){
-			lcd_clear();
-			osDelay(5);
-			select_menu = HOME_MENU;
+			change_menu(HOME_MENU);
 		}
 	}
 	///////////////////////////////////////////////////////////////////////////
@@ -876,14 +919,10 @@ void ui_handler(void){
 	else if(select_menu == AUTO_HOME_MENU){
 		keys = Keypad_Read(&keypad);
 		if(keys == '#' && prev_keys != keys){
-			lcd_clear();
-			osDelay(5);
-			select_menu = HOMING_MENU;
+			change_menu(HOMING_MENU);
 		}
 		else if(keys == '.' && prev_keys != keys){
-			lcd_clear();
-			osDelay(5);
-			select_menu = HOME_MENU;
+			change_menu(HOME_MENU);
 		}
 	}
 	////////////////////////////////////////////////////////////////////////
@@ -895,9 +934,7 @@ void ui_handler(void){
 		while(1){
 			Send_auto_home(&command);
 			if(command.feedback == AUTO_HOME_DONE){
-				lcd_clear();
-				osDelay(5);
-				select_menu = HOME_MENU;
+				change_menu(HOME_MENU);
 				break;
 			}
 		}
@@ -911,7 +948,7 @@ void ui_handler(void){
 
 		// AUTO HOME ************************
 		if(keys == 'Q' && prev_keys != keys){
-			select_menu = AUTO_HOME_MENU;
+			change_menu(AUTO_HOME_MENU);
 		}
 		// **********************************
 		
@@ -954,8 +991,7 @@ void ui_handler(void){
 			while(1){
 				saved_dist = false;
 				if(keys != prev_keys && keys != 0x00){
-					lcd_clear();
-					osDelay(5);
+					lcd_update();
 				}
 				
 				// INSERT VALUE
@@ -1064,7 +1100,7 @@ void ui_handler(void){
 			home_state = false;
 			run_mode_counter = 0;
 			mapped_point_counter = 0;  
-			select_menu = PREP_MENU;
+			change_menu(PREP_MENU);
 			strcpy(string_preview, "-");
 		}
 		// **********************************
@@ -1080,7 +1116,7 @@ void ui_handler(void){
 		
 		// BACK TO HOME MENU *****************
 		if(keys == '.' && prev_keys != keys){
-			select_menu = HOME_MENU;
+			change_menu(HOME_MENU);
 			reset_counter();
 			strcpy(string_distance, "0");
 			distance_val = 0;
@@ -1114,7 +1150,7 @@ void ui_handler(void){
 			// MAPPING RUN
 			else if(keys == '#' && prev_keys != keys){
 				mapping_state = true;
-				select_menu = MAPPING_MENU;
+				change_menu(MAPPING_MENU);
 				mapping_menu_counter = 0;
 			}
 		}
@@ -1130,8 +1166,7 @@ void ui_handler(void){
 				
 				while(1){
 					if(keys != prev_keys && keys != 0x00){
-						lcd_clear();
-						osDelay(5);
+						lcd_update();
 					}
 					saved_prev = false;
 					
@@ -1166,7 +1201,7 @@ void ui_handler(void){
 			// PREVIEW RUN
 			else if(keys == '#' && prev_keys != keys){
 				preview_state = true;
-				select_menu = PREVIEW_MENU;
+				change_menu(PREVIEW_MENU);
 				mapping_menu_counter = 0;
 			}
 		}
@@ -1179,10 +1214,13 @@ void ui_handler(void){
 			if(keys == '#' && prev_keys != keys){
 				welding_state = true;
 				Send_running(&command, RUNNING_START);
-				select_menu = WELDING_MENU;
+				
+				change_menu(WELDING_MENU);
+				
 				move_var_counter = 0;
 				mapping_menu_counter = 0;
 				ctrl_mode_counter = 0;
+				
 				preview_point = command.welding_point_num;
 				preview_pattern = command.pattern_type;
 				preview_speed = command.running_speed;
@@ -1197,10 +1235,11 @@ void ui_handler(void){
 	else if(select_menu == MAPPING_MENU){
 		// BACK TO PREPARATION MENU **************************************
 		if(keys == '.' && prev_keys != keys && mapping_menu_counter == 0){
-			run_mode_counter = 0;
-			select_menu = PREP_MENU;
+			change_menu(PREP_MENU);
+			
 			reset_counter();
 			strcpy(string_distance, "0");
+			run_mode_counter = 0;
 			distance_val = 0;
 		}
 		// ***************************************************************
@@ -1248,8 +1287,7 @@ void ui_handler(void){
 				while(1){
 					saved_dist = false;
 					if(keys != prev_keys && keys != 0x00){
-						lcd_clear();
-						osDelay(5);
+						lcd_update();
 					}
 					
 					// INSERT VALUE
@@ -1403,12 +1441,11 @@ void ui_handler(void){
 					}
 				}
 				
-				lcd_clear();  
-				osDelay(5);
-				select_menu = POINT_SET_MENU;
+				change_menu(POINT_SET_MENU);
+				
 				osDelay(1500);
-				lcd_clear();
-				select_menu = MAPPING_MENU;
+				
+				change_menu(MAPPING_MENU);
 			}
 			
 			// UNSET MAPPING POINT 
@@ -1430,14 +1467,12 @@ void ui_handler(void){
 					}
 				}
 				
-				lcd_clear(); 
-				osDelay(5);
-				select_menu = POINT_UNSET_MENU;
+				change_menu(POINT_UNSET_MENU);
+				
 				Update_Data(UPDATE_ALL);
 				osDelay(1500);
-				lcd_clear();
-				osDelay(5);
-				select_menu = MAPPING_MENU;
+				
+				change_menu(MAPPING_MENU);
 			}
 		}
 		// *******************************************************************************************
@@ -1473,25 +1508,21 @@ void ui_handler(void){
 					}
 					Save_WeldingData(start_point_counter, pattern_sel_counter, speed_mode_counter);
 					
-					lcd_clear(); 
-					osDelay(5);
-					select_menu = MAPPING_SAVE_MENU;
+					change_menu(MAPPING_SAVE_MENU);
+					
 					Update_Data(UPDATE_ALL);
 					osDelay(1500);
-					lcd_clear();
-					osDelay(5);
-					select_menu = MAPPING_MENU;
+					
+					change_menu(MAPPING_MENU);
 					mapping_menu_counter = 0;
 				}
 				
 				else{
-					lcd_clear(); 
-					osDelay(5);
-					select_menu = MAPPING_ERR_MENU;
+					change_menu(MAPPING_ERR_MENU);
+					
 					osDelay(3000);
-					lcd_clear();
-					osDelay(5);
-					select_menu = MAPPING_MENU;
+					
+					change_menu(MAPPING_MENU);
 					mapping_menu_counter = 1;
 				}
 			}
@@ -1511,20 +1542,19 @@ void ui_handler(void){
 				keys = Keypad_Read(&keypad);
 				
 				if(keys != prev_keys && keys != 0x00){
-					lcd_clear();
-					osDelay(5);
+					lcd_update();
 				}
 				
 				if(command.feedback == CURRENT_POINT_DONE){
 					move_mode_counter = 0;
 					ctrl_mode_counter = 0;
 					move_var_counter = 0;
-					select_menu = HOME_MENU;
+					change_menu(HOME_MENU);
 					break;
 				}
 				
 				if(keys == '.' && prev_keys != keys){
-					select_menu = STOP_MENU;
+					change_menu(STOP_MENU);
 				}
 				
 				prev_keys = keys;
@@ -1532,13 +1562,11 @@ void ui_handler(void){
 		}
 		
 		else if((preview_point & mapped_points[preview_point-1]) != preview_point || preview_point == 0 || preview_speed == 0){
-			lcd_clear();
-			osDelay(5);
-			select_menu = PREVIEW_ERR_MENU;
+			change_menu(PREVIEW_ERR_MENU);
+			
 			osDelay(2000);
-			lcd_clear();
-			osDelay(5);
-			select_menu = PREP_MENU;
+			
+			change_menu(PREP_MENU);
 			run_mode_counter = 1;
 		}
 	}
@@ -1553,7 +1581,7 @@ void ui_handler(void){
 		
 		// PAUSE MENU ***********************
 		if(keys == 'Q' && prev_keys != keys){
-			select_menu = PAUSE_MENU;
+			change_menu(PAUSE_MENU);
 		}
 		// **********************************
 		
@@ -1577,40 +1605,38 @@ void ui_handler(void){
 		// STOP MENU *****************************
 		else if(keys == '.' && prev_keys != keys){
 			Send_running(&command, RUNNING_STOP);
-			select_menu = STOP_MENU;
+			change_menu(STOP_MENU);
 		}
 		// ***************************************
 		
 		if(emergency_state == true){
-			lcd_clear();
-			osDelay(10);
-			select_menu = EMERGENCY_MENU1;
+			lcd_update();
+			change_menu(EMERGENCY_MENU1);
 		}
 	}
 	//////////////////////////////////////////////////////////
 	
 	
-	/* PAUSE MENU HANDLER *///////////////////////////////
+	/* PAUSE MENU HANDLER */////////////////////
 	else if(select_menu == PAUSE_MENU){
-		// CONTINUE MENU ***********************************
+		// CONTINUE MENU *************************
 		while(1){
 			keys = Keypad_Read(&keypad);
 			if(keys != prev_keys && keys != 0x00){
-				lcd_clear();
-				osDelay(5);
+				lcd_update();
 			}
 			
 			Send_running(&command, RUNNING_PAUSE);
 			if(keys == '#' && prev_keys != keys){
 				Send_running(&command, RUNNING_START);
-				select_menu = WELDING_MENU;
+				change_menu(WELDING_MENU);
 			}
 			
 			prev_keys = keys;
 		}
-		// *************************************************
+		// **************************************
 	}
-	//////////////////////////////////////////////////////
+	///////////////////////////////////////////
 	
 	
 	/* STOP MENU HANDLER */////////////////////
@@ -1623,7 +1649,8 @@ void ui_handler(void){
 				move_mode_counter = 0,
 				move_var_counter = 0,
 				run_mode_counter = 0,
-				select_menu = HOME_MENU;
+				
+				change_menu(HOME_MENU);
 				break;
 			}
 		}
@@ -2331,6 +2358,23 @@ void reset_counter(void){
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
+/*--- LCD UPDATE ---*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void lcd_update(void){
+	osEventFlagsSet(lcdUpdateHandle, 0x01);
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*--- LCD MENU CHANGE ---*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void change_menu(LCD_Menu_t menu){
+	lcd_update();
+	select_menu = menu;
+}
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
 /*--- CHECK PRESSED NUMKEYS ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 bool check_numkeys_pressed(void){
@@ -2421,7 +2465,7 @@ void Format_mem(void){
   * @retval None
   */
 /* USER CODE END Header_StartInterfaceTask */
-void StartInterfaceTask(void const * argument)
+void StartInterfaceTask(void *argument)
 {
   /* USER CODE BEGIN 5 */
   /* Infinite loop */
@@ -2440,7 +2484,7 @@ void StartInterfaceTask(void const * argument)
 * @retval None
 */
 /* USER CODE END Header_StartReceiveTask */
-void StartReceiveTask(void const * argument)
+void StartReceiveTask(void *argument)
 {
   /* USER CODE BEGIN StartReceiveTask */
   /* Infinite loop */
@@ -2448,17 +2492,17 @@ void StartReceiveTask(void const * argument)
   {
 		Start_get_command(&command);
 		
-		if(command.feedback == ANGLE_SOFT_LIMIT){
-			lcd_clear();
-			osDelay(10);
-			select_menu = EMERGENCY_MENU2;
-			command.feedback = NO_FEEDBACK;
-		}
-		else if(command.feedback == ANGLE_HARD_LIMIT){
-			lcd_clear();
-			osDelay(10);
-			select_menu = EMERGENCY_MENU3;
-			command.feedback = NO_FEEDBACK;
+		if(command.type == FEEDBACK){
+			if(command.feedback == ANGLE_SOFT_LIMIT){
+				lcd_update();
+				select_menu = EMERGENCY_MENU2;
+				command.feedback = NO_FEEDBACK;
+			}
+			else if(command.feedback == ANGLE_HARD_LIMIT){
+				lcd_update();
+				select_menu = EMERGENCY_MENU3;
+				command.feedback = NO_FEEDBACK;
+			}
 		}
 		
     osDelay(1);
@@ -2473,13 +2517,23 @@ void StartReceiveTask(void const * argument)
 * @retval None
 */
 /* USER CODE END Header_StartLCDTask */
-void StartLCDTask(void const * argument)
+void StartLCDTask(void *argument)
 {
   /* USER CODE BEGIN StartLCDTask */
   /* Infinite loop */
   for(;;)
   {
-		show_menu((LCD_Menu_t)select_menu);
+		uint8_t update_flag;
+		
+		update_flag = osEventFlagsGet(lcdUpdateHandle);
+		
+		if(update_flag & 0x01){
+			lcd_clear();
+			osDelay(10);
+			osEventFlagsClear(lcdUpdateHandle, 0x01);
+		}
+		
+		show_menu(select_menu);
     osDelay(50);
   } 
   /* USER CODE END StartLCDTask */

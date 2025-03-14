@@ -29,7 +29,8 @@ stm32 arm manipulator pendant rtos\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/s
 stm32 arm manipulator pendant rtos\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h
 stm32 arm manipulator pendant rtos\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h
 stm32 arm manipulator pendant rtos\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h
-stm32 arm manipulator pendant rtos\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.h
+stm32 arm manipulator pendant rtos\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os.h
+stm32 arm manipulator pendant rtos\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h
 stm32 arm manipulator pendant rtos\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
 stm32 arm manipulator pendant rtos\main.o: ../Core/Inc/FreeRTOSConfig.h
 stm32 arm manipulator pendant rtos\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
@@ -37,12 +38,6 @@ stm32 arm manipulator pendant rtos\main.o: ../Middlewares/Third_Party/FreeRTOS/S
 stm32 arm manipulator pendant rtos\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/deprecated_definitions.h
 stm32 arm manipulator pendant rtos\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM3/portmacro.h
 stm32 arm manipulator pendant rtos\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/mpu_wrappers.h
-stm32 arm manipulator pendant rtos\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h
-stm32 arm manipulator pendant rtos\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/list.h
-stm32 arm manipulator pendant rtos\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/timers.h
-stm32 arm manipulator pendant rtos\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h
-stm32 arm manipulator pendant rtos\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h
-stm32 arm manipulator pendant rtos\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/event_groups.h
 stm32 arm manipulator pendant rtos\main.o: ../MDK-ARM/LCD_I2C.h
 stm32 arm manipulator pendant rtos\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h
 stm32 arm manipulator pendant rtos\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
