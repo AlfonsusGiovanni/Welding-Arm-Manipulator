@@ -49,8 +49,6 @@ extern "C" {
 
 /* USER CODE END EM */
 
-void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
-
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 
@@ -61,17 +59,20 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define LED_Pin GPIO_PIN_13
 #define LED_GPIO_Port GPIOC
-#define ENC_IN_Pin GPIO_PIN_0
+#define KEY1_Pin GPIO_PIN_0
+#define KEY1_GPIO_Port GPIOA
+#define KEY1_EXTI_IRQn EXTI0_IRQn
+#define KEY2_Pin GPIO_PIN_1
+#define KEY2_GPIO_Port GPIOA
+#define KEY2_EXTI_IRQn EXTI1_IRQn
+#define ENC_IN_Pin GPIO_PIN_5
 #define ENC_IN_GPIO_Port GPIOA
-#define LIMIT_SWITCH_Pin GPIO_PIN_1
-#define LIMIT_SWITCH_GPIO_Port GPIOA
-#define LIMIT_SWITCH_EXTI_IRQn EXTI1_IRQn
-#define DIR1_Pin GPIO_PIN_13
-#define DIR1_GPIO_Port GPIOB
-#define PUL1_Pin GPIO_PIN_14
-#define PUL1_GPIO_Port GPIOB
-#define ENC_OUT_Pin GPIO_PIN_8
-#define ENC_OUT_GPIO_Port GPIOA
+#define DIR_Pin GPIO_PIN_9
+#define DIR_GPIO_Port GPIOA
+#define PUL_Pin GPIO_PIN_10
+#define PUL_GPIO_Port GPIOA
+#define ENA_Pin GPIO_PIN_11
+#define ENA_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 

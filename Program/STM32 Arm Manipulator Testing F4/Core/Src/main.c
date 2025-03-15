@@ -25,6 +25,7 @@
 #include "AS5600_Driver.h"
 #include "RS232_Driver.h"
 #include "ArmRobot_Math.h"
+#include "DWT_Delay.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -37,10 +38,12 @@ Kinematics_t kinematics;
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
+#define USE_BUTTON
+
+#define TEST_STEPPER
 //#define TEST_ENCODER
 //#define TEST_COM
-//#define TEST_LIMIT_SWITCH
-#define TEST_FORWARD_KINEMATICS
+//#define TEST_KINEMATICS
 
 /* USER CODE END PD */
 
@@ -52,12 +55,11 @@ Kinematics_t kinematics;
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 
-TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart1;
-UART_HandleTypeDef huart6;
+UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
@@ -78,32 +80,54 @@ joint_alpha[6] = {
 	-90.0, 90.0, 0.0,
 };
 
+
 // INVERSE KINEMATICS VARIABLE
 double
 ik_pos_input[6],
 ik_angle_output[6];
+
 
 // FORWARD KINEMATICS VARIABLE
 double
 fk_angle_input[6],
 fk_pos_output[6];
 
-// TESTING VARIABLE
-bool
-btn_state,
-get_data_flag;
 
-unsigned long
-get_data_timer;
+// STEPPER VARIABLE
+bool 
+step_start = false;
 
 uint8_t
+pulse_count,
 stepper_ratio = 90,
-enc_mag_status,
 processed_buff[5],
 rx_buff[80];
 
 uint16_t
+base_freq = 1000,
+step_freq,
+step_period,
+t_on, t_off,
 stepper_microstep = 800;
+
+uint32_t
+timer_counter,
+step_counter,
+step_input;
+
+
+// RS-232 VARIABLE
+bool get_data_flag;
+unsigned long get_data_timer;
+
+
+// ENCODER VARIABLE
+bool
+btn1_state = false,
+btn2_state = false;
+
+uint8_t
+enc_mag_status;
 
 uint32_t 
 enc_counter,
@@ -122,6 +146,11 @@ reduced_cal_enc_angle,
 enc_joint_angle,
 prev_enc_joint_angle;
 
+// Timer
+unsigned long
+start_timer,
+end_timer;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -129,27 +158,62 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_TIM2_Init(void);
-static void MX_TIM1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM3_Init(void);
-static void MX_USART6_UART_Init(void);
+static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 void uart_receive(uint8_t *msg_buff, uint16_t len);
 void uart_transmit(uint8_t *msg, uint16_t len);
 void process_data(uint8_t *data, uint16_t len);
 
+void move_stepper(uint32_t step, uint8_t dir, uint32_t freq);
+uint32_t calculate_exponential_step_interval(uint32_t step);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-#ifdef TEST_ENCODER
+#ifdef USE_BUTTON 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_PIN){
-	if(GPIO_PIN == LIMIT_SWITCH_Pin){
+	if(GPIO_PIN == KEY1_Pin){
+		btn1_state = (HAL_GPIO_ReadPin(KEY1_GPIO_Port, KEY1_Pin) == GPIO_PIN_RESET);
 		cal_value = enc_angle;
 	}
+	else if(GPIO_PIN == KEY2_Pin){
+		btn2_state = (HAL_GPIO_ReadPin(KEY2_GPIO_Port, KEY2_Pin) == GPIO_PIN_RESET);
+	}
 }
+#endif
 
+#ifdef TEST_STEPPER
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+	if(htim->Instance == TIM3){
+		timer_counter++;
+		
+		if(step_counter < step_input*0.25) step_period = calculate_exponential_step_interval(step_counter)/2;
+		else step_period = calculate_exponential_step_interval(step_input-step_counter)/2;
+		
+		t_on = step_period * 0.5;
+		t_off = step_period - t_on;
+		
+		if(timer_counter < t_on) HAL_GPIO_WritePin(PUL_GPIO_Port, PUL_Pin, GPIO_PIN_SET);
+		else if(timer_counter >= t_on && timer_counter < step_period-1) HAL_GPIO_WritePin(PUL_GPIO_Port, PUL_Pin, GPIO_PIN_RESET);
+		else if(timer_counter == step_period-1){
+			timer_counter = 0;
+			step_counter++;
+		}
+		
+		if(step_start == false || step_counter >= step_input){
+			HAL_TIM_Base_Stop_IT(&htim3);
+			timer_counter = 0;
+			step_counter = 0;
+		}
+	}
+}
+#endif
+
+#ifdef TEST_ENCODER
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 	if(htim->Instance == TIM2){
 		cycle_time = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
@@ -173,20 +237,13 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 
 #ifdef TEST_COM
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){	
-	if(huart->Instance == USART1){
+	if(huart->Instance == USART2){
 		get_data_timer = HAL_GetTick();
 		get_data_flag = true;
 	}
 }
 #endif
 
-#ifdef TEST_LIMIT_SWITCH
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_PIN){
-	if(GPIO_PIN == LIMIT_SWITCH_Pin){
-		btn_state = (HAL_GPIO_ReadPin(LIMIT_SWITCH_GPIO_Port, LIMIT_SWITCH_Pin) == GPIO_PIN_RESET);
-	}
-}
-#endif
 /* USER CODE END 0 */
 
 /**
@@ -219,13 +276,17 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C1_Init();
   MX_TIM2_Init();
-  MX_TIM1_Init();
   MX_USART1_UART_Init();
   MX_TIM3_Init();
-  MX_USART6_UART_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
 	HAL_Delay(1000);
+	
+	#ifdef TEST_STEPPER
+	HAL_GPIO_WritePin(ENA_GPIO_Port, ENA_Pin, GPIO_PIN_RESET);
+	DWT_Delay_Init();
+	#endif
 	
 	#ifdef TEST_ENCODER
 	AS5600_Init(&hi2c1, DIGITAL_PWM);
@@ -239,23 +300,24 @@ int main(void)
 	
 	#ifdef TEST_COM
 	RS232_Init(&main_command, &huart1);
-	RS232_Init(&pendant_command, &huart6);
+	RS232_Init(&pendant_command, &huart2);
 	#endif
 	
-	#ifdef TEST_FORWARD_KINEMATICS
+	#ifdef TEST_KINEMATICS
 	DHparam_init(&kinematics, joint_d, joint_a, joint_alpha);
 	tollframe_init(&kinematics, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
 	forward_transform_matrix(&kinematics);
 	calculate_all_link(&kinematics);
 	#endif
 	
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
 	{
+		#ifdef TEST_KINEMATICS
 		fk_angle_input[0] = 0;
 		fk_angle_input[1] = 0;
 		fk_angle_input[2] = 0;
@@ -269,6 +331,15 @@ int main(void)
 		run_inverse_kinematic(&kinematics, kinematics.axis_pos_out[0], kinematics.axis_pos_out[1], kinematics.axis_pos_out[2], kinematics.axis_rot_out[0], kinematics.axis_rot_out[1], kinematics.axis_rot_out[2]);
 		find_jacobian_variable(&kinematics);
 		check_singularity(&kinematics);
+		#endif
+		
+		#ifdef TEST_STEPPER
+		move_stepper(32000, 0, 5000);
+		
+		if(btn1_state == true){
+			step_start = false;
+		}
+		#endif 
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -356,81 +427,6 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
-
-}
-
-/**
-  * @brief TIM1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM1_Init(void)
-{
-
-  /* USER CODE BEGIN TIM1_Init 0 */
-
-  /* USER CODE END TIM1_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_OC_InitTypeDef sConfigOC = {0};
-  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
-
-  /* USER CODE BEGIN TIM1_Init 1 */
-
-  /* USER CODE END TIM1_Init 1 */
-  htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 84;
-  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 100;
-  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim1.Init.RepetitionCounter = 0;
-  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_PWM_Init(&htim1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
-  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
-  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
-  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-  sBreakDeadTimeConfig.DeadTime = 0;
-  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
-  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
-  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
-  if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM1_Init 2 */
-
-  /* USER CODE END TIM1_Init 2 */
-  HAL_TIM_MspPostInit(&htim1);
 
 }
 
@@ -529,7 +525,7 @@ static void MX_TIM3_Init(void)
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 0;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 83;
+  htim3.Init.Period = 839;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -587,35 +583,35 @@ static void MX_USART1_UART_Init(void)
 }
 
 /**
-  * @brief USART6 Initialization Function
+  * @brief USART2 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_USART6_UART_Init(void)
+static void MX_USART2_UART_Init(void)
 {
 
-  /* USER CODE BEGIN USART6_Init 0 */
+  /* USER CODE BEGIN USART2_Init 0 */
 
-  /* USER CODE END USART6_Init 0 */
+  /* USER CODE END USART2_Init 0 */
 
-  /* USER CODE BEGIN USART6_Init 1 */
+  /* USER CODE BEGIN USART2_Init 1 */
 
-  /* USER CODE END USART6_Init 1 */
-  huart6.Instance = USART6;
-  huart6.Init.BaudRate = 115200;
-  huart6.Init.WordLength = UART_WORDLENGTH_8B;
-  huart6.Init.StopBits = UART_STOPBITS_1;
-  huart6.Init.Parity = UART_PARITY_NONE;
-  huart6.Init.Mode = UART_MODE_TX_RX;
-  huart6.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart6.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart6) != HAL_OK)
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN USART6_Init 2 */
+  /* USER CODE BEGIN USART2_Init 2 */
 
-  /* USER CODE END USART6_Init 2 */
+  /* USER CODE END USART2_Init 2 */
 
 }
 
@@ -640,7 +636,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, DIR1_Pin|PUL1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, DIR_Pin|PUL_Pin|ENA_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : LED_Pin */
   GPIO_InitStruct.Pin = LED_Pin;
@@ -649,28 +645,31 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LIMIT_SWITCH_Pin */
-  GPIO_InitStruct.Pin = LIMIT_SWITCH_Pin;
+  /*Configure GPIO pins : KEY1_Pin KEY2_Pin */
+  GPIO_InitStruct.Pin = KEY1_Pin|KEY2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(LIMIT_SWITCH_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : DIR1_Pin */
-  GPIO_InitStruct.Pin = DIR1_Pin;
+  /*Configure GPIO pins : DIR_Pin ENA_Pin */
+  GPIO_InitStruct.Pin = DIR_Pin|ENA_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(DIR1_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PUL1_Pin */
-  GPIO_InitStruct.Pin = PUL1_Pin;
+  /*Configure GPIO pin : PUL_Pin */
+  GPIO_InitStruct.Pin = PUL_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  HAL_GPIO_Init(PUL1_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(PUL_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI1_IRQn, 11, 0);
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
@@ -686,7 +685,7 @@ void uart_receive(uint8_t *msg_buff, uint16_t len){
 
 /*  UART TRANSMIT FUNCTION */
 void uart_transmit(uint8_t *msg, uint16_t len){
-	if(btn_state == true){
+	if(btn1_state == true){
 		HAL_UART_Transmit_IT(&huart1, msg, len);
 	}
 }
@@ -703,6 +702,28 @@ void process_data(uint8_t *data, uint16_t len){
 	if(HAL_GetTick() - get_data_timer > 100 && get_data_flag == false){
 		memset(&processed_buff, 0x00, sizeof(processed_buff));
 		get_data_timer = HAL_GetTick();
+	}
+}
+
+/* STEPPER INTERVAL CALCULATION */
+uint32_t calculate_exponential_step_interval(uint32_t step){
+	if (step == 0) return 100000 / base_freq;  // Initial delay
+
+	float freq = base_freq + (step_freq - base_freq) * (1 - expf(-0.001 * step));
+	return (uint32_t)(100000.0f / freq);  // Convert frequency to step delay
+}
+
+/* STEPPER MOVE FUNCTION */
+void move_stepper(uint32_t step, uint8_t dir, uint32_t freq){	
+	step_input = step;
+	step_freq = freq;
+	
+	if(dir == 0) HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_RESET);
+	else if(dir == 1) HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_SET);
+	
+	if(!step_start){
+		step_start = true;
+		HAL_TIM_Base_Start_IT(&htim3);
 	}
 }
 

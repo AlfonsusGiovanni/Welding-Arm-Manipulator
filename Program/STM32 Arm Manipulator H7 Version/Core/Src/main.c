@@ -462,6 +462,7 @@ tx_welding_point,
 tx_welding_pattern,
 
 rx_move_position[3],
+rx_move_rotation[3],
 rx_move_angle[6];
 
 uint8_t
@@ -909,7 +910,7 @@ int main(void)
 		else if(stepper_microstep[i] == MICROSTEP_VALUE5) stepper_stepfactor[i] = MICROSTEP_FACTOR5;
 		else if(stepper_microstep[i] == MICROSTEP_VALUE6) stepper_stepfactor[i] = MICROSTEP_FACTOR6;
 	}
-
+	
 	step_dir_inv[0] = 0;	// Not Inverted
 	step_dir_inv[1] = 0;	// Not Inverted
 	step_dir_inv[2] = 0;	// Not Inverted
@@ -2254,11 +2255,9 @@ void move_stepper(uint8_t select_joint, uint16_t step, Stepper_Dir_t dir, uint16
 			
 			// Set Stepper Direction
 			if(dir == DIR_CW && step_state[i] == false){
-				step_dir[i] = 0;
 				HAL_GPIO_WritePin(stepper_gpio_port[i+6], stepper_gpio_pin[i+6], GPIO_PIN_RESET);
 			}
 			else if(dir == DIR_CCW && step_state[i] == false){
-				step_dir[i] = 1;
 				HAL_GPIO_WritePin(stepper_gpio_port[i+6], stepper_gpio_pin[i+6], GPIO_PIN_SET);
 			}
 			
@@ -2323,7 +2322,8 @@ void move_world(uint8_t move_var, double move_pos, Speed_t set_speed){
 	else if(set_speed == MED) joint_rpm = 3;
 	else if(set_speed == HIGH) joint_rpm = 4;
 	
-	run_inverse_kinematic(&kinematics, rx_move_position[0], rx_move_position[1], rx_move_position[2], kinematics.axis_rot_out[0], kinematics.axis_rot_out[1], kinematics.axis_rot_out[2]);
+	run_inverse_kinematic(&kinematics, rx_move_position[0], rx_move_position[1], rx_move_position[2], 
+	kinematics.axis_rot_out[0], kinematics.axis_rot_out[1], kinematics.axis_rot_out[2]);	
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 

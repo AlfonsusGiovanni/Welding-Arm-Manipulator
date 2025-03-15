@@ -1,7 +1,7 @@
 Dependencies for Project 'STM32 Arm Manipulator H7 Version', Target 'STM32 Arm Manipulator H7 Version': (DO NOT MODIFY !)
 CompilerVersion: 5060960::V5.06 update 7 (build 960)::.\ARMCC
-F (startup_stm32h743xx.s)(0x67D26EBA)(--cpu Cortex-M7.fp.dp -g --apcs=interwork -I.\RTE\_STM32_Arm_Manipulator_H7_Version-IC:\Users\lenovo\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IC:\Users\lenovo\AppData\Local\Arm\Packs\Keil\STM32H7xx_DFP\3.0.0\Drivers\CMSIS\Device\ST\STM32H7xx\Include--pd "__UVISION_VERSION SETA 536" --pd "_RTE_ SETA 1" --pd "STM32H743xx SETA 1" --pd "_RTE_ SETA 1"--list startup_stm32h743xx.lst --xref -o "stm32 arm manipulator h7 version\startup_stm32h743xx.o" --depend "stm32 arm manipulator h7 version\startup_stm32h743xx.d")
-F (../Core/Src/main.c)(0x67D29DED)(--c99 --gnu -c --cpu Cortex-M7.fp.dp -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32H7xx_HAL_Driver/Inc -I ../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I ../Drivers/CMSIS/Include -I ../MDK-ARM-I.\RTE\_STM32_Arm_Manipulator_H7_Version-IC:\Users\lenovo\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IC:\Users\lenovo\AppData\Local\Arm\Packs\Keil\STM32H7xx_DFP\3.0.0\Drivers\CMSIS\Device\ST\STM32H7xx\Include-D__UVISION_VERSION="536" -D_RTE_ -DSTM32H743xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32H743xx-o "stm32 arm manipulator h7 version\main.o" --omf_browse "stm32 arm manipulator h7 version\main.crf" --depend "stm32 arm manipulator h7 version\main.d")
+F (startup_stm32h743xx.s)(0x67D3E658)(--cpu Cortex-M7.fp.dp -g --apcs=interwork -I.\RTE\_STM32_Arm_Manipulator_H7_Version-IC:\Users\lenovo\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IC:\Users\lenovo\AppData\Local\Arm\Packs\Keil\STM32H7xx_DFP\3.0.0\Drivers\CMSIS\Device\ST\STM32H7xx\Include--pd "__UVISION_VERSION SETA 536" --pd "_RTE_ SETA 1" --pd "STM32H743xx SETA 1" --pd "_RTE_ SETA 1"--list startup_stm32h743xx.lst --xref -o "stm32 arm manipulator h7 version\startup_stm32h743xx.o" --depend "stm32 arm manipulator h7 version\startup_stm32h743xx.d")
+F (../Core/Src/main.c)(0x67D3EAB5)(--c99 --gnu -c --cpu Cortex-M7.fp.dp -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32H7xx_HAL_Driver/Inc -I ../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I ../Drivers/CMSIS/Include -I ../MDK-ARM-I.\RTE\_STM32_Arm_Manipulator_H7_Version-IC:\Users\lenovo\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IC:\Users\lenovo\AppData\Local\Arm\Packs\Keil\STM32H7xx_DFP\3.0.0\Drivers\CMSIS\Device\ST\STM32H7xx\Include-D__UVISION_VERSION="536" -D_RTE_ -DSTM32H743xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32H743xx-o "stm32 arm manipulator h7 version\main.o" --omf_browse "stm32 arm manipulator h7 version\main.crf" --depend "stm32 arm manipulator h7 version\main.d")
 I (../Core/Inc/main.h)(0x67B1745F)
 I (../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal.h)(0x67334DBC)
 I (../Core/Inc/stm32h7xx_hal_conf.h)(0x67B5C8F6)
@@ -40,9 +40,9 @@ I (../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart.h)(0x67334DBC)
 I (../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart_ex.h)(0x67334DBC)
 I (../MDK-ARM/EEPROM_lib.h)(0x6772ECCF)
 I (C:\Keil_v5\ARM\ARMCC\include\string.h)(0x6025318E)
-I (../MDK-ARM/RS232_Driver.h)(0x67D26E0E)
+I (../MDK-ARM/RS232_Driver.h)(0x67D3E8CB)
 I (C:\Keil_v5\ARM\ARMCC\include\stdbool.h)(0x6025318C)
-I (../MDK-ARM/ArmRobot_Math.h)(0x67CE70AE)
+I (../MDK-ARM/ArmRobot_Math.h)(0x67D3E8D4)
 I (../MDK-ARM/ssd1306.h)(0x6735B1EB)
 I (../MDK-ARM/fonts.h)(0x6735A59D)
 I (C:\Keil_v5\ARM\ARMCC\include\stdlib.h)(0x60253184)
@@ -200,7 +200,7 @@ I (../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart.h)(0x67334DBC)
 I (../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart_ex.h)(0x67334DBC)
 I (C:\Keil_v5\ARM\ARMCC\include\string.h)(0x6025318E)
 F (.\RS232_Driver.c)(0x67D26DA5)(--c99 --gnu -c --cpu Cortex-M7.fp.dp -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32H7xx_HAL_Driver/Inc -I ../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I ../Drivers/CMSIS/Include -I ../MDK-ARM-I.\RTE\_STM32_Arm_Manipulator_H7_Version-IC:\Users\lenovo\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IC:\Users\lenovo\AppData\Local\Arm\Packs\Keil\STM32H7xx_DFP\3.0.0\Drivers\CMSIS\Device\ST\STM32H7xx\Include-D__UVISION_VERSION="536" -D_RTE_ -DSTM32H743xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32H743xx-o "stm32 arm manipulator h7 version\rs232_driver.o" --omf_browse "stm32 arm manipulator h7 version\rs232_driver.crf" --depend "stm32 arm manipulator h7 version\rs232_driver.d")
-I (RS232_Driver.h)(0x67D26E0E)
+I (RS232_Driver.h)(0x67D3E8CB)
 I (../Core/Inc/main.h)(0x67B1745F)
 I (../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal.h)(0x67334DBC)
 I (../Core/Inc/stm32h7xx_hal_conf.h)(0x67B5C8F6)
@@ -318,7 +318,7 @@ I (../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_tim_ex.h)(0x67334DBC)
 I (../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart.h)(0x67334DBC)
 I (../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart_ex.h)(0x67334DBC)
 F (.\ArmRobot_Math.c)(0x67CE72D1)(--c99 --gnu -c --cpu Cortex-M7.fp.dp -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32H7xx_HAL_Driver/Inc -I ../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I ../Drivers/CMSIS/Include -I ../MDK-ARM-I.\RTE\_STM32_Arm_Manipulator_H7_Version-IC:\Users\lenovo\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IC:\Users\lenovo\AppData\Local\Arm\Packs\Keil\STM32H7xx_DFP\3.0.0\Drivers\CMSIS\Device\ST\STM32H7xx\Include-D__UVISION_VERSION="536" -D_RTE_ -DSTM32H743xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32H743xx-o "stm32 arm manipulator h7 version\armrobot_math.o" --omf_browse "stm32 arm manipulator h7 version\armrobot_math.crf" --depend "stm32 arm manipulator h7 version\armrobot_math.d")
-I (ArmRobot_Math.h)(0x67CE70AE)
+I (ArmRobot_Math.h)(0x67D3E8D4)
 I (../Core/Inc/main.h)(0x67B1745F)
 I (../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal.h)(0x67334DBC)
 I (../Core/Inc/stm32h7xx_hal_conf.h)(0x67B5C8F6)

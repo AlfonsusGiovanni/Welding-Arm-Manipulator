@@ -42,3 +42,4 @@ stm32 arm manipulator testing f4\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\mat
 stm32 arm manipulator testing f4\main.o: ../MDK-ARM/AS5600_Driver.h
 stm32 arm manipulator testing f4\main.o: ../MDK-ARM/RS232_Driver.h
 stm32 arm manipulator testing f4\main.o: ../MDK-ARM/ArmRobot_Math.h
+stm32 arm manipulator testing f4\main.o: ../MDK-ARM/DWT_Delay.h
