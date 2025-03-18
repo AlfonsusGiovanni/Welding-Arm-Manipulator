@@ -44,3 +44,4 @@ stm32 arm manipulator h7 version\main.o: ../MDK-ARM/ArmRobot_Math.h
 stm32 arm manipulator h7 version\main.o: ../MDK-ARM/ssd1306.h
 stm32 arm manipulator h7 version\main.o: ../MDK-ARM/fonts.h
 stm32 arm manipulator h7 version\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h
+stm32 arm manipulator h7 version\main.o: ../MDK-ARM/PID_Driver.h

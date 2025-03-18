@@ -28,6 +28,7 @@
 #include "stdbool.h"
 #include "stdlib.h"
 #include "math.h"
+#include "PID_Driver.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,6 +51,12 @@ Data_Get_t command;
 // ---------------------
 Kinematics_t kinematics;
 // ---------------------
+
+
+/* PID TYPEDEF*/
+// -------------------
+PIDController pos_pid;
+// -------------------
 
 
 /* OLED TYPEDEF */
@@ -76,7 +83,7 @@ typedef enum{
 /*  LIMIT TYPE TYPEDEF */
 // ----------------------
 typedef enum{
-	ALL_LIMIT_CHECK,
+	ALL_LIMIT_CHECK = 0x01,
 	SOFT_LIMIT_CHECK,
 	HARD_LIMIT_CHECK,
 }Limit_t;
@@ -114,6 +121,7 @@ typedef enum{
 #define USE_STEPPER
 #define USE_ENCODER
 //#define USE_KINEMATICS
+#define USE_PID
 
 //#define TEST_EEPROM
 //#define TEST_RS232
@@ -175,6 +183,12 @@ typedef enum{
 #define STEPPER6_MAXSPD		420
 
 #define SET_DUTY_CYCLE		0.25f
+#define BASE_FREQ					1000
+
+#define STOPPING					0x01
+#define ACCELERATING			0X02
+#define AT_TOP_SPEED			0X03
+#define DECELERATING			0X04
 //-----------------------------
 
 
@@ -183,19 +197,19 @@ typedef enum{
 #define JOINT_NUM					6
 #define AXIS_NUM					3
 
-#define JOINT1_MAX_ANGLE	360.0f
-#define JOINT2_MAX_ANGLE	360.0f
-#define JOINT3_MAX_ANGLE	360.0f
-#define JOINT4_MAX_ANGLE	360.0f
-#define JOINT5_MAX_ANGLE	360.0f
-#define JOINT6_MAX_ANGLE	360.0f
+#define JOINT1_MAX_ANGLE	110.0f
+#define JOINT2_MAX_ANGLE	90.0f
+#define JOINT3_MAX_ANGLE	60.0f
+#define JOINT4_MAX_ANGLE	165.0f
+#define JOINT5_MAX_ANGLE	105.0f
+#define JOINT6_MAX_ANGLE	155.0f
 
-#define JOINT1_MIN_ANGLE	0.0001f
-#define JOINT2_MIN_ANGLE	0.0001f
-#define JOINT3_MIN_ANGLE	0.0001f
-#define JOINT4_MIN_ANGLE	0.0001f
-#define JOINT5_MIN_ANGLE	0.0001f
-#define JOINT6_MIN_ANGLE	0.0001f
+#define JOINT1_MIN_ANGLE	-110.0f
+#define JOINT2_MIN_ANGLE	-60.0f
+#define JOINT3_MIN_ANGLE	-90.0f
+#define JOINT4_MIN_ANGLE	-165.0f
+#define JOINT5_MIN_ANGLE	-105.0f
+#define JOINT6_MIN_ANGLE	-155.0f
 //-------------------------------
 
 
@@ -224,19 +238,28 @@ TIM_HandleTypeDef htim16;
 TIM_HandleTypeDef htim17;
 
 UART_HandleTypeDef huart4;
-DMA_HandleTypeDef hdma_uart4_tx;
 
 /* USER CODE BEGIN PV */
 
 // PARAMETER VARIABLE -------
 double
 joint_positive_axisLim[6] = {
-	170, 90, 60,
-	165, 105, 155,
+	JOINT1_MAX_ANGLE,
+	JOINT2_MAX_ANGLE,
+	JOINT3_MAX_ANGLE,
+	JOINT4_MAX_ANGLE,
+	JOINT5_MAX_ANGLE,
+	JOINT6_MAX_ANGLE,
+	
 },
 joint_negative_axisLim[6] = {
-	-170, -60, -90,
-	-165, -105, 155,
+	JOINT1_MIN_ANGLE,
+	JOINT2_MIN_ANGLE,
+	JOINT3_MIN_ANGLE,
+	JOINT4_MIN_ANGLE,
+	JOINT5_MIN_ANGLE,
+	JOINT6_MIN_ANGLE,
+	
 },
 joint_max_traveldist[6],
 joint_step_per_deg[6],
@@ -244,8 +267,12 @@ joint_deg_per_step[6];
 
 bool
 home = false,
-soft_limit = false,
-hard_limit = false,
+soft_limit[6],
+hard_limit[6],
+positive_limit[6],
+negative_limit[6],
+joint_limit = false,
+joint_limit_bypass = false,
 limit_switch_state[6];
 
 uint8_t
@@ -386,9 +413,11 @@ rpm_timer;
 bool
 step_start[6],
 step_limit[6],
-step_dir[6],
+step_pos_dir[6],
 step_dir_inv[6],
-step_home_dir[6],
+step_home_dir[6];
+
+uint8_t
 step_state[6];
 
 uint16_t
@@ -401,6 +430,7 @@ step_input[6],
 step_output[6],
 step_freq[6],
 step_period[6],
+step_accel_period[6],
 stepper_stepfactor[6],
 
 stepper_gpio_pin[12] = {
@@ -546,14 +576,16 @@ enc_gpio_pin[12] = {
 	ENC6B_Pin
 };
 
+uint8_t
+enc_mag_status[6];
+
 uint32_t 
-enc_counter[6],
 pwm_freq[6],
 high_time[6],
 period_time[6];
 
-uint8_t
-enc_mag_status[6];
+int
+enc_counter[6];
 
 double
 duty_cycle[6],
@@ -596,7 +628,6 @@ uint8_t pwr_status;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_DMA_Init(void);
 static void MX_TIM8_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_UART4_Init(void);
@@ -629,8 +660,7 @@ void enable_stepper(void);
 void move_stepper(uint8_t select_joint, uint16_t step, Stepper_Dir_t dir, uint16_t input_freq);
 
 // Calculation Function
-void forward_kinematics(double J1_input, double J2_input, double J3_input, double J4_input, double J5_input, double J6_input);
-void inverse_kinematics(double Xpos_input, double Ypos_input, double Zpos_input);
+uint32_t calculate_exponential_step_interval(uint8_t select_joint, uint32_t step);
 
 // Main Function
 void move_joint(uint8_t select_joint, double input_angle, Speed_t set_speed);
@@ -684,8 +714,15 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	for(int i=0; i<JOINT_NUM; i++){
 		if(htim->Instance == stepper_tim_instance[i]){
-			step_state[i] = true;
 			timer_counter[i]++;
+			
+			if(step_state[i] == ACCELERATING){
+				if(step_counter[i] < step_input[i]*0.25) step_accel_period[i] = calculate_exponential_step_interval(i, step_counter[i]/2);
+				else step_accel_period[i] = calculate_exponential_step_interval(i, step_input[i]-step_counter[i]/2);
+				
+				t_on[i] = step_accel_period[i] * SET_DUTY_CYCLE;
+				t_off[i] = step_accel_period[i] - t_on[i];
+			}
 			
 			if(timer_counter[i] < t_on[i]) HAL_GPIO_WritePin(stepper_gpio_port[i], stepper_gpio_pin[i], GPIO_PIN_SET);
 			else if(timer_counter[i] >= t_on[i] && timer_counter[i] < step_period[i]-1) HAL_GPIO_WritePin(stepper_gpio_port[i], stepper_gpio_pin[i], GPIO_PIN_RESET);
@@ -694,11 +731,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 				step_counter[i]++;
 			}
 			
-			if(((step_counter[i] >= step_input[i]) && step_limit[i] == true) || (step_limit[i] == false && step_start[i] == false) || soft_limit == true){
+			if(((step_counter[i] >= step_input[i]) && step_limit[i] == true) || (step_limit[i] == false && step_start[i] == false) || joint_limit == true){
+				HAL_GPIO_WritePin(stepper_gpio_port[i], stepper_gpio_pin[i], GPIO_PIN_RESET);
 				HAL_TIM_Base_Stop_IT(stepper_tim_handler[i]);
 				timer_counter[i] = 0;
 				step_counter[i] = 0;
-				step_state[i] = false;
+				step_state[i] = STOPPING;
 			}
 		}
 	}
@@ -725,15 +763,13 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 				pwm_freq[i] = (1000000/period_time[i]);
 				enc_angle[i] = (((duty_cycle[i] - min_duty_cycle) * 360) / (max_duty_cycle - min_duty_cycle));
 				cal_enc_angle[i] = fmod((enc_angle[i] - cal_value[i] + 360), 360);
+				
 				reduced_cal_enc_angle[i] = cal_enc_angle[i] / stepper_ratio[i];
 				
 				if(prev_cal_enc_angle[i] > 350 && cal_enc_angle[i] < 10) enc_counter[i]++;
 				else if(prev_cal_enc_angle[i] < 10 && cal_enc_angle[i] > 350) enc_counter[i]--;
 				
 				enc_joint_angle[i] = reduced_cal_enc_angle[i] + (enc_counter[i] * (360 / stepper_ratio[i]));
-				
-				if(enc_joint_angle[i] <= min_joint_angle[i]) enc_joint_angle[i] = min_joint_angle[i];
-				else if (enc_joint_angle[i] >= max_joint_angle[i]) enc_joint_angle[i] = max_joint_angle[i];
 				
 				prev_cal_enc_angle[i] = cal_enc_angle[i];
 			}
@@ -814,7 +850,6 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
   MX_TIM8_Init();
   MX_I2C1_Init();
   MX_UART4_Init();
@@ -909,27 +944,34 @@ int main(void)
 		else if(stepper_microstep[i] == MICROSTEP_VALUE4) stepper_stepfactor[i] = MICROSTEP_FACTOR4;
 		else if(stepper_microstep[i] == MICROSTEP_VALUE5) stepper_stepfactor[i] = MICROSTEP_FACTOR5;
 		else if(stepper_microstep[i] == MICROSTEP_VALUE6) stepper_stepfactor[i] = MICROSTEP_FACTOR6;
-	}
-	
-	step_dir_inv[0] = 0;	// Not Inverted
-	step_dir_inv[1] = 0;	// Not Inverted
-	step_dir_inv[2] = 0;	// Not Inverted
-	step_dir_inv[3] = 0;	// Not Inverted
-	step_dir_inv[4] = 0;	// Not Inverted
-	step_dir_inv[5] = 0;	// Not Inverted
-	
-	step_home_dir[0] = DIR_CW;
-	step_home_dir[1] = DIR_CW;
-	step_home_dir[2] = DIR_CW;
-	step_home_dir[3] = DIR_CW;
-	step_home_dir[4] = DIR_CW;
-	step_home_dir[5] = DIR_CW;
-	
-	for(int i=0; i<JOINT_NUM; i++){
+		
 		joint_max_traveldist[i] = joint_positive_axisLim[i] + joint_negative_axisLim[i];
 		joint_step_per_deg[i] = (stepper_microstep[i] * stepper_ratio[i]) / 360.0;
 		joint_deg_per_step[i] = 360.0 / (stepper_microstep[i] * stepper_ratio[i]);
+		
+		step_state[i] = STOPPING;
 	}
+	
+	step_pos_dir[0] = DIR_CW;
+	step_pos_dir[1] = DIR_CW;
+	step_pos_dir[2] = DIR_CW;
+	step_pos_dir[3] = DIR_CW;
+	step_pos_dir[4] = DIR_CW;
+	step_pos_dir[5] = DIR_CW;
+	#endif
+	
+	
+	/* PID SETUP */
+	#ifdef USE_PID
+	pos_pid.Kp = 0.0;
+	pos_pid.Ki = 0.0;
+	pos_pid.Kd = 0.0;
+	pos_pid.limMax = 0.0;
+	pos_pid.limMin = 0.0;
+	pos_pid.limMaxInt = 0.0;
+	pos_pid.limMinInt = 0.0;
+	pos_pid.tau = 0.2;
+	pos_pid.T_sample = 0.01f;
 	#endif
 	
 	
@@ -988,6 +1030,9 @@ int main(void)
 		#endif
 		
 		#ifdef MAIN_PROGRAM	
+		//Check Joint Limit
+		check_limit(HARD_LIMIT_CHECK);
+		
 		// Update Value
 		update_value();
 		
@@ -1035,10 +1080,8 @@ int main(void)
 		}
 		
 		// Check Move Command
-		else if(command.type == MOVE){	
-			if(command.control_mode == CARTESIAN_CTRL){
-				check_limit(ALL_LIMIT_CHECK);
-				
+		else if(command.type == MOVE){
+			if(command.control_mode == CARTESIAN_CTRL){			
 				for(int i=0; i<AXIS_NUM; i++){
 					if(command.move_variable == robot_axis[i]){
 						if(command.move_mode == CONTINUOUS){
@@ -1059,8 +1102,6 @@ int main(void)
 			}
 			
 			else if(command.control_mode == JOINT_CTRL){	
-				check_limit(HARD_LIMIT_CHECK);
-				
 				for(int i=0; i<JOINT_NUM; i++){
 					if(command.move_variable == robot_joint[i]){
 						if(command.move_mode == CONTINUOUS){
@@ -1073,7 +1114,18 @@ int main(void)
 							step_start[i] = false;
 							rx_move_angle[i] = command.move_value;
 						}
-						move_joint(robot_joint[i], rx_move_angle[i], LOW);
+						
+						if(positive_limit[i] == true && command.move_sign == SIGNED_VAR){
+							move_joint(robot_joint[i], rx_move_angle[i], LOW);
+						}
+						
+						else if(negative_limit[i] == true && command.move_sign == UNSIGNED_VAR){
+							move_joint(robot_joint[i], rx_move_angle[i], LOW);
+						}
+						
+						else if(positive_limit[i] == false && negative_limit[i] == false){
+							move_joint(robot_joint[i], rx_move_angle[i], LOW);
+						}
 					}
 					else rx_move_angle[i] = 0.0;
 				}
@@ -1099,8 +1151,12 @@ int main(void)
 		
 		// Check Reset State Command
 		else if(command.type == RESET_STATE){
-			soft_limit = false;
-			hard_limit = false;
+			for(int i=0; i<JOINT_NUM; i++){
+				soft_limit[i] = false;
+				hard_limit[i] = false;
+			}
+			joint_limit = false;
+			joint_limit_bypass = true;
 			kinematics.singularity = false;
 		}
 		
@@ -1956,22 +2012,6 @@ static void MX_UART4_Init(void)
 }
 
 /**
-  * Enable DMA controller clock
-  */
-static void MX_DMA_Init(void)
-{
-
-  /* DMA controller clock enable */
-  __HAL_RCC_DMA1_CLK_ENABLE();
-
-  /* DMA interrupt init */
-  /* DMA1_Stream0_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Stream0_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Stream0_IRQn);
-
-}
-
-/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -2250,26 +2290,39 @@ void move_stepper(uint8_t select_joint, uint16_t step, Stepper_Dir_t dir, uint16
 			// Duty Cycle Calculation
 			step_freq[i] = input_freq;
 			step_period[i] = 1000000/step_freq[i];
-			t_on[i] = step_period[i] * SET_DUTY_CYCLE;
-			t_off[i] = step_period[i] - t_on[i];
 			
 			// Set Stepper Direction
-			if(dir == DIR_CW && step_state[i] == false){
+			if(dir == DIR_CW && step_state[i] == STOPPING){
 				HAL_GPIO_WritePin(stepper_gpio_port[i+6], stepper_gpio_pin[i+6], GPIO_PIN_RESET);
 			}
-			else if(dir == DIR_CCW && step_state[i] == false){
+			else if(dir == DIR_CCW && step_state[i] == STOPPING){
 				HAL_GPIO_WritePin(stepper_gpio_port[i+6], stepper_gpio_pin[i+6], GPIO_PIN_SET);
 			}
 			
 			// Pulse Start
 			step_input[i] = step;
-			if((step_input[i] > 0 && step_counter[i] == 0 && step_state[i] == false) || (step_start[i] == true && step_state[i] == false)){
+			if((step_input[i] > 0 && step_counter[i] == 0 && step_state[i] == STOPPING) || (step_start[i] == true && step_state[i] == STOPPING) || joint_limit == false){
+				if(step_input[i] != 0) step_state[i] = ACCELERATING;
+				else{
+					step_state[i] = AT_TOP_SPEED;
+					t_on[i] = step_period[i] * SET_DUTY_CYCLE;
+					t_off[i] = step_period[i] - t_on[i];
+				}
 				HAL_TIM_Base_Start_IT(stepper_tim_handler[i]);
 			}
 		}
 	}
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/* --- EXPONENTIAL SPEED RAMP CALCULATION ---*/
+uint32_t calculate_exponential_step_interval(uint8_t select_joint, uint32_t step){
+	if (step == 0) return 100000 / BASE_FREQ;  // Initial delay
+
+	float freq = BASE_FREQ + (step_freq[select_joint] - BASE_FREQ) * (1 - expf(-0.001 * step));
+	return (uint32_t)(100000.0f / freq);  // Convert frequency to step delay
+}
 
 
 /* --- JOINT BASE MOVE FUNCTION ---*/
@@ -2380,34 +2433,39 @@ void update_value(void){
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void check_limit(Limit_t check_mode){
 	if(check_mode == ALL_LIMIT_CHECK){
-		for(int i=0; i<JOINT_NUM; i++){
-			if(enc_joint_angle[i] >= joint_positive_axisLim[i] || enc_joint_angle[i] <= joint_negative_axisLim[i]){
-				hard_limit = true;
-			}
-			else hard_limit = false;
-		}
 		
-		check_singularity(&kinematics);
-		if(kinematics.singularity == true){
-			soft_limit = true;
-		}
-		else soft_limit = false;
 	}
 	
 	else if(check_mode == SOFT_LIMIT_CHECK){
-		check_singularity(&kinematics);
-		if(kinematics.singularity == true){
-			soft_limit = true;
-		}
-		else soft_limit = false;
+		
 	}
 	
 	else if(check_mode == HARD_LIMIT_CHECK){
 		for(int i=0; i<JOINT_NUM; i++){
-			if(enc_joint_angle[i] >= joint_positive_axisLim[i] || enc_joint_angle[i] <= joint_negative_axisLim[i]){
-				hard_limit = true;
+			if(enc_joint_angle[i] > joint_negative_axisLim[i] && enc_joint_angle[i] < joint_positive_axisLim[i]){
+				hard_limit[i] = false;
 			}
-			else hard_limit = false;
+			else{
+				if(joint_limit_bypass == false){
+					hard_limit[i] = true;
+					for(int i=0; i<10; i++){
+						Send_feedback(&command, ANGLE_HARD_LIMIT);
+					}
+					if(enc_joint_angle[i] <= joint_negative_axisLim[i]) negative_limit[i] = true;
+					else if(enc_joint_angle[i] >= joint_positive_axisLim[i]) positive_limit[i] = true;
+				}
+			}
+			
+			if(negative_limit[i] == true && enc_joint_angle[i] > joint_negative_axisLim[i]){
+				negative_limit[i] = false;
+				joint_limit_bypass = false;
+			}
+			else if(positive_limit[i] == true && enc_joint_angle[i] < joint_positive_axisLim[i]){
+				positive_limit[i] = false;
+				joint_limit_bypass = false;
+			}
+			
+			joint_limit |= hard_limit[i];
 		}
 	}
 }
@@ -2452,7 +2510,8 @@ void encoder_init(void){
 		HAL_TIM_IC_Start_IT(enc_tim_handler[i], TIM_CHANNEL_1);
 		HAL_TIM_IC_Start_IT(enc_tim_handler[i], TIM_CHANNEL_2);
 		
-		HAL_GPIO_WritePin(enc_gpio_port[i], enc_gpio_pin[i], GPIO_PIN_SET);
+		if(step_pos_dir[i] == DIR_CW) HAL_GPIO_WritePin(enc_gpio_port[i+6], enc_gpio_pin[i+6], GPIO_PIN_SET);
+		else HAL_GPIO_WritePin(enc_gpio_port[i+6], enc_gpio_pin[i+6], GPIO_PIN_RESET);
 	}
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2522,7 +2581,7 @@ void send_ang_pos_data(void){
 //	tx_pos[1] = (float)kinematics.axis_pos_out[1];
 //	tx_pos[2] = (float)kinematics.axis_pos_out[2];
 //	
-//	tx_angle[0] = (float)enc_joint_angle[0];
+	tx_angle[0] = (float)enc_joint_angle[0];
 //	tx_angle[1] = (float)enc_joint_angle[1];
 //	tx_angle[2] = (float)enc_joint_angle[2];
 //	tx_angle[3] = (float)enc_joint_angle[3];
@@ -2533,15 +2592,17 @@ void send_ang_pos_data(void){
 	tx_pos[1] = 12.3;
 	tx_pos[2] = 12.3;
 	
-	tx_angle[0] = 90.5;
-	tx_angle[1] = (float)enc_joint_angle[1];
+//	tx_angle[0] = 90.5;
+	tx_angle[1] = 90.5;
 	tx_angle[2] = 90.5;
 	tx_angle[3] = 90.5;
 	tx_angle[4] = 90.5;
 	tx_angle[5] = 90.5;
 	
 	if(HAL_GetTick() - prev_time_send > send_data_interval){
-		Send_requested_data(&command, tx_pos, tx_angle, current_point, LINEAR, LOW);
+		for(int i=0; i<25; i++){
+			Send_requested_data(&command, tx_pos, tx_angle, current_point, LINEAR, LOW);
+		}
 		prev_time_send = HAL_GetTick();
 	}
 }

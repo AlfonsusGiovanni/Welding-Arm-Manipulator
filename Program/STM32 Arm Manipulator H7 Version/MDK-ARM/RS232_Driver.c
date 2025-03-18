@@ -95,7 +95,7 @@ void Send_welder_state(Data_Get_t* get, Welder_State_t state){
 /*SEND FEDDBACK COMMAND*/
 void Send_feedback(Data_Get_t* get, Feedback_t fdbck){
 	uint8_t feed_buff[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, FEEDBACK_CMD, fdbck};		
-	HAL_UART_Transmit_IT(huart, feed_buff, sizeof(feed_buff));
+	HAL_UART_Transmit(huart, feed_buff, sizeof(feed_buff), RS232_TIMEOUT);
 }
 
 /*SEND STANDBY COMMAND*/

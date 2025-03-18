@@ -903,12 +903,14 @@ void ui_handler(void){
 	/* EMERGENCY MENU HANDLER *////////////////////////////////////////////////
 	if(select_menu == EMERGENCY_MENU1){
 		if(HAL_GPIO_ReadPin(EMERGENCY_GPIO_Port, EMERGENCY_Pin) == GPIO_PIN_SET){
+			Send_auto_home(&command);
 			change_menu(HOMING_MENU);
 		}
 	}
 	
 	else if(select_menu == EMERGENCY_MENU2 || select_menu == EMERGENCY_MENU3){
 		if(keys == '.' && prev_keys != keys){
+			Send_state_reset(&command);
 			change_menu(HOME_MENU);
 		}
 	}

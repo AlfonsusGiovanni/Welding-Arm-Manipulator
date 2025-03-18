@@ -19,7 +19,7 @@ Date		: 10 Juli 2024
 #define HEADER3 0xFF
 
 /*RS232 COM BUFFER SIZE*/
-#define BUFF_SIZE 45
+#define BUFF_SIZE 43
 
 /*RS232 COM TIMEOUT*/
 #define RS232_TIMEOUT 5

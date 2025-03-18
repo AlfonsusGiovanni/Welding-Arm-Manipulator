@@ -334,7 +334,7 @@ int main(void)
 		#endif
 		
 		#ifdef TEST_STEPPER
-		move_stepper(32000, 0, 5000);
+		move_stepper(160, 0, 5000);
 		
 		if(btn1_state == true){
 			step_start = false;
