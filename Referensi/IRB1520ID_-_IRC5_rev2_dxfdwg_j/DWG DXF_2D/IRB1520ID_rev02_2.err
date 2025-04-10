@@ -1,0 +1,35 @@
+
+Started importing sheet: Model
+
+Entity not imported, type Arc, Handle: 354
+Entity not imported, type Arc, Handle: 355
+Entity not imported, type Arc, Handle: 357
+Dimension's value differs from actual measurement:
+Type: Linear , Handle: 1724, Displayed Value: 210.000000, Actual Value: 0.021000
+Dimension's value differs from actual measurement:
+Type: Linear , Handle: 172F, Displayed Value: 500.000000, Actual Value: 0.050000
+Dimension's value differs from actual measurement:
+Type: Linear , Handle: 1739, Displayed Value: 100.000000, Actual Value: 0.010000
+Dimension's value differs from actual measurement:
+Type: Linear , Handle: 1743, Displayed Value: 250.000000, Actual Value: 0.025000
+Dimension's value differs from actual measurement:
+Type: Linear , Handle: 174E, Displayed Value: 17.500000, Actual Value: 0.001750
+Dimension's value differs from actual measurement:
+Type: Linear , Handle: 2A8E, Displayed Value: 50.000000, Actual Value: 0.005000
+Dimension's value differs from actual measurement:
+Type: Linear , Handle: 2A9A, Displayed Value: 230.000000, Actual Value: 0.023000
+Dimension's value differs from actual measurement:
+Type: Linear , Handle: 2AA4, Displayed Value: 250.000000, Actual Value: 0.025000
+Dimension's value differs from actual measurement:
+Type: Linear , Handle: 2AAE, Displayed Value: 236.000000, Actual Value: 0.023600
+Dimension's value differs from actual measurement:
+Type: Linear , Handle: 2AB8, Displayed Value: 590.000000, Actual Value: 0.059000
+Dimension's value differs from actual measurement:
+Type: Linear , Handle: 2AC2, Displayed Value: 350.000000, Actual Value: 0.035000
+Dimension's value differs from actual measurement:
+Type: Linear , Handle: 4304, Displayed Value: 250.000000, Actual Value: 0.025000
+Entity not imported, type Dimension, Handle: 430E
+Dimension's value differs from actual measurement:
+Type: Linear , Handle: 4317, Displayed Value: 125.000000, Actual Value: 0.012500
+
+Finished importing sheet: Model

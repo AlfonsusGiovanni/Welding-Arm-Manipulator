@@ -1,0 +1,172 @@
+<mxfile host="app.diagrams.net" modified="2024-05-05T10:22:45.273Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0" etag="bvq11ATxquqIqk9GgtPS" version="24.3.1" type="device">
+  <diagram name="Page-1" id="Ic5lh2s4dt0ELRVmGg-F">
+    <mxGraphModel dx="1290" dy="673" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="EGaoOfZskWpZnmh-rJLi-1" target="EGaoOfZskWpZnmh-rJLi-3" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="EGaoOfZskWpZnmh-rJLi-1" target="EGaoOfZskWpZnmh-rJLi-4" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" parent="1" source="EGaoOfZskWpZnmh-rJLi-1" target="EGaoOfZskWpZnmh-rJLi-2" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-1" value="BREAKDOWN&amp;nbsp;&lt;div style=&quot;font-size: 10px;&quot;&gt;ARM MANIPULATOR&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="530" y="50" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-66" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="EGaoOfZskWpZnmh-rJLi-2" target="EGaoOfZskWpZnmh-rJLi-65" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-67" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="EGaoOfZskWpZnmh-rJLi-2" target="EGaoOfZskWpZnmh-rJLi-56" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-2" value="MEKANIK" style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="200" y="160" width="70" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-80" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="EGaoOfZskWpZnmh-rJLi-3" target="EGaoOfZskWpZnmh-rJLi-41" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-81" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" parent="1" source="EGaoOfZskWpZnmh-rJLi-3" target="EGaoOfZskWpZnmh-rJLi-78" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-3" value="ELEKTRIK" style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="555" y="160" width="70" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-71" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="EGaoOfZskWpZnmh-rJLi-4" target="EGaoOfZskWpZnmh-rJLi-45" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-72" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="EGaoOfZskWpZnmh-rJLi-4" target="EGaoOfZskWpZnmh-rJLi-46" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-4" value="PROGRAM" style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="907.5" y="160" width="70" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-19" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="EGaoOfZskWpZnmh-rJLi-8" target="EGaoOfZskWpZnmh-rJLi-18" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-8" value="Estimated maximum load on 2nd joint 30kg" style="rounded=0;whiteSpace=wrap;html=1;fontSize=8;" parent="1" vertex="1">
+          <mxGeometry x="20" y="310" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-37" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="EGaoOfZskWpZnmh-rJLi-9" target="EGaoOfZskWpZnmh-rJLi-36" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-9" value="Main PCB" style="rounded=0;whiteSpace=wrap;html=1;fontSize=8;fillColor=#008a00;strokeColor=#005700;fontColor=#ffffff;" parent="1" vertex="1">
+          <mxGeometry x="410" y="310" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-39" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="EGaoOfZskWpZnmh-rJLi-10" target="EGaoOfZskWpZnmh-rJLi-38" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-10" value="Pendant PCB" style="rounded=0;whiteSpace=wrap;html=1;fontSize=8;fillColor=#008a00;strokeColor=#005700;fontColor=#ffffff;" parent="1" vertex="1">
+          <mxGeometry x="540" y="310" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-21" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="EGaoOfZskWpZnmh-rJLi-13" target="EGaoOfZskWpZnmh-rJLi-20" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-13" value="Estimated maximum load on 3rd joint 20kg&amp;nbsp;" style="rounded=0;whiteSpace=wrap;html=1;fontSize=8;" parent="1" vertex="1">
+          <mxGeometry x="150" y="310" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-18" value="NEMA&amp;nbsp; 57&amp;nbsp;5718HB6401&lt;div&gt;Torque 36 kg&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fontSize=8;" parent="1" vertex="1">
+          <mxGeometry x="20" y="380" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-20" value="NEMA&amp;nbsp; 23 23HS8328&lt;div&gt;Torque 22 kg&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fontSize=8;" parent="1" vertex="1">
+          <mxGeometry x="150" y="380" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-26" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="EGaoOfZskWpZnmh-rJLi-22" target="EGaoOfZskWpZnmh-rJLi-25" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-22" value="Estimated maximum load on other joint 10kg" style="rounded=0;whiteSpace=wrap;html=1;fontSize=8;" parent="1" vertex="1">
+          <mxGeometry x="85" y="450" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-25" value="&lt;span style=&quot;color: rgb(0, 0, 0); font-family: Helvetica; font-size: 8px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: center; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(251, 251, 251); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; display: inline !important; float: none;&quot;&gt;NEMA&amp;nbsp; 23 23HS5628&lt;/span&gt;&lt;div style=&quot;forced-color-adjust: none; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 8px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: center; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(251, 251, 251); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;Torque 12,6kg&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fontSize=8;" parent="1" vertex="1">
+          <mxGeometry x="85" y="520" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-75" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="EGaoOfZskWpZnmh-rJLi-36" target="EGaoOfZskWpZnmh-rJLi-63" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-36" value="TB6600 Stepper Motor Driver" style="rounded=0;whiteSpace=wrap;html=1;fontSize=8;" parent="1" vertex="1">
+          <mxGeometry x="410" y="380" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-38" value="LCD 20x4, buttons, rotary encoder" style="rounded=0;whiteSpace=wrap;html=1;fontSize=8;" parent="1" vertex="1">
+          <mxGeometry x="540" y="380" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-43" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="EGaoOfZskWpZnmh-rJLi-41" target="EGaoOfZskWpZnmh-rJLi-9" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-44" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="EGaoOfZskWpZnmh-rJLi-41" target="EGaoOfZskWpZnmh-rJLi-10" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-41" value="STM32F401CCU6&lt;div&gt;or&lt;/div&gt;&lt;div&gt;STM32F103C8T6&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fontSize=8;" parent="1" vertex="1">
+          <mxGeometry x="470" y="230" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-48" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="EGaoOfZskWpZnmh-rJLi-45" target="EGaoOfZskWpZnmh-rJLi-47" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-76" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="EGaoOfZskWpZnmh-rJLi-45" target="EGaoOfZskWpZnmh-rJLi-60" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-45" value="Main Program" style="rounded=0;whiteSpace=wrap;html=1;fontSize=8;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" parent="1" vertex="1">
+          <mxGeometry x="810" y="230" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-54" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="EGaoOfZskWpZnmh-rJLi-46" target="EGaoOfZskWpZnmh-rJLi-52" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-77" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="EGaoOfZskWpZnmh-rJLi-46" target="EGaoOfZskWpZnmh-rJLi-60" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-46" value="Pendant Program" style="rounded=0;whiteSpace=wrap;html=1;fontSize=8;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" parent="1" vertex="1">
+          <mxGeometry x="975" y="230" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-47" value="Inverse Kinematics, Motion, Patern" style="rounded=0;whiteSpace=wrap;html=1;fontSize=8;" parent="1" vertex="1">
+          <mxGeometry x="810" y="380" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-52" value="Interface, data communication" style="rounded=0;whiteSpace=wrap;html=1;fontSize=8;" parent="1" vertex="1">
+          <mxGeometry x="975" y="380" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-58" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="EGaoOfZskWpZnmh-rJLi-56" target="EGaoOfZskWpZnmh-rJLi-8" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-59" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="EGaoOfZskWpZnmh-rJLi-56" target="EGaoOfZskWpZnmh-rJLi-13" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-64" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" parent="1" source="EGaoOfZskWpZnmh-rJLi-56" target="EGaoOfZskWpZnmh-rJLi-22" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-56" value="Metal base &amp;amp; arm" style="rounded=0;whiteSpace=wrap;html=1;fontSize=8;fillColor=#008a00;strokeColor=#005700;fontColor=#ffffff;" parent="1" vertex="1">
+          <mxGeometry x="85" y="230" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-60" value="RS232" style="rounded=0;whiteSpace=wrap;html=1;fontSize=8;" parent="1" vertex="1">
+          <mxGeometry x="895" y="310" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-63" value="Welder on/off relay driver" style="rounded=0;whiteSpace=wrap;html=1;fontSize=8;" parent="1" vertex="1">
+          <mxGeometry x="410" y="450" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-88" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="EGaoOfZskWpZnmh-rJLi-65" target="EGaoOfZskWpZnmh-rJLi-87" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-65" value="PLA+&lt;br&gt;main PCB &amp;amp; pendant&lt;div&gt;cover&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fontSize=8;fillColor=#008a00;strokeColor=#005700;fontColor=#ffffff;" parent="1" vertex="1">
+          <mxGeometry x="280" y="230" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-86" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="EGaoOfZskWpZnmh-rJLi-78" target="EGaoOfZskWpZnmh-rJLi-83" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-78" value="Power Supply" style="rounded=0;whiteSpace=wrap;html=1;fontSize=8;" parent="1" vertex="1">
+          <mxGeometry x="680" y="230" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-90" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="EGaoOfZskWpZnmh-rJLi-83" target="EGaoOfZskWpZnmh-rJLi-89" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-83" value="24V 20A&lt;div&gt;SMPS&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fontSize=8;" parent="1" vertex="1">
+          <mxGeometry x="680" y="310" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-87" value="Separated between controller box &amp;amp; metal base" style="rounded=0;whiteSpace=wrap;html=1;fontSize=8;" parent="1" vertex="1">
+          <mxGeometry x="280" y="310" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="EGaoOfZskWpZnmh-rJLi-89" value="Power failure safety" style="rounded=0;whiteSpace=wrap;html=1;fontSize=8;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" parent="1" vertex="1">
+          <mxGeometry x="680" y="380" width="100" height="40" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
