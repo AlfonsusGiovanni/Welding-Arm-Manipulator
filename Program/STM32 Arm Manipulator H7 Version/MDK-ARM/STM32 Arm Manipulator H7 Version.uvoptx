@@ -168,12 +168,12 @@
         <Ww>
           <count>3</count>
           <WinNumber>1</WinNumber>
-          <ItemText>step_input,0x0A</ItemText>
+          <ItemText>target_step</ItemText>
         </Ww>
         <Ww>
           <count>4</count>
           <WinNumber>1</WinNumber>
-          <ItemText>step_output,0x0A</ItemText>
+          <ItemText>step_count</ItemText>
         </Ww>
         <Ww>
           <count>5</count>
@@ -183,47 +183,32 @@
         <Ww>
           <count>6</count>
           <WinNumber>1</WinNumber>
-          <ItemText>period_time,0x0A</ItemText>
+          <ItemText>enc_joint_angle</ItemText>
         </Ww>
         <Ww>
           <count>7</count>
           <WinNumber>1</WinNumber>
-          <ItemText>pwm_freq,0x0A</ItemText>
+          <ItemText>hard_limit</ItemText>
         </Ww>
         <Ww>
           <count>8</count>
           <WinNumber>1</WinNumber>
-          <ItemText>duty_cycle</ItemText>
+          <ItemText>soft_limit</ItemText>
         </Ww>
         <Ww>
           <count>9</count>
           <WinNumber>1</WinNumber>
-          <ItemText>cal_enc_angle</ItemText>
+          <ItemText>miss_step</ItemText>
         </Ww>
         <Ww>
           <count>10</count>
           <WinNumber>1</WinNumber>
-          <ItemText>reduced_cal_enc_angle</ItemText>
+          <ItemText>joint_angle_by_step</ItemText>
         </Ww>
         <Ww>
           <count>11</count>
           <WinNumber>1</WinNumber>
-          <ItemText>enc_joint_angle</ItemText>
-        </Ww>
-        <Ww>
-          <count>12</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>joint_negative_axisLim</ItemText>
-        </Ww>
-        <Ww>
-          <count>13</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>hard_limit</ItemText>
-        </Ww>
-        <Ww>
-          <count>14</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>soft_limit</ItemText>
+          <ItemText>target_angle</ItemText>
         </Ww>
       </WatchWindow1>
       <WatchWindow2>

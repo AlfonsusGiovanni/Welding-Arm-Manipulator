@@ -106,7 +106,8 @@ typedef enum{
 //--- RUNNING MODE TYPEDEF ---//
 ////////////////////////////////
 typedef enum{
-	WELDING_MODE = 0x01,
+	CONTROL_MODE = 0x01,
+	WELDING_MODE,
 	PREVIEW_MODE,
 }Run_Mode_t;
 ////////////////////////////////
@@ -201,6 +202,7 @@ typedef enum{
 	CURRENT_POINT_DONE,
 	MAIN_ONLINE,
 	PENDANT_ONLINE,
+	JOINT_MISS_STEP,
 	ANGLE_SOFT_LIMIT,
 	ANGLE_HARD_LIMIT,
 	POINT_INVALID,
@@ -240,7 +242,7 @@ typedef struct ALIGNED_8{
 	uint8_t welding_point_num;
 	uint8_t welding_point_type;
 	
-	uint16_t invalid_point;
+	uint16_t feedback_num;
 	
 	float move_value;
 	float World_pos_req[3];
@@ -291,7 +293,7 @@ void Send_requested_data(Data_Get_t* get, float* world_pos, float* world_rot, fl
 void Send_motor_state(Data_Get_t* get, Motor_State_t state);
 void Send_welder_state(Data_Get_t* get, Welder_State_t state);
 
-void Send_feedback(Data_Get_t* get, Feedback_t fdbck, uint16_t invalid_point);
+void Send_feedback(Data_Get_t* get, Feedback_t fdbck, uint16_t num);
 
 void Send_state_reset(Data_Get_t* get);
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

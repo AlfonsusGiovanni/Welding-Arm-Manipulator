@@ -115,9 +115,9 @@ void Send_welder_state(Data_Get_t* get, Welder_State_t state){
 }
 
 /*SEND FEDDBACK COMMAND*/
-void Send_feedback(Data_Get_t* get, Feedback_t fdbck, uint16_t invalid_point){
-	uint8_t feed_buff[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, FEEDBACK_CMD, fdbck, (invalid_point >> 8) & 0xFF, invalid_point & 0xFF};		
-	HAL_UART_Transmit_IT(huart, feed_buff, sizeof(feed_buff));
+void Send_feedback(Data_Get_t* get, Feedback_t fdbck, uint16_t num){
+	uint8_t feed_buff[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, FEEDBACK_CMD, fdbck, (num >> 8) & 0xFF, num & 0xFF};		
+	HAL_UART_Transmit(huart, feed_buff, sizeof(feed_buff), RS232_TIMEOUT);
 }
 
 /*SEND STANDBY COMMAND*/
@@ -175,9 +175,9 @@ void Get_command(Data_Get_t* get){
 			//CHECK START RUNNING COMMAND
 			else if(rx_buff[i+3] == RUNNING_CMD){
 				get->type = RUN;
-				get->running_state = (Run_State_t) rx_buff[4];
-				get->running_mode = (Run_Mode_t) rx_buff[5];
-				get->preview_point_num = rx_buff[6];
+				get->running_state = (Run_State_t) rx_buff[i+4];
+				get->running_mode = (Run_Mode_t) rx_buff[i+5];
+				get->preview_point_num = rx_buff[i+6];
 			}
 			
 			//CHECK REQ POSITION COMMAND
@@ -226,7 +226,7 @@ void Get_command(Data_Get_t* get){
 			else if(rx_buff[i+3] == FEEDBACK_CMD){
 				get->type = FEEDBACK;
 				get->feedback = (Feedback_t) rx_buff[i+4];
-				get->invalid_point = rx_buff[i+5] << 8 | rx_buff[i+6];
+				get->feedback_num = rx_buff[i+5] << 8 | rx_buff[i+6];
 			}
 			
 			//CHECK RESET STATE COMMAND

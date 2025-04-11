@@ -35,9 +35,10 @@ typedef StaticEventGroup_t osStaticEventGroupDef_t;
 
 //--- LCD MENU TYPEDEF ---//
 typedef enum{
-	EMERGENCY_MENU1 = 1,
+	EMERGENCY_MENU1 = 0x01,
 	EMERGENCY_MENU2,
 	EMERGENCY_MENU3,
+	EMERGENCY_MENU4,
 	BOOTING_MENU,
 	AUTO_HOME_MENU,
 	HOMING_MENU,
@@ -59,7 +60,6 @@ typedef enum{
 	KEYPAD_ERR_MENU,
 	ANGLE_LIMIT_MENU,
 }LCD_Menu_t;
-
 LCD_Menu_t select_menu;
 
 
@@ -94,6 +94,13 @@ Data_Get_t command;
 #define EEPROM1_ADDRESS					0xA0
 #define DATA_BYTE_SHIFT					0x02
 #define DATA_PAGE_SHIFT					0x01
+
+
+/*ERROR WARNING SET*/
+//----------------------------
+#define MISS_STEP_ERR			0xA0
+#define SOFT_LIMIT_ERR		0xB0
+#define HARD_LIMIT_ERR		0xC0
 
 
 /*FUNCTION CONFIG SET*/
@@ -881,7 +888,7 @@ void ui_handler(void){
 		lcd_update();
 	}
 	
-	/* EMERGENCY MENU HANDLER *////////////////////////////////////////////////
+	/* EMERGENCY MENU HANDLER *//////////////////////////////////////////////////////////////////////////////////
 	if(select_menu == EMERGENCY_MENU1){
 		if(HAL_GPIO_ReadPin(EMERGENCY_GPIO_Port, EMERGENCY_Pin) == GPIO_PIN_SET){
 			Send_auto_home(&command);
@@ -889,7 +896,7 @@ void ui_handler(void){
 		}
 	}
 	
-	else if(select_menu == EMERGENCY_MENU2 || select_menu == EMERGENCY_MENU3){
+	else if(select_menu == EMERGENCY_MENU2 || select_menu == EMERGENCY_MENU3 || select_menu == EMERGENCY_MENU4){
 		if(keys == '.' && prev_keys != keys){
 			Send_state_reset(&command);
 			change_menu(HOME_MENU);
@@ -953,6 +960,10 @@ void ui_handler(void){
 			if(move_mode_counter > 2) move_mode_counter = 0;
 		}
 		
+		// CANCEL STEPPER MOVE
+		else if(keys == '.' && prev_keys != keys){
+			Send_running(&command, RUNNING_STOP, CONTROL_MODE, 0x00);
+		}
 		
 		// MOVE VALUE BY DISTANCE *************************************************************
 		else if((move_mode_counter == 1 && check_numkeys_pressed() == true) || keys == '<'){
@@ -1061,8 +1072,7 @@ void ui_handler(void){
 				}
 			}
 			prev_tick = HAL_GetTick();
-		}
-		
+		}		
 		
 		// MOVE TO PREPARATION MENU *********
 		if(keys == '#' && prev_keys != keys){
@@ -1229,7 +1239,12 @@ void ui_handler(void){
 				if(move_mode_counter > 2) move_mode_counter = 0;
 			}
 			
-			// MOVE VALUE BY DISTANCE
+			// CANCEL STEPPER MOVE
+			else if(keys == '.' && prev_keys != keys){
+				Send_running(&command, RUNNING_STOP, CONTROL_MODE, 0x00);
+			}
+			
+			// MOVE VALUE BY DISTANCE *************************************************************
 			else if((move_mode_counter == 1 && check_numkeys_pressed() == true) || keys == '<'){
 				add_col = 0;
 				*string_distance = '0';
@@ -1656,9 +1671,12 @@ void show_menu(LCD_Menu_t menu){
 	
 	/* EMERGENCY MENU 2 *////////////////
 	if(menu == EMERGENCY_MENU2){
-		lcd_set_cursor(1, 1);
-		lcd_printstr("ANGLE SOFT LIMIT!");
-		lcd_set_cursor(0, 2);
+		lcd_set_cursor(1, 0);
+		lcd_printstr("<JOINT MISS STEPS>");
+		lcd_set_cursor(3, 1);
+		lcd_printstr("Error Code: ");
+		lcd_printint(MISS_STEP_ERR | command.feedback_num); 
+		lcd_set_cursor(0, 3);
 		lcd_printstr("PRESS ESC TO RESET!");
 	}
 	/////////////////////////////////////
@@ -1667,8 +1685,24 @@ void show_menu(LCD_Menu_t menu){
 	/* EMERGENCY MENU 3 *////////////////
 	if(menu == EMERGENCY_MENU3){
 		lcd_set_cursor(1, 1);
-		lcd_printstr("ANGLE HARD LIMIT!");
+		lcd_printstr("<ANGLE SOFT LIMIT>");
+		lcd_set_cursor(3, 1);
+		lcd_printstr("Error Code: ");
+		lcd_printint(SOFT_LIMIT_ERR | command.feedback_num); 
 		lcd_set_cursor(0, 2);
+		lcd_printstr("PRESS ESC TO RESET!");
+	}
+	/////////////////////////////////////
+	
+	
+	/* EMERGENCY MENU 4 *////////////////
+	if(menu == EMERGENCY_MENU4){
+		lcd_set_cursor(1, 0);
+		lcd_printstr("<ANGLE HARD LIMIT>");
+		lcd_set_cursor(3, 1);
+		lcd_printstr("Error Code: ");
+		lcd_printint(HARD_LIMIT_ERR | command.feedback_num); 
+		lcd_set_cursor(0, 3);
 		lcd_printstr("PRESS ESC TO RESET!");
 	}
 	/////////////////////////////////////
@@ -2530,14 +2564,19 @@ void StartReceiveTask(void *argument)
 		Start_get_command(&command);
 		
 		if(command.type == FEEDBACK){
-			if(command.feedback == ANGLE_SOFT_LIMIT){
+			if(command.feedback == JOINT_MISS_STEP){
 				lcd_update();
 				select_menu = EMERGENCY_MENU2;
 				command.feedback = NO_FEEDBACK;
 			}
-			else if(command.feedback == ANGLE_HARD_LIMIT){
+			else if(command.feedback == ANGLE_SOFT_LIMIT){
 				lcd_update();
 				select_menu = EMERGENCY_MENU3;
+				command.feedback = NO_FEEDBACK;
+			}
+			else if(command.feedback == ANGLE_HARD_LIMIT){
+				lcd_update();
+				select_menu = EMERGENCY_MENU4;
 				command.feedback = NO_FEEDBACK;
 			}
 		}

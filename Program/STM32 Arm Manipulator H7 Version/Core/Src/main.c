@@ -201,43 +201,46 @@ typedef struct{
 //-----------------------------------
 
 /* STEPPER SET */
-//-----------------------------
-#define MICROSTEP_FACTOR1	1
-#define MICROSTEP_FACTOR2	2
-#define MICROSTEP_FACTOR3	4
-#define MICROSTEP_FACTOR4	8
-#define MICROSTEP_FACTOR5	16
-#define MICROSTEP_FACTOR6	32
+//---------------------------------
+#define MICROSTEP_FACTOR1			1
+#define MICROSTEP_FACTOR2			2
+#define MICROSTEP_FACTOR3			4
+#define MICROSTEP_FACTOR4			8
+#define MICROSTEP_FACTOR5			16
+#define MICROSTEP_FACTOR6			32
 
-#define MICROSTEP_VALUE1 	200
-#define MICROSTEP_VALUE2 	400
-#define MICROSTEP_VALUE3 	800
-#define MICROSTEP_VALUE4 	1600
-#define MICROSTEP_VALUE5	3200
-#define MICROSTEP_VALUE6 	6400
+#define MICROSTEP_VALUE1 			200
+#define MICROSTEP_VALUE2 			400
+#define MICROSTEP_VALUE3 			800
+#define MICROSTEP_VALUE4 			1600
+#define MICROSTEP_VALUE5			3200
+#define MICROSTEP_VALUE6 			6400
 
-#define STEPPER1_RATIO		90
-#define	STEPPER2_RATIO		36
-#define	STEPPER3_RATIO		36
-#define	STEPPER4_RATIO		9
-#define	STEPPER5_RATIO		90
-#define	STEPPER6_RATIO		9
+#define STEPPER1_RATIO				90
+#define	STEPPER2_RATIO				36
+#define	STEPPER3_RATIO				36
+#define	STEPPER4_RATIO				9
+#define	STEPPER5_RATIO				90
+#define	STEPPER6_RATIO				9
 
-#define STEPPER1_MAXSPD		420
-#define STEPPER2_MAXSPD		315
-#define STEPPER3_MAXSPD		420
-#define STEPPER4_MAXSPD		420
-#define STEPPER5_MAXSPD		420
-#define STEPPER6_MAXSPD		420
+#define STEPPER1_MAXSPD				420
+#define STEPPER2_MAXSPD				315
+#define STEPPER3_MAXSPD				420
+#define STEPPER4_MAXSPD				420
+#define STEPPER5_MAXSPD				420
+#define STEPPER6_MAXSPD				420
 
-#define SET_DUTY_CYCLE		0.25f
-#define BASE_FREQ					1000
+#define SET_DUTY_CYCLE				0.25f
+#define BASE_FREQ							1000
 
-#define STOPPING					0x01
-#define ACCELERATING			0X02
-#define AT_TOP_SPEED			0X03
-#define DECELERATING			0X04
-//-----------------------------
+#define STOPPING							0x01
+#define ACCELERATING					0X02
+#define AT_TOP_SPEED					0X03
+#define DECELERATING					0X04
+
+#define MISS_STEP_TOLLERANCE	1
+#define MISS_STEP_SAFE_ANGLE	10.0f
+//---------------------------------
 
 
 /*ROBOT SET*/
@@ -290,7 +293,7 @@ UART_HandleTypeDef huart4;
 /* USER CODE BEGIN PV */
 
 // PARAMETER VARIABLE
-double
+const double
 joint_positive_axisLim[JOINT_NUM] = {
 	JOINT1_MAX_ANGLE,
 	JOINT2_MAX_ANGLE,
@@ -308,24 +311,31 @@ joint_negative_axisLim[JOINT_NUM] = {
 	JOINT5_MIN_ANGLE,
 	JOINT6_MIN_ANGLE,
 	
-},
+};
+
+double
 joint_max_traveldist[JOINT_NUM],
-joint_step_per_deg[JOINT_NUM],
-joint_deg_per_step[JOINT_NUM];
+joint_ang_per_step[JOINT_NUM],
+joint_miss_step_angle[JOINT_NUM];
 
 bool
 home = false,
+robot_stop = false,
 welding_run = false,
 preview_run = false,
 joint_limit = false,
-joint_limit_bypass = false,
+joint_miss_step = false,
+joint_error_bypass = false,
 soft_limit[JOINT_NUM],
 hard_limit[JOINT_NUM],
 positive_limit[JOINT_NUM],
 negative_limit[JOINT_NUM],
-limit_switch_state[JOINT_NUM];
+positive_miss[JOINT_NUM],
+negative_miss[JOINT_NUM],
+limit_switch_state[JOINT_NUM],
+miss_step[JOINT_NUM];
 
-uint8_t
+const uint8_t
 robot_axis[AXIS_NUM] = {
 	AXIS_X,
 	AXIS_Y,
@@ -344,7 +354,7 @@ robot_joint[JOINT_NUM] = {
 	JOINT_6
 };
 
-double
+const double
 joint_d[JOINT_NUM] = {
 	191.0, 0.0, 0.0,
 	575.0, 0.0, 65.0,
@@ -369,6 +379,9 @@ total_mapped_points;
 
 Welding_Data_Status_t
 point_status[MAX_POINTS];
+
+Joint_Dir_t
+joint_current_dir[JOINT_NUM];
 
 
 // EEPROM VARIABLE
@@ -427,16 +440,17 @@ fk_pos_output[AXIS_NUM];
 
 // MOVE VARIABLE
 double
+input_position[AXIS_NUM],
 current_position[AXIS_NUM],
 target_position[AXIS_NUM],
 delta_move_pos[AXIS_NUM],
 prev_position[AXIS_NUM],
 
+input_angle[JOINT_NUM],
 current_angle[JOINT_NUM],
 target_angle[JOINT_NUM],
 delta_ang[JOINT_NUM],
-prev_angle[JOINT_NUM],
-prev_input_angle[JOINT_NUM];
+prev_angle[JOINT_NUM];
 
 
 // STEPPER VARIABLE 
@@ -500,8 +514,9 @@ step_count[JOINT_NUM],
 step_freq[JOINT_NUM],
 step_period[JOINT_NUM],
 step_accel_period[JOINT_NUM],
-stepper_stepfactor[JOINT_NUM],
+stepper_stepfactor[JOINT_NUM];
 
+const uint16_t
 stepper_gpio_pin[12] = {
 	PUL1_Pin,
 	PUL2_Pin,
@@ -543,10 +558,7 @@ current_step[JOINT_NUM];
 
 float
 feed_rate,
-joint_rpm;
-
-double
-joint_delta_angle[JOINT_NUM];
+stepper_joint_rpm;
 
 
 // RS232 VARIABLE
@@ -566,7 +578,7 @@ rx_move_rotation[3],
 rx_move_angle[6];
 
 uint8_t
-send_data_interval = 100,
+send_data_interval = 50,
 rx_savepoint,
 rx_patterntype[MAX_POINTS],
 rx_pointtype,
@@ -628,7 +640,7 @@ enc_gpio_port[12] = {
 	ENC6B_GPIO_Port
 };
 
-uint16_t
+const uint16_t
 enc_gpio_pin[12] = {
 	ENC1A_Pin,
 	ENC2A_Pin,
@@ -738,8 +750,8 @@ void linear_interpolation(Welding_Point_t start_pos, Welding_Point_t end_pos, Sp
 
 
 // Main Function ------------------------------------------------------------
-void move_joint(uint8_t select_joint, double input_angle, Speed_t set_speed);
-void move_world(uint8_t move_var, double move_pos, Speed_t set_speed);
+void move_joint(uint8_t select_joint, double move_angle, Speed_t set_speed);
+void move_world(uint8_t select_axis, double move_pos, Speed_t set_speed);
 void welder_on(void);
 void welder_off(void);
 void welding_preview(void);
@@ -755,6 +767,11 @@ void encoder_init(void);
 void encoder_read(uint32_t *buffer, uint8_t buff_size, uint8_t enc_sel);
 void encoder_reset(void);
 //----------------------------------------------------------------------
+
+
+// Safety Function ------------
+void check_miss_step(void);
+//-----------------------------
 
 
 // Custom RS232 Function -----
@@ -793,7 +810,7 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 
 
 /*STEPPER TIMER CALLBACK*/
-//--------------------------------------------------------------------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	for(int i=0; i<JOINT_NUM; i++){
 		if(htim->Instance == stepper_tim_instance[i]){
@@ -814,7 +831,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 				step_counter[i]++;
 			}
 			
-			if(((step_counter[i] >= target_step[i]) && step_limit[i] == true) || (step_limit[i] == false && step_start[i] == false) || joint_limit == true){
+			if(((step_counter[i] >= target_step[i]) && step_limit[i]) || (!step_limit[i] && !step_start[i]) || joint_limit || robot_stop){
 				HAL_GPIO_WritePin(stepper_gpio_port[i], stepper_gpio_pin[i], GPIO_PIN_RESET);
 				HAL_TIM_Base_Stop_IT(stepper_tim_handler[i]);
 				timer_counter[i] = 0;
@@ -824,7 +841,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		}
 	}
 }
-//--------------------------------------------------------------------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 /* INPUT CAPTURE CALLBACK */
@@ -1029,8 +1046,7 @@ int main(void)
 		else if(stepper_microstep[i] == MICROSTEP_VALUE6) stepper_stepfactor[i] = MICROSTEP_FACTOR6;
 		
 		joint_max_traveldist[i] = joint_positive_axisLim[i] + joint_negative_axisLim[i];
-		joint_step_per_deg[i] = (stepper_microstep[i] * stepper_ratio[i]) / 360.0;
-		joint_deg_per_step[i] = 360.0 / (stepper_microstep[i] * stepper_ratio[i]);
+		joint_ang_per_step[i] = 360.0 / (stepper_microstep[i] * stepper_ratio[i]);
 		
 		step_state[i] = STOPPING;
 	}
@@ -1116,6 +1132,9 @@ int main(void)
 		#endif
 		
 		#ifdef MAIN_PROGRAM	
+		// Check Miss Step
+		check_miss_step();
+		
 		//Check Joint Limit
 		check_limit(HARD_LIMIT_CHECK);
 		
@@ -1167,6 +1186,8 @@ int main(void)
 		
 		// Check Move Command
 		else if(command.type == MOVE){
+			robot_stop = false;
+			
 			if(command.control_mode == WORLD_CTRL){			
 				for(int i=0; i<AXIS_NUM; i++){
 					if(command.move_variable == robot_axis[i]){
@@ -1201,16 +1222,16 @@ int main(void)
 							rx_move_angle[i] = command.move_value;
 						}
 						
-						if(positive_limit[i] == true && command.move_sign == SIGNED_VAR){
-							move_joint(robot_joint[i], rx_move_angle[i], HIGH);
+						if(positive_limit[i] && command.move_sign == SIGNED_VAR){
+							move_joint(robot_joint[i], rx_move_angle[i], LOW);
 						}
 						
-						else if(negative_limit[i] == true && command.move_sign == UNSIGNED_VAR){
-							move_joint(robot_joint[i], rx_move_angle[i], HIGH);
+						else if(negative_limit[i] && command.move_sign == UNSIGNED_VAR){
+							move_joint(robot_joint[i], rx_move_angle[i], LOW);
 						}
 						
-						else if(positive_limit[i] == false && negative_limit[i] == false){
-							move_joint(robot_joint[i], rx_move_angle[i], HIGH);
+						else if(!positive_limit[i] && !negative_limit[i]){
+							move_joint(robot_joint[i], rx_move_angle[i], LOW);
 						}
 					}
 					else rx_move_angle[i] = 0.0;
@@ -1220,7 +1241,13 @@ int main(void)
 		
 		// Check Run Command
 		else if(command.type == RUN){
-			if(command.running_mode == WELDING_MODE){
+			if(command.running_mode == CONTROL_MODE){
+				if(command.running_state == RUNNING_STOP){
+					robot_stop = true;
+				}
+			}
+			
+			else if(command.running_mode == WELDING_MODE){
 				
 			}
 			
@@ -1248,7 +1275,8 @@ int main(void)
 				hard_limit[i] = false;
 			}
 			joint_limit = false;
-			joint_limit_bypass = true;
+			joint_miss_step = false;
+			joint_error_bypass = true;
 			kinematics.singularity = false;
 		}
 		
@@ -2526,6 +2554,9 @@ void enable_stepper(void){
 void move_stepper(uint8_t select_joint, uint16_t step, Joint_Dir_t dir, uint16_t input_freq){		
 	for(int i=0; i<JOINT_NUM; i++){
 		if(select_joint == robot_joint[i]){
+			// Stepper Joint Current Direction
+			joint_current_dir[i] = dir;
+			
 			// Duty Cycle Calculation
 			step_freq[i] = input_freq;
 			step_period[i] = 1000000/step_freq[i];
@@ -2543,7 +2574,7 @@ void move_stepper(uint8_t select_joint, uint16_t step, Joint_Dir_t dir, uint16_t
 			// Pulse Start
 			target_step[i] = step;
 			
-			if((target_step[i] > 0 && step_counter[i] == 0 && step_state[i] == STOPPING) || (step_start[i] == true && step_state[i] == STOPPING) || joint_limit == false){
+			if((target_step[i] > 0 && step_counter[i] == 0 && step_state[i] == STOPPING) || (step_start[i] && step_state[i] == STOPPING) || !joint_limit){
 				t_on[i] = step_period[i] * SET_DUTY_CYCLE;
 				t_off[i] = step_period[i] - t_on[i];
 				HAL_TIM_Base_Start_IT(stepper_tim_handler[i]);
@@ -2597,32 +2628,35 @@ void linear_interpolation(Welding_Point_t start_pos, Welding_Point_t end_pos, Sp
 
 /* --- JOINT BASE MOVE FUNCTION ---*/
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void move_joint(uint8_t select_joint, double input_angle, Speed_t set_speed){
+void move_joint(uint8_t select_joint, double move_angle, Speed_t set_speed){
 	// Joint RPM Set
-	if(set_speed == LOW) joint_rpm = 1;
-	else if(set_speed == MED) joint_rpm = 2;
-	else if(set_speed == HIGH) joint_rpm = 4;
+	if(set_speed == LOW) stepper_joint_rpm = 1;
+	else if(set_speed == MED) stepper_joint_rpm = 2;
+	else if(set_speed == HIGH) stepper_joint_rpm = 4;
 	
-	if((input_angle > 0 && input_angle < 5) || (input_angle > -5 && input_angle < 0)){
-		joint_rpm = 0.25;
+	if((move_angle > 0 && move_angle < 1) || (move_angle > -1 && move_angle < 0)){
+		stepper_joint_rpm = 0.25;
 	}
 	
 	for(int i=0; i<JOINT_NUM; i++){
 		if(select_joint == robot_joint[i]){
+			input_angle[i] = move_angle;
+			target_angle[i] = move_angle + enc_joint_angle[i];
+			
 			// Calculate Step
 			if(step_limit[i] == true){
-				step_count[i] = abs((int)(input_angle / joint_deg_per_step[i]));
+				step_count[i] = abs((int)(move_angle / joint_ang_per_step[i]));
 			}
 			
 			// Synchronize Joint RPM
-			stepper_rpm[i] = joint_rpm * stepper_ratio[i];
+			stepper_rpm[i] = stepper_joint_rpm * stepper_ratio[i];
 			stepper_freq[i] = stepper_rpm[i] * stepper_microstep[i] / 60;
 			
 			// Step Move
-			if(input_angle > 0){
+			if(move_angle > 0){
 				move_stepper(robot_joint[i], step_count[i], POSITIVE_DIR, stepper_freq[i]);
 			}
-			else if(input_angle < 0){
+			else if(move_angle < 0){
 				move_stepper(robot_joint[i], step_count[i], NEGATIVE_DIR, stepper_freq[i]);
 			}
 			
@@ -2639,10 +2673,10 @@ void move_joint(uint8_t select_joint, double input_angle, Speed_t set_speed){
 
 /* --- WORLD BASE MOVE FUNCTION ---*/
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void move_world(uint8_t move_var, double move_pos, Speed_t set_speed){
+void move_world(uint8_t select_axis, double move_pos, Speed_t set_speed){
 	// Check Target Position
 	for(int i=0; i<AXIS_NUM; i++){
-		if(step_state[i] == false && move_var == robot_axis[i]){
+		if(step_state[i] == false && select_axis == robot_axis[i]){
 			target_position[i] = current_position[i] + move_pos;
 		}
 	}
@@ -2653,13 +2687,11 @@ void move_world(uint8_t move_var, double move_pos, Speed_t set_speed){
 	
 	// Move Joint
 	for(int i=0; i<AXIS_NUM; i++){
-		target_angle[i] = kinematics.joint_ang_out[i];
-		
 		if(step_state[i] == false){
-			delta_ang[i] = target_angle[i] - current_angle[i];
+			delta_ang[i] = kinematics.joint_ang_out[i] - current_angle[i];
 		}
 		
-		if(current_angle[i] != target_angle[i]){
+		if(current_angle[i] != kinematics.joint_ang_out[i]){
 			move_joint(robot_joint[i], delta_ang[i], set_speed);
 		}
 	}
@@ -2764,20 +2796,22 @@ void check_limit(Limit_t check_mode){
 		
 	}
 	
+	// Software Limit
 	else if(check_mode == SOFT_LIMIT_CHECK){
 		
 	}
 	
+	// Hardware Limit
 	else if(check_mode == HARD_LIMIT_CHECK){
 		for(int i=0; i<JOINT_NUM; i++){
 			if(enc_joint_angle[i] > joint_negative_axisLim[i] && enc_joint_angle[i] < joint_positive_axisLim[i]){
 				hard_limit[i] = false;
 			}
 			else{
-				if(joint_limit_bypass == false){
+				if(joint_error_bypass == false){
 					hard_limit[i] = true;
 					for(int i=0; i<10; i++){
-						Send_feedback(&command, ANGLE_HARD_LIMIT, 0);
+						Send_feedback(&command, ANGLE_HARD_LIMIT, (uint16_t)i);
 					}
 					if(enc_joint_angle[i] <= joint_negative_axisLim[i]) negative_limit[i] = true;
 					else if(enc_joint_angle[i] >= joint_positive_axisLim[i]) positive_limit[i] = true;
@@ -2786,11 +2820,11 @@ void check_limit(Limit_t check_mode){
 			
 			if(negative_limit[i] == true && enc_joint_angle[i] > joint_negative_axisLim[i]){
 				negative_limit[i] = false;
-				joint_limit_bypass = false;
+				joint_error_bypass = false;
 			}
 			else if(positive_limit[i] == true && enc_joint_angle[i] < joint_positive_axisLim[i]){
 				positive_limit[i] = false;
-				joint_limit_bypass = false;
+				joint_error_bypass = false;
 			}
 			
 			joint_limit |= hard_limit[i];
@@ -2804,7 +2838,7 @@ void check_limit(Limit_t check_mode){
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 bool homing(void){
 	bool state;
-	joint_rpm = 4;	
+	stepper_joint_rpm = 4;	
 	
 	// Calculate each joint delta angle
 	
@@ -2834,12 +2868,49 @@ void encoder_init(void){
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-/* --- ENCODER COUNTER RESET FUNCTION ---*/
+/* --- ENCODER COUNTER RESET FUNCTION --- */
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void encoder_reset(void){
 	for(int i=0; i<JOINT_NUM; i++){
 		cal_value[i] = enc_angle[i];
 		enc_joint_angle[i] = 0.0;
+	}
+}
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/* --- MISS STEP FUNCTION --- */
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void check_miss_step(void){
+	for(int i=0; i<JOINT_NUM; i++){	
+		int32_t delta_joint_angle = enc_joint_angle[i] - prev_enc_joint_angle[i];
+		
+		if(abs(delta_joint_angle) > MISS_STEP_TOLLERANCE){
+			if(joint_error_bypass == false){
+				miss_step[i] = true;
+				for(int i=0; i<10; i++){
+					Send_feedback(&command, JOINT_MISS_STEP, (uint16_t)i);
+				}
+				
+				if(joint_current_dir[i] == NEGATIVE_DIR) negative_miss[i] = true;
+				else if(joint_current_dir[i] == POSITIVE_DIR) positive_miss[i] = true;
+				
+				joint_miss_step_angle[i] = enc_joint_angle[i];
+			}
+		}
+		else miss_step[i] = false;
+	
+		if(negative_miss[i] == true && enc_joint_angle[i] > joint_miss_step_angle[i] + MISS_STEP_SAFE_ANGLE){
+			negative_miss[i] = false;
+			joint_error_bypass = false;
+		}
+		else if(positive_miss[i] == true && enc_joint_angle[i] < joint_miss_step_angle[i] - MISS_STEP_SAFE_ANGLE){
+			positive_miss[i] = false;
+			joint_error_bypass = false;
+		}
+		
+		prev_enc_joint_angle[i] = enc_joint_angle[i];
+		joint_miss_step |= miss_step[i];
 	}
 }
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
