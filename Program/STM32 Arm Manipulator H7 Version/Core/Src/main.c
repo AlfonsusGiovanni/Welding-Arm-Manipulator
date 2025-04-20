@@ -332,7 +332,6 @@ positive_limit[JOINT_NUM],
 negative_limit[JOINT_NUM],
 positive_miss[JOINT_NUM],
 negative_miss[JOINT_NUM],
-limit_switch_state[JOINT_NUM],
 miss_step[JOINT_NUM];
 
 const uint8_t
@@ -668,9 +667,11 @@ period_time[JOINT_NUM];
 int
 enc_counter[JOINT_NUM];
 
-double
+const double
 min_duty_cycle = 2.9,
-max_duty_cycle = 97.1,
+max_duty_cycle = 97.1;
+
+double
 duty_cycle[JOINT_NUM],
 diff_angle[JOINT_NUM],
 enc_angle[JOINT_NUM],
@@ -698,6 +699,29 @@ min_joint_angle[JOINT_NUM] = {
 	JOINT6_MIN_ANGLE,
 };
 
+
+// LIMIT SWITCH VARIABLE
+bool
+limit_switch_state[JOINT_NUM];
+
+GPIO_TypeDef*
+switch_gpio_port[JOINT_NUM] = {
+	LIMIT1_GPIO_Port,
+	LIMIT2_GPIO_Port,
+	LIMIT3_GPIO_Port,
+	LIMIT4_GPIO_Port,
+	LIMIT5_GPIO_Port,
+	LIMIT6_GPIO_Port,
+};
+
+const uint16_t switch_gpio_pin[JOINT_NUM] = {
+	LIMIT1_Pin,
+	LIMIT2_Pin,
+	LIMIT3_Pin,
+	LIMIT4_Pin,
+	LIMIT5_Pin,
+	LIMIT6_Pin,
+};
 
 // POWER VARIABLE
 uint8_t pwr_status;
@@ -743,10 +767,10 @@ void move_stepper(uint8_t select_joint, uint16_t step, Joint_Dir_t dir, uint16_t
 //---------------------------------------------------------------------------------------------
 
 
-// Calculation Function -------------------------------------------------------------------------------------------------
+// Calculation Function ---------------------------------------------------------------------
 uint32_t calculate_exponential_step_interval(uint8_t select_joint, uint32_t step);
 void linear_interpolation(Welding_Point_t start_pos, Welding_Point_t end_pos, Speed_t speed);
-//-----------------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------
 
 
 // Main Function ------------------------------------------------------------
@@ -880,39 +904,13 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 
 
 /* EXTI BUTTON CALLBACK */
-//---------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------
 void HAL_GPIO_EXTI_CALLBACK(uint16_t GPIO_PIN){
-	// Limit 1 
-	if(GPIO_PIN == LIMIT1_Pin){
-		limit_switch_state[0] = (HAL_GPIO_ReadPin(LIMIT1_GPIO_Port, LIMIT1_Pin) == GPIO_PIN_RESET);
-	}
-	
-	// Limit 2
-	else if(GPIO_PIN == LIMIT2_Pin){
-		limit_switch_state[1] = (HAL_GPIO_ReadPin(LIMIT2_GPIO_Port, LIMIT2_Pin) == GPIO_PIN_RESET);
-	}
-	
-	// Limit 3 
-	else if(GPIO_PIN == LIMIT3_Pin){
-		limit_switch_state[2] = (HAL_GPIO_ReadPin(LIMIT3_GPIO_Port, LIMIT3_Pin) == GPIO_PIN_RESET);
-	}
-	
-	// Limit 4 
-	else if(GPIO_PIN == LIMIT4_Pin){
-		limit_switch_state[3] = (HAL_GPIO_ReadPin(LIMIT4_GPIO_Port, LIMIT4_Pin) == GPIO_PIN_RESET);
-	}
-	
-	// Limit 5 
-	else if(GPIO_PIN == LIMIT5_Pin){
-		limit_switch_state[4] = (HAL_GPIO_ReadPin(LIMIT5_GPIO_Port, LIMIT5_Pin) == GPIO_PIN_RESET);
-	}
-	
-	// Limit 6 
-	else if(GPIO_PIN == LIMIT6_Pin){
-		limit_switch_state[5] = (HAL_GPIO_ReadPin(LIMIT6_GPIO_Port, LIMIT6_Pin) == GPIO_PIN_RESET);
+	for(int i=0; i<JOINT_NUM; i++){
+		limit_switch_state[i] = (HAL_GPIO_ReadPin(switch_gpio_port[i], switch_gpio_pin[i]) == GPIO_PIN_RESET);
 	}
 }
-//---------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------
 
 /* USER CODE END 0 */
 

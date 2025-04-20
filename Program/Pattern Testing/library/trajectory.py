@@ -2,7 +2,6 @@ class Interpolation_Type:
     LINEAR = 0X01,
     POLYNOMIAL = 0x02
     SPLINE = 0x03
-
 class Trajectory:
     def __init__(self):
         self.a = 0

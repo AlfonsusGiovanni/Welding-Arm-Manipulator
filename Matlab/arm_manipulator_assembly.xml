@@ -1,0 +1,370 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<SimscapeMultibodyImportXML version="2.0" xmlns="urn:mathworks:SimscapeMultibody:import" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<Created by="" on="04/20/25||13:52:32" using="Simscape Multibody Link Version 7.4" from="SolidWorks 31.4.0"/>
+<ModelUnits mass="kilogram" length="millimeter"/>
+<DataUnits mass="kilogram" length="meter"/>
+<RootAssembly name="arm_manipulator_assembly" uid="arm_manipulator_assembly" version="284">
+<AssemblyFile name="arm_manipulator_assembly.SLDASM" type="SolidWorks Assembly"/>
+<InstanceTree>
+<Instance name="arm_manipulator_link_5-2" uid="arm_manipulator_link_5-2" entityUid="arm_manipulator_link_5*:*Default">
+<Transform>
+<Rotation>1 0 0 0 1 0 0 0 1</Rotation>
+<Translation>-0.19852348821948723 0.57871680780783963 0.55286837753463836</Translation>
+</Transform>
+</Instance>
+<Instance name="arm_manipulator_link_1-2" uid="arm_manipulator_link_1-2" entityUid="arm_manipulator_link_1*:*Default">
+<Transform>
+<Rotation>1 0 0 0 1 0 0 0 1</Rotation>
+<Translation>0.25900167962566789 0.29946872625851312 -0.0082506500311176605</Translation>
+</Transform>
+</Instance>
+<Instance name="arm_manipulator_link_2-2" uid="arm_manipulator_link_2-2" entityUid="arm_manipulator_link_2*:*Default">
+<Transform>
+<Rotation>1 0 0 0 1 0 0 0 1</Rotation>
+<Translation>-0.18327348821958087 0.24701941362901361 -0.016750650031117982</Translation>
+</Transform>
+</Instance>
+<Instance name="arm_manipulator_link_3-2" uid="arm_manipulator_link_3-2" entityUid="arm_manipulator_link_3*:*Default">
+<Transform>
+<Rotation>1 0 0 0 1 0 0 0 1</Rotation>
+<Translation>-0.17627348821958053 0.48780329915618148 0.035503172082016934</Translation>
+</Transform>
+</Instance>
+<Instance name="arm_manipulator_link_4-2" uid="arm_manipulator_link_4-2" entityUid="arm_manipulator_link_4*:*Default">
+<Transform>
+<Rotation>1 0 -2.087169405960725e-15 0 0.99996716004733566 -0.0081042474583568318 2.0871678259305651e-15 0.0081042474583568318 0.99996716004733566</Rotation>
+<Translation>-0.23564848821957884 0.58294359637950455 -0.25246874166644306</Translation>
+</Transform>
+</Instance>
+<Instance name="Toolframe-2" uid="Toolframe-2" entityUid="Toolframe*:*Default">
+<Transform>
+<Rotation>1 0 0 0 -3.4914813388431334e-15 -1 0 1 -3.4914813388431334e-15</Rotation>
+<Translation>-0.23452348821957955 0.61529890725551595 0.53186837753459126</Translation>
+</Transform>
+</Instance>
+<Instance name="arm_manipulator_base-2" uid="arm_manipulator_base-2" grounded="true" entityUid="arm_manipulator_base*:*Default">
+<Transform>
+<Rotation>1 0 0 0 1 0 0 0 1</Rotation>
+<Translation>0.20219372483426901 0.27769750031955287 -0.47984609518674365</Translation>
+</Transform>
+</Instance>
+</InstanceTree>
+<Constraints>
+<Concentric name="Concentric1">
+<ConstraintGeometry geomType="cylinder">
+<InstancePath>
+<Uid>arm_manipulator_base-2</Uid>
+</InstancePath>
+<Position>-0.46496721305384808 -0.3787807449588273 0.38709544515562538</Position>
+<Axis>0 -1 -8.0247628249764373e-16</Axis>
+</ConstraintGeometry>
+<ConstraintGeometry geomType="cylinder">
+<InstancePath>
+<Uid>arm_manipulator_link_1-2</Uid>
+</InstancePath>
+<Position>-0.52177516784524725 -0.39155197089778765 -0.084499999999999853</Position>
+<Axis>1.6379730226223337e-16 -1 -1.1019798474417035e-16</Axis>
+</ConstraintGeometry>
+</Concentric>
+<Coincident name="Coincident1">
+<ConstraintGeometry geomType="plane">
+<InstancePath>
+<Uid>arm_manipulator_base-2</Uid>
+</InstancePath>
+<Position>-0.46496721305384886 -0.45378074495882736 0.36035052049413907</Position>
+<Axis>0 -1 -6.8001160258290799e-16</Axis>
+</ConstraintGeometry>
+<ConstraintGeometry geomType="plane">
+<InstancePath>
+<Uid>arm_manipulator_link_1-2</Uid>
+</InstancePath>
+<Position>-0.52177516784524725 -0.47555197089778761 -0.084499999999999853</Position>
+<Axis>1.6379730226223337e-16 -1 -1.1019798474417035e-16</Axis>
+</ConstraintGeometry>
+</Coincident>
+<Concentric name="Concentric2">
+<ConstraintGeometry geomType="cylinder">
+<InstancePath>
+<Uid>arm_manipulator_link_1-2</Uid>
+</InstancePath>
+<Position>-0.52227516784524719 -0.32955197089778754 -0.060999999999999902</Position>
+<Axis>1 8.1593304877006455e-16 -1.9428902930940236e-15</Axis>
+</ConstraintGeometry>
+<ConstraintGeometry geomType="cylinder">
+<InstancePath>
+<Uid>arm_manipulator_link_2-2</Uid>
+</InstancePath>
+<Position>-0.0069999999999997287 -0.27710265826828806 -0.052499999999999346</Position>
+<Axis>-1 0 4.0592529337857266e-16</Axis>
+</ConstraintGeometry>
+</Concentric>
+<Coincident name="Coincident2">
+<ConstraintGeometry geomType="plane">
+<InstancePath>
+<Uid>arm_manipulator_link_2-2</Uid>
+</InstancePath>
+<Position>-0.0069999999999997564 0.047897341731711868 -0.052499999999999748</Position>
+<Axis>-1 0 4.0592529337857266e-16</Axis>
+</ConstraintGeometry>
+<ConstraintGeometry geomType="plane">
+<InstancePath>
+<Uid>arm_manipulator_link_1-2</Uid>
+</InstancePath>
+<Position>-0.44927516784524724 -0.32955197089778743 -0.06100000000000004</Position>
+<Axis>1 8.1593304877006455e-16 -1.9428902930940236e-15</Axis>
+</ConstraintGeometry>
+</Coincident>
+<Concentric name="Concentric3">
+<ConstraintGeometry geomType="cylinder">
+<InstancePath>
+<Uid>arm_manipulator_link_2-2</Uid>
+</InstancePath>
+<Position>-0.0089999999999998692 0.3728973417317123 -0.052499999999999956</Position>
+<Axis>-1 1.6625156112892654e-15 -1.0603790760583891e-15</Axis>
+</ConstraintGeometry>
+<ConstraintGeometry geomType="cylinder">
+<InstancePath>
+<Uid>arm_manipulator_link_3-2</Uid>
+</InstancePath>
+<Position>-0.0063749999999999918 0.13211345620454462 -0.10475382211313478</Position>
+<Axis>-1 -1.4415188991789453e-16 0</Axis>
+</ConstraintGeometry>
+</Concentric>
+<Coincident name="Coincident3">
+<ConstraintGeometry geomType="plane">
+<InstancePath>
+<Uid>arm_manipulator_link_2-2</Uid>
+</InstancePath>
+<Position>0 0.047897341731711979 -0.052499999999999873</Position>
+<Axis>1 0 0</Axis>
+</ConstraintGeometry>
+<ConstraintGeometry geomType="plane">
+<InstancePath>
+<Uid>arm_manipulator_link_3-2</Uid>
+</InstancePath>
+<Position>-0.0069999999999991458 0.13211345620454618 -0.10475382211313482</Position>
+<Axis>-1 0 0</Axis>
+</ConstraintGeometry>
+</Coincident>
+<Concentric name="Concentric4">
+<ConstraintGeometry geomType="cylinder">
+<InstancePath>
+<Uid>arm_manipulator_link_3-2</Uid>
+</InstancePath>
+<Position>-0.086874999999999175 0.13172156793649803 -0.051067670154113565</Position>
+<Axis>-1.030285955457804e-15 -0.0081042474583574945 0.99996716004733577</Axis>
+</ConstraintGeometry>
+<ConstraintGeometry geomType="cylinder">
+<InstancePath>
+<Uid>arm_manipulator_link_4-2</Uid>
+</InstancePath>
+<Position>-0.027500000000000108 0.038499999999999868 0.38980000000000004</Position>
+<Axis>0 -1.1622647289044608e-16 -1.0000000000000002</Axis>
+</ConstraintGeometry>
+</Concentric>
+<Coincident name="Coincident4">
+<ConstraintGeometry geomType="plane">
+<InstancePath>
+<Uid>arm_manipulator_link_3-2</Uid>
+</InstancePath>
+<Position>-0.086874999999999175 0.1315432744924141 -0.02906839263307219</Position>
+<Axis>-1.030285955457804e-15 -0.0081042474583574945 0.99996716004733577</Axis>
+</ConstraintGeometry>
+<ConstraintGeometry geomType="plane">
+<InstancePath>
+<Uid>arm_manipulator_link_4-2</Uid>
+</InstancePath>
+<Position>-0.027500000000000108 0.038499999999999868 0.2586</Position>
+<Axis>-3.0783885746124809e-16 -5.6725457664441592e-16 -1.0000000000000002</Axis>
+</ConstraintGeometry>
+</Coincident>
+<Concentric name="Concentric5">
+<ConstraintGeometry geomType="cylinder">
+<InstancePath>
+<Uid>arm_manipulator_link_4-2</Uid>
+</InstancePath>
+<Position>-0.050349999999999645 0.038500000000000645 0.75805000000000011</Position>
+<Axis>1 -1.8755377385140193e-16 -6.0047317127155927e-16</Axis>
+</ConstraintGeometry>
+<ConstraintGeometry geomType="cylinder">
+<InstancePath>
+<Uid>arm_manipulator_link_5-2</Uid>
+</InstancePath>
+<Position>-0.1069750000000001 0.03658209944768076 -0.04699999999999982</Position>
+<Axis>1 -2.4980018054065396e-16 -1.1066271742407473e-15</Axis>
+</ConstraintGeometry>
+</Concentric>
+<Coincident name="Coincident5">
+<ConstraintGeometry geomType="plane">
+<InstancePath>
+<Uid>arm_manipulator_link_4-2</Uid>
+</InstancePath>
+<Position>-0.069099999999999745 0.038500000000000312 0.54317499999999996</Position>
+<Axis>-1 7.7141463709222488e-16 1.093240067000458e-15</Axis>
+</ConstraintGeometry>
+<ConstraintGeometry geomType="plane">
+<InstancePath>
+<Uid>arm_manipulator_link_5-2</Uid>
+</InstancePath>
+<Position>-0.10622500000000012 0.03658209944768076 -0.04699999999999982</Position>
+<Axis>1 2.4980018054062674e-16 -2.0190307497585639e-15</Axis>
+</ConstraintGeometry>
+</Coincident>
+<Concentric name="Concentric6">
+<ConstraintGeometry geomType="cylinder">
+<InstancePath>
+<Uid>arm_manipulator_link_5-2</Uid>
+</InstancePath>
+<Position>-0.036000000000000032 0.03658209944768076 -0.021000000000000019</Position>
+<Axis>-1.518793321315449e-16 -3.7154911570534046e-16 1</Axis>
+</ConstraintGeometry>
+<ConstraintGeometry geomType="cylinder">
+<InstancePath>
+<Uid>Toolframe-2</Uid>
+</InstancePath>
+<Position>0 0.099999999999999978 0</Position>
+<Axis>0 -1 0</Axis>
+</ConstraintGeometry>
+</Concentric>
+<Coincident name="Coincident12">
+<ConstraintGeometry geomType="plane">
+<InstancePath>
+<Uid>arm_manipulator_link_5-2</Uid>
+</InstancePath>
+<Position>-0.036000000000000032 0.03658209944768076 -0.021000000000000019</Position>
+<Axis>-1.518793321315449e-16 -3.7154911570534046e-16 1</Axis>
+</ConstraintGeometry>
+<ConstraintGeometry geomType="plane">
+<InstancePath>
+<Uid>Toolframe-2</Uid>
+</InstancePath>
+<Position>0 0 0</Position>
+<Axis>0 -1 0</Axis>
+</ConstraintGeometry>
+</Coincident>
+</Constraints>
+</RootAssembly>
+<Assemblies>
+</Assemblies>
+<Parts>
+<Part name="Toolframe" uid="Toolframe*:*Default" version="115">
+<ModelUnits mass="kilogram" length="millimeter"/>
+<PartFile name="Toolframe.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>0.016889892983497586</Mass>
+<CenterOfMass>0 0.050000000000000003 0</CenterOfMass>
+<Inertia>1.4751842636395398e-05 1.286876335520367e-06 1.4684855338287618e-05 0 0 0</Inertia>
+</MassProperties>
+<GeometryFile name="Toolframe_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+<Part name="arm_manipulator_base" uid="arm_manipulator_base*:*Default" version="135">
+<ModelUnits mass="kilogram" length="millimeter"/>
+<PartFile name="arm_manipulator_base.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>3.003659183700877</Mass>
+<CenterOfMass>-0.46504053768816822 -0.45043490015951076 0.3259784946630872</CenterOfMass>
+<Inertia>0.023260941646229445 0.022925742816493844 0.010663633700875625 0.00095256500926890807 -1.8091300407244558e-05 1.0148811095204914e-05</Inertia>
+</MassProperties>
+<GeometryFile name="arm_manipulator_base_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+<Part name="arm_manipulator_link_1" uid="arm_manipulator_link_1*:*Default" version="116">
+<ModelUnits mass="kilogram" length="millimeter"/>
+<PartFile name="arm_manipulator_link_1.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>4.5512958058735489</Mass>
+<CenterOfMass>-0.54484559447558767 -0.35588361230160431 -0.066479611754239956</CenterOfMass>
+<Inertia>0.014457565812943831 0.026909744687737932 0.033411855620680969 -0.0017510950001625007 0.00054138183866425118 0.00284314008690149</Inertia>
+</MassProperties>
+<GeometryFile name="arm_manipulator_link_1_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+<Part name="arm_manipulator_link_2" uid="arm_manipulator_link_2*:*Default" version="110">
+<ModelUnits mass="kilogram" length="millimeter"/>
+<PartFile name="arm_manipulator_link_2.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>3.6582522280740211</Mass>
+<CenterOfMass>-0.035003421610317699 0.0059985319923776407 -0.052502065351105652</CenterOfMass>
+<Inertia>0.16235229982802132 0.0098516106344972709 0.16685008827933073 -1.3273808701274766e-06 -1.3129538421340208e-06 -0.013089754133865613</Inertia>
+</MassProperties>
+<GeometryFile name="arm_manipulator_link_2_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+<Part name="arm_manipulator_link_3" uid="arm_manipulator_link_3*:*Default" version="115">
+<ModelUnits mass="kilogram" length="millimeter"/>
+<PartFile name="arm_manipulator_link_3.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>2.9087439699221664</Mass>
+<CenterOfMass>-0.082832765479447623 0.092082609705553306 -0.10197533096873324</CenterOfMass>
+<Inertia>0.013455695650001891 0.0064381250727634388 0.010832691429319247 0.00045105320916764483 1.4551467311055127e-05 -0.0005147796428634511</Inertia>
+</MassProperties>
+<GeometryFile name="arm_manipulator_link_3_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+<Part name="arm_manipulator_link_4" uid="arm_manipulator_link_4*:*Default" version="117">
+<ModelUnits mass="kilogram" length="millimeter"/>
+<PartFile name="arm_manipulator_link_4.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>3.290412799532199</Mass>
+<CenterOfMass>-0.039466256920543154 0.03850003521636091 0.33415224390703824</CenterOfMass>
+<Inertia>0.14940934080872553 0.14952679969828964 0.0031399750325874108 4.7919239955199647e-09 0.0077161247033579097 1.3076348048535974e-05</Inertia>
+</MassProperties>
+<GeometryFile name="arm_manipulator_link_4_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+<Part name="arm_manipulator_link_5" uid="arm_manipulator_link_5*:*Default" version="110">
+<ModelUnits mass="kilogram" length="millimeter"/>
+<PartFile name="arm_manipulator_link_5.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>1.2603573508614259</Mass>
+<CenterOfMass>-0.040558619162576817 0.036586128542865498 -0.077699580828953979</CenterOfMass>
+<Inertia>0.0021318874983368204 0.0023989352400525933 0.00096709202179831328 -3.4620024245965354e-07 0.00017638413023070298 -2.3199940525804632e-08</Inertia>
+</MassProperties>
+<GeometryFile name="arm_manipulator_link_5_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+</Parts>
+</SimscapeMultibodyImportXML>
