@@ -39,12 +39,18 @@ Kinematics_t kinematics;
 /* USER CODE BEGIN PD */
 
 //#define USE_BUTTON
+//#define USE_MANUAL_ENCODER
 
 //#define TEST_STEPPER
 //#define TEST_ENCODER
 //#define TEST_COM
 //#define TEST_KINEMATICS
-#define TEST_TRAJECTORY
+#define TEST_MOTION
+
+typedef enum{
+	LINEAR_INTERPOLATION = 0x01,
+	SPLINE_INTERPOLATION,
+}Interpolation_t;
 
 /* USER CODE END PD */
 
@@ -79,7 +85,23 @@ joint_a[6] = {
 joint_alpha[6] = {
 	-90.0, 0.0, 90.0,
 	-90.0, 90.0, 0.0,
-};
+},
+
+move_ang,
+delta_move_ang,
+move_pos,
+delta_move_pos;
+
+uint16_t
+welding_point_num,
+current_welding_point;
+
+// INTERPOLATION VARIABLE
+double
+axis_delta[6],
+joint_delta[6],
+int_x_out, int_y_out, int_z_out,
+int_rx_out, int_ry_out, int_rz_out;
 
 
 // INVERSE KINEMATICS VARIABLE
@@ -95,7 +117,8 @@ fk_pos_output[6];
 
 
 // STEPPER VARIABLE
-bool 
+bool
+direction = false,
 step_start = false;
 
 uint8_t
@@ -152,6 +175,11 @@ unsigned long
 start_timer,
 end_timer;
 
+// Custom Encoder
+uint8_t dummy_counter;
+int current_step, dummy_input_step;
+float dummy_joint_angle;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -169,7 +197,12 @@ void uart_transmit(uint8_t *msg, uint16_t len);
 void process_data(uint8_t *data, uint16_t len);
 
 void move_stepper(uint32_t step, uint8_t dir, uint32_t freq);
+void move_joint(double input_angle, Speed_t input_speed); 
+
 uint32_t calculate_exponential_step_interval(uint32_t step);
+void calc_linear_parametric(double start_pos[6], double end_pos[6], uint8_t input_step, uint8_t current_step);
+
+void run_motion(Interpolation_t mode, double start_value[6], double end_value[6], Speed_t input_speed);
 
 /* USER CODE END PFP */
 
@@ -192,8 +225,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if(htim->Instance == TIM3){
 		timer_counter++;
 		
-		if(step_counter < step_input*0.25) step_period = calculate_exponential_step_interval(step_counter)/2;
-		else step_period = calculate_exponential_step_interval(step_input-step_counter)/2;
+//		if(step_counter < step_input*0.25) step_period = calculate_exponential_step_interval(step_counter)/2;
+//		else step_period = calculate_exponential_step_interval(step_input-step_counter)/2;
 		
 		t_on = step_period * 0.5;
 		t_off = step_period - t_on;
@@ -283,6 +316,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
 	HAL_Delay(1000);
+	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
 	
 	#ifdef TEST_STEPPER
 	HAL_GPIO_WritePin(ENA_GPIO_Port, ENA_Pin, GPIO_PIN_RESET);
@@ -310,18 +344,41 @@ int main(void)
 	forward_transform_matrix(&kinematics);
 	calculate_all_link(&kinematics);
 	
-	#elseif TEST_TRAJECTORY
+	#elseif TEST_MOTION
 	DHparam_init(&kinematics, joint_d, joint_a, joint_alpha);
 	tollframe_init(&kinematics, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-	#endif
 	
-	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+	double
+	dummy_start_pos[6] = {10, 20, 15, 0, 0, 0},
+	dummy_end_pos[6] = {20, 15, 10, 0, 0, 0};
+	
+	// Move to home position
+	
+	// Move to first welding point
+	
+	while(1){
+		if(current_welding_point <= welding_point_num){
+			
+		}
+	}
+	#endif
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
 	{
+		#ifdef USE_MANUAL_ENCODER
+		if(step_counter != 0){
+			if(direction){
+				current_step = step_counter;
+			}
+			else current_step = -step_counter;
+		}
+		
+		dummy_joint_angle = current_step * (0.0125);
+		#endif
+		
 		#ifdef TEST_KINEMATICS
 		fk_angle_input[0] = 0;
 		fk_angle_input[1] = 0;
@@ -339,10 +396,17 @@ int main(void)
 		#endif
 		
 		#ifdef TEST_STEPPER
-		move_stepper(160, 0, 5000);
+//		move_stepper(160, 0, 5000);
+		move_joint(90+dummy_counter, LOW);
 		
 		if(btn1_state == true){
 			step_start = false;
+			if(dummy_counter < 10){
+				dummy_counter += 10;
+			}
+			else if(dummy_counter >= 10){
+				dummy_counter -= 10;
+			}
 		}
 		#endif 
 		
@@ -547,7 +611,7 @@ static void MX_TIM3_Init(void)
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 0;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 839;
+  htim3.Init.Period = 8399;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -729,10 +793,10 @@ void process_data(uint8_t *data, uint16_t len){
 
 /* STEPPER INTERVAL CALCULATION */
 uint32_t calculate_exponential_step_interval(uint32_t step){
-	if (step == 0) return 100000 / base_freq;  // Initial delay
+	if (step == 0) return 10000 / base_freq;  // Initial delay
 
 	float freq = base_freq + (step_freq - base_freq) * (1 - expf(-0.001 * step));
-	return (uint32_t)(100000.0f / freq);  // Convert frequency to step delay
+	return (uint32_t)(10000.0f / freq);  // Convert frequency to step delay
 }
 
 /* STEPPER MOVE FUNCTION */
@@ -740,12 +804,72 @@ void move_stepper(uint32_t step, uint8_t dir, uint32_t freq){
 	step_input = step;
 	step_freq = freq;
 	
-	if(dir == 0) HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_RESET);
-	else if(dir == 1) HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_SET);
+	if(dir == 0){
+		direction = false;
+		HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_RESET);
+	}
+	else if(dir == 1){
+		direction = true;
+		HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_SET);
+	}
 	
 	if(!step_start){
 		step_start = true;
+		step_period = 10000/freq;
 		HAL_TIM_Base_Start_IT(&htim3);
+	}
+}
+
+/* LINEAR TRAJCETORY CALCULATION*/
+void calc_linear_parametric(double start_pos[6], double end_pos[6], uint8_t input_step, uint8_t current_step){
+	axis_delta[0] = (end_pos[0] - start_pos[0]) / input_step;
+	axis_delta[1] = (end_pos[1] - start_pos[1]) / input_step;
+	axis_delta[2] = (end_pos[2] - start_pos[2]) / input_step;
+	axis_delta[3] = (end_pos[3] - start_pos[3]) / input_step;
+	axis_delta[4] = (end_pos[4] - start_pos[4]) / input_step;
+	axis_delta[5] = (end_pos[5] - start_pos[5]) / input_step;
+	
+	int_x_out = start_pos[0] + current_step * axis_delta[0];
+	int_y_out = start_pos[1] + current_step * axis_delta[1];
+	int_z_out = start_pos[2] + current_step * axis_delta[2];
+	int_rx_out = start_pos[3] + current_step * axis_delta[3];
+	int_ry_out = start_pos[4] + current_step * axis_delta[4];
+	int_rz_out = start_pos[5] + current_step * axis_delta[5];
+}
+
+/* RUN MOTION FUNCTION*/
+void run_motion(Interpolation_t mode, double start_value[6], double end_value[6], Speed_t input_speed){
+	uint8_t step_num = (input_speed == LOW) ? 50 :
+										 (input_speed == MED) ? 30 :
+										 (input_speed == HIGH) ? 10 : step_num;
+	
+	if(mode == LINEAR_INTERPOLATION){
+		for(uint8_t i=0; i<=step_num; i++){
+			calc_linear_parametric(start_value, end_value, step_num, i);
+			run_inverse_kinematic(&kinematics, int_x_out, int_y_out, int_z_out, int_rx_out, int_ry_out, int_rz_out);
+			
+		}
+	}
+	
+	else if(mode == SPLINE_INTERPOLATION){
+	}
+}
+
+/* MOVE JOINT FUNCTION */
+void move_joint(double input_angle, Speed_t input_speed){
+	uint16_t joint_freq = (input_speed == LOW) ? 1000:
+										(input_speed == MED) ? 2500:
+										(input_speed == HIGH) ? 5000: joint_freq;
+	
+	move_ang = input_angle;
+	delta_move_ang = move_ang - dummy_joint_angle;
+	dummy_input_step = abs((int)(delta_move_ang / 0.0125));
+	
+	if(delta_move_ang < 0){
+		move_stepper(dummy_input_step, 0, joint_freq);
+	}
+	else if(delta_move_ang > 0){
+		move_stepper(dummy_input_step, 1, joint_freq);
 	}
 }
 

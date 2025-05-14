@@ -153,136 +153,69 @@
         <Ww>
           <count>0</count>
           <WinNumber>1</WinNumber>
-          <ItemText>stepper_rpm,0x0A</ItemText>
+          <ItemText>enc_angle</ItemText>
         </Ww>
         <Ww>
           <count>1</count>
           <WinNumber>1</WinNumber>
-          <ItemText>stepper_freq,0x0A</ItemText>
+          <ItemText>cal_value</ItemText>
         </Ww>
         <Ww>
           <count>2</count>
           <WinNumber>1</WinNumber>
-          <ItemText>step_counter,0x0A</ItemText>
+          <ItemText>cal_enc_angle</ItemText>
         </Ww>
         <Ww>
           <count>3</count>
           <WinNumber>1</WinNumber>
-          <ItemText>target_step</ItemText>
+          <ItemText>reduced_cal_enc_angle</ItemText>
         </Ww>
         <Ww>
           <count>4</count>
           <WinNumber>1</WinNumber>
-          <ItemText>step_count</ItemText>
+          <ItemText>enc_counter,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>5</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>step_state</ItemText>
-        </Ww>
-        <Ww>
-          <count>6</count>
           <WinNumber>1</WinNumber>
           <ItemText>enc_joint_angle</ItemText>
         </Ww>
         <Ww>
-          <count>7</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>hard_limit</ItemText>
-        </Ww>
-        <Ww>
-          <count>8</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>soft_limit</ItemText>
-        </Ww>
-        <Ww>
-          <count>9</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>miss_step</ItemText>
-        </Ww>
-        <Ww>
-          <count>10</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>joint_angle_by_step</ItemText>
-        </Ww>
-        <Ww>
-          <count>11</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>target_angle</ItemText>
-        </Ww>
-      </WatchWindow1>
-      <WatchWindow2>
-        <Ww>
-          <count>0</count>
-          <WinNumber>2</WinNumber>
-          <ItemText>command.msg_get</ItemText>
-        </Ww>
-        <Ww>
-          <count>1</count>
-          <WinNumber>2</WinNumber>
-          <ItemText>command.type</ItemText>
-        </Ww>
-        <Ww>
-          <count>2</count>
-          <WinNumber>2</WinNumber>
-          <ItemText>command.mapping_state</ItemText>
-        </Ww>
-        <Ww>
-          <count>3</count>
-          <WinNumber>2</WinNumber>
-          <ItemText>command.welding_point_type</ItemText>
-        </Ww>
-        <Ww>
-          <count>4</count>
-          <WinNumber>2</WinNumber>
-          <ItemText>array_pos_start</ItemText>
-        </Ww>
-        <Ww>
-          <count>5</count>
-          <WinNumber>2</WinNumber>
-          <ItemText>array_ang_start</ItemText>
-        </Ww>
-        <Ww>
           <count>6</count>
-          <WinNumber>2</WinNumber>
-          <ItemText>array_pos_end</ItemText>
+          <WinNumber>1</WinNumber>
+          <ItemText>reset_enc</ItemText>
         </Ww>
         <Ww>
           <count>7</count>
-          <WinNumber>2</WinNumber>
-          <ItemText>array_ang_end</ItemText>
+          <WinNumber>1</WinNumber>
+          <ItemText>calibration_step</ItemText>
         </Ww>
         <Ww>
           <count>8</count>
-          <WinNumber>2</WinNumber>
-          <ItemText>welding_pattern</ItemText>
+          <WinNumber>1</WinNumber>
+          <ItemText>step_start_cal</ItemText>
         </Ww>
         <Ww>
           <count>9</count>
-          <WinNumber>2</WinNumber>
-          <ItemText>welding_speed</ItemText>
+          <WinNumber>1</WinNumber>
+          <ItemText>calibrated_joint</ItemText>
         </Ww>
         <Ww>
           <count>10</count>
-          <WinNumber>2</WinNumber>
-          <ItemText>chcksum_sp,0x0A</ItemText>
+          <WinNumber>1</WinNumber>
+          <ItemText>group1_count</ItemText>
         </Ww>
         <Ww>
           <count>11</count>
-          <WinNumber>2</WinNumber>
-          <ItemText>chcksum_sp_validation,0x0A</ItemText>
+          <WinNumber>1</WinNumber>
+          <ItemText>group1_calibrated</ItemText>
         </Ww>
         <Ww>
           <count>12</count>
-          <WinNumber>2</WinNumber>
-          <ItemText>chcksum_ep,0x0A</ItemText>
+          <WinNumber>1</WinNumber>
+          <ItemText>switch_pressed</ItemText>
         </Ww>
-        <Ww>
-          <count>13</count>
-          <WinNumber>2</WinNumber>
-          <ItemText>chcksum_ep_validation,0x0A</ItemText>
-        </Ww>
-      </WatchWindow2>
+      </WatchWindow1>
       <Tracepoint>
         <THDelay>0</THDelay>
       </Tracepoint>
@@ -688,6 +621,54 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
+      <PathWithFileName>../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_sdmmc.c</PathWithFileName>
+      <FilenameWithoutPath>stm32h7xx_ll_sdmmc.c</FilenameWithoutPath>
+      <RteFlg>0</RteFlg>
+      <bShared>0</bShared>
+    </File>
+    <File>
+      <GroupNumber>3</GroupNumber>
+      <FileNumber>29</FileNumber>
+      <FileType>1</FileType>
+      <tvExp>0</tvExp>
+      <tvExpOptDlg>0</tvExpOptDlg>
+      <bDave2>0</bDave2>
+      <PathWithFileName>../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_delayblock.c</PathWithFileName>
+      <FilenameWithoutPath>stm32h7xx_ll_delayblock.c</FilenameWithoutPath>
+      <RteFlg>0</RteFlg>
+      <bShared>0</bShared>
+    </File>
+    <File>
+      <GroupNumber>3</GroupNumber>
+      <FileNumber>30</FileNumber>
+      <FileType>1</FileType>
+      <tvExp>0</tvExp>
+      <tvExpOptDlg>0</tvExpOptDlg>
+      <bDave2>0</bDave2>
+      <PathWithFileName>../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_sd.c</PathWithFileName>
+      <FilenameWithoutPath>stm32h7xx_hal_sd.c</FilenameWithoutPath>
+      <RteFlg>0</RteFlg>
+      <bShared>0</bShared>
+    </File>
+    <File>
+      <GroupNumber>3</GroupNumber>
+      <FileNumber>31</FileNumber>
+      <FileType>1</FileType>
+      <tvExp>0</tvExp>
+      <tvExpOptDlg>0</tvExpOptDlg>
+      <bDave2>0</bDave2>
+      <PathWithFileName>../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_sd_ex.c</PathWithFileName>
+      <FilenameWithoutPath>stm32h7xx_hal_sd_ex.c</FilenameWithoutPath>
+      <RteFlg>0</RteFlg>
+      <bShared>0</bShared>
+    </File>
+    <File>
+      <GroupNumber>3</GroupNumber>
+      <FileNumber>32</FileNumber>
+      <FileType>1</FileType>
+      <tvExp>0</tvExp>
+      <tvExpOptDlg>0</tvExpOptDlg>
+      <bDave2>0</bDave2>
       <PathWithFileName>../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim.c</PathWithFileName>
       <FilenameWithoutPath>stm32h7xx_hal_tim.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
@@ -695,7 +676,7 @@
     </File>
     <File>
       <GroupNumber>3</GroupNumber>
-      <FileNumber>29</FileNumber>
+      <FileNumber>33</FileNumber>
       <FileType>1</FileType>
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
@@ -707,7 +688,7 @@
     </File>
     <File>
       <GroupNumber>3</GroupNumber>
-      <FileNumber>30</FileNumber>
+      <FileNumber>34</FileNumber>
       <FileType>1</FileType>
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
@@ -719,7 +700,7 @@
     </File>
     <File>
       <GroupNumber>3</GroupNumber>
-      <FileNumber>31</FileNumber>
+      <FileNumber>35</FileNumber>
       <FileType>1</FileType>
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
@@ -739,13 +720,121 @@
     <RteFlg>0</RteFlg>
     <File>
       <GroupNumber>4</GroupNumber>
-      <FileNumber>32</FileNumber>
+      <FileNumber>36</FileNumber>
       <FileType>1</FileType>
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
       <PathWithFileName>../Core/Src/system_stm32h7xx.c</PathWithFileName>
       <FilenameWithoutPath>system_stm32h7xx.c</FilenameWithoutPath>
+      <RteFlg>0</RteFlg>
+      <bShared>0</bShared>
+    </File>
+  </Group>
+
+  <Group>
+    <GroupName>Application/User/FATFS/App</GroupName>
+    <tvExp>0</tvExp>
+    <tvExpOptDlg>0</tvExpOptDlg>
+    <cbSel>0</cbSel>
+    <RteFlg>0</RteFlg>
+    <File>
+      <GroupNumber>5</GroupNumber>
+      <FileNumber>37</FileNumber>
+      <FileType>1</FileType>
+      <tvExp>0</tvExp>
+      <tvExpOptDlg>0</tvExpOptDlg>
+      <bDave2>0</bDave2>
+      <PathWithFileName>../FATFS/App/fatfs.c</PathWithFileName>
+      <FilenameWithoutPath>fatfs.c</FilenameWithoutPath>
+      <RteFlg>0</RteFlg>
+      <bShared>0</bShared>
+    </File>
+  </Group>
+
+  <Group>
+    <GroupName>Middlewares/FatFs</GroupName>
+    <tvExp>0</tvExp>
+    <tvExpOptDlg>0</tvExpOptDlg>
+    <cbSel>0</cbSel>
+    <RteFlg>0</RteFlg>
+    <File>
+      <GroupNumber>6</GroupNumber>
+      <FileNumber>38</FileNumber>
+      <FileType>1</FileType>
+      <tvExp>0</tvExp>
+      <tvExpOptDlg>0</tvExpOptDlg>
+      <bDave2>0</bDave2>
+      <PathWithFileName>../Middlewares/Third_Party/FatFs/src/diskio.c</PathWithFileName>
+      <FilenameWithoutPath>diskio.c</FilenameWithoutPath>
+      <RteFlg>0</RteFlg>
+      <bShared>0</bShared>
+    </File>
+    <File>
+      <GroupNumber>6</GroupNumber>
+      <FileNumber>39</FileNumber>
+      <FileType>1</FileType>
+      <tvExp>0</tvExp>
+      <tvExpOptDlg>0</tvExpOptDlg>
+      <bDave2>0</bDave2>
+      <PathWithFileName>../Middlewares/Third_Party/FatFs/src/ff.c</PathWithFileName>
+      <FilenameWithoutPath>ff.c</FilenameWithoutPath>
+      <RteFlg>0</RteFlg>
+      <bShared>0</bShared>
+    </File>
+    <File>
+      <GroupNumber>6</GroupNumber>
+      <FileNumber>40</FileNumber>
+      <FileType>1</FileType>
+      <tvExp>0</tvExp>
+      <tvExpOptDlg>0</tvExpOptDlg>
+      <bDave2>0</bDave2>
+      <PathWithFileName>../Middlewares/Third_Party/FatFs/src/ff_gen_drv.c</PathWithFileName>
+      <FilenameWithoutPath>ff_gen_drv.c</FilenameWithoutPath>
+      <RteFlg>0</RteFlg>
+      <bShared>0</bShared>
+    </File>
+    <File>
+      <GroupNumber>6</GroupNumber>
+      <FileNumber>41</FileNumber>
+      <FileType>1</FileType>
+      <tvExp>0</tvExp>
+      <tvExpOptDlg>0</tvExpOptDlg>
+      <bDave2>0</bDave2>
+      <PathWithFileName>../Middlewares/Third_Party/FatFs/src/option/syscall.c</PathWithFileName>
+      <FilenameWithoutPath>syscall.c</FilenameWithoutPath>
+      <RteFlg>0</RteFlg>
+      <bShared>0</bShared>
+    </File>
+  </Group>
+
+  <Group>
+    <GroupName>Application/User/FATFS/Target</GroupName>
+    <tvExp>0</tvExp>
+    <tvExpOptDlg>0</tvExpOptDlg>
+    <cbSel>0</cbSel>
+    <RteFlg>0</RteFlg>
+    <File>
+      <GroupNumber>7</GroupNumber>
+      <FileNumber>42</FileNumber>
+      <FileType>1</FileType>
+      <tvExp>0</tvExp>
+      <tvExpOptDlg>0</tvExpOptDlg>
+      <bDave2>0</bDave2>
+      <PathWithFileName>../FATFS/Target/bsp_driver_sd.c</PathWithFileName>
+      <FilenameWithoutPath>bsp_driver_sd.c</FilenameWithoutPath>
+      <RteFlg>0</RteFlg>
+      <bShared>0</bShared>
+    </File>
+    <File>
+      <GroupNumber>7</GroupNumber>
+      <FileNumber>43</FileNumber>
+      <FileType>1</FileType>
+      <tvExp>0</tvExp>
+      <tvExpOptDlg>0</tvExpOptDlg>
+      <bDave2>0</bDave2>
+      <PathWithFileName>../FATFS/Target/sd_diskio.c</PathWithFileName>
+      <FilenameWithoutPath>sd_diskio.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>

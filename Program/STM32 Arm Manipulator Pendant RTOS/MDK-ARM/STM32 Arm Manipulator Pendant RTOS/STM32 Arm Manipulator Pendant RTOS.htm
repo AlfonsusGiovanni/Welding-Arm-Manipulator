@@ -3,7 +3,7 @@
 <title>Static Call Graph - [STM32 Arm Manipulator Pendant RTOS\STM32 Arm Manipulator Pendant RTOS.axf]</title></head>
 <body><HR>
 <H1>Static Call Graph for image STM32 Arm Manipulator Pendant RTOS\STM32 Arm Manipulator Pendant RTOS.axf</H1><HR>
-<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060960: Last Updated: Fri Apr 11 14:09:20 2025
+<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060960: Last Updated: Fri May 09 17:48:09 2025
 <BR><P>
 <H3>Maximum Stack Usage =        556 bytes + Unknown(Functions without stacksize, Cycles, Untraceable Function Pointers)</H3><H3>
 Call chain for Maximum Stack Depth:</H3>
@@ -626,10 +626,10 @@ Global Symbols
 <P><STRONG><a name="[8c]"></a>_printf_fp_dec_real</STRONG> (Thumb, 620 bytes, Stack size 104 bytes, _printf_fp_dec.o(.text))
 <BR><BR>[Stack]<UL><LI>Max Depth = 324<LI>Call Chain = _printf_fp_dec_real &rArr; _fp_digits &rArr; _btod_etento &rArr; _btod_emul &rArr; _e2e
 </UL>
-<BR>[Calls]<UL><LI><a href="#[8d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__ARM_fpclassify
+<BR>[Calls]<UL><LI><a href="#[86]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_fp_digits
+<LI><a href="#[8d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__ARM_fpclassify
 <LI><a href="#[8e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_fp_infnan
 <LI><a href="#[5c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__rt_locale
-<LI><a href="#[86]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_fp_digits
 </UL>
 <BR>[Called By]<UL><LI><a href="#[56]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_fp_dec
 </UL>
@@ -718,10 +718,10 @@ Global Symbols
 </UL>
 
 <P><STRONG><a name="[5c]"></a>__rt_locale</STRONG> (Thumb, 8 bytes, Stack size 0 bytes, rt_locale_intlibspace.o(.text))
-<BR><BR>[Called By]<UL><LI><a href="#[97]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__rt_ctype_table
+<BR><BR>[Called By]<UL><LI><a href="#[8c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_fp_dec_real
+<LI><a href="#[97]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__rt_ctype_table
 <LI><a href="#[5b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__rt_lib_init_lc_common
 <LI><a href="#[92]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_scanf_really_real
-<LI><a href="#[8c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_fp_dec_real
 </UL>
 
 <P><STRONG><a name="[82]"></a>__Heap_ProvideMemory</STRONG> (Thumb, 52 bytes, Stack size 0 bytes, h1_extend.o(.text))
@@ -775,8 +775,8 @@ Global Symbols
 <BR>[Calls]<UL><LI><a href="#[8a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_btod_emul
 <LI><a href="#[89]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_btod_ediv
 </UL>
-<BR>[Called By]<UL><LI><a href="#[8f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_fp_value
-<LI><a href="#[86]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_fp_digits
+<BR>[Called By]<UL><LI><a href="#[86]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_fp_digits
+<LI><a href="#[8f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_fp_value
 </UL>
 
 <P><STRONG><a name="[84]"></a>__rt_SIGRTMEM</STRONG> (Thumb, 14 bytes, Stack size 8 bytes, defsig_rtmem_outer.o(.text))
@@ -939,8 +939,8 @@ Global Symbols
 <BR>[Calls]<UL><LI><a href="#[aa]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_e2e
 <LI><a href="#[ab]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__btod_div_common
 </UL>
-<BR>[Called By]<UL><LI><a href="#[87]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_btod_etento
-<LI><a href="#[86]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_fp_digits
+<BR>[Called By]<UL><LI><a href="#[86]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_fp_digits
+<LI><a href="#[87]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_btod_etento
 </UL>
 
 <P><STRONG><a name="[91]"></a>_btod_edivd</STRONG> (Thumb, 42 bytes, Stack size 28 bytes, btod.o(CL$$btod_edivd))
@@ -958,8 +958,8 @@ Global Symbols
 <BR>[Calls]<UL><LI><a href="#[ac]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__btod_mult_common
 <LI><a href="#[aa]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_e2e
 </UL>
-<BR>[Called By]<UL><LI><a href="#[87]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_btod_etento
-<LI><a href="#[86]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_fp_digits
+<BR>[Called By]<UL><LI><a href="#[86]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_fp_digits
+<LI><a href="#[87]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_btod_etento
 </UL>
 
 <P><STRONG><a name="[90]"></a>_btod_emuld</STRONG> (Thumb, 42 bytes, Stack size 28 bytes, btod.o(CL$$btod_emuld))
@@ -1042,7 +1042,7 @@ Global Symbols
 </UL>
 <BR>[Address Reference Count : 1]<UL><LI> startup_stm32f103xb.o(RESET)
 </UL>
-<P><STRONG><a name="[b6]"></a>Get_command</STRONG> (Thumb, 310 bytes, Stack size 24 bytes, rs232_driver.o(i.Get_command))
+<P><STRONG><a name="[b6]"></a>Get_command</STRONG> (Thumb, 350 bytes, Stack size 24 bytes, rs232_driver.o(i.Get_command))
 <BR><BR>[Stack]<UL><LI>Max Depth = 24<LI>Call Chain = Get_command
 </UL>
 <BR>[Calls]<UL><LI><a href="#[b2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_memclr
@@ -1534,8 +1534,8 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[10c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;ui_handler
 </UL>
 
-<P><STRONG><a name="[104]"></a>Send_auto_home</STRONG> (Thumb, 34 bytes, Stack size 104 bytes, rs232_driver.o(i.Send_auto_home))
-<BR><BR>[Stack]<UL><LI>Max Depth = 108<LI>Call Chain = Send_auto_home &rArr; __aeabi_memclr4
+<P><STRONG><a name="[104]"></a>Send_auto_home</STRONG> (Thumb, 44 bytes, Stack size 112 bytes, rs232_driver.o(i.Send_auto_home))
+<BR><BR>[Stack]<UL><LI>Max Depth = 116<LI>Call Chain = Send_auto_home &rArr; __aeabi_memclr4
 </UL>
 <BR>[Calls]<UL><LI><a href="#[106]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_UART_Transmit_IT
 <LI><a href="#[105]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_memclr4
@@ -1873,7 +1873,7 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[a3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__support_ldexp
 </UL>
 
-<P><STRONG><a name="[65]"></a>main</STRONG> (Thumb, 518 bytes, Stack size 8 bytes, main.o(i.main))
+<P><STRONG><a name="[65]"></a>main</STRONG> (Thumb, 520 bytes, Stack size 8 bytes, main.o(i.main))
 <BR><BR>[Stack]<UL><LI>Max Depth = 216 + Unknown Stack Size
 <LI>Call Chain = main &rArr; show_menu &rArr; lcd_printint &rArr; __2snprintf &rArr; _printf_char_common &rArr; __printf
 </UL>
@@ -2017,7 +2017,7 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[128]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;lcd_printstr
 </UL>
 
-<P><STRONG><a name="[111]"></a>show_menu</STRONG> (Thumb, 3790 bytes, Stack size 24 bytes, main.o(i.show_menu))
+<P><STRONG><a name="[111]"></a>show_menu</STRONG> (Thumb, 3726 bytes, Stack size 24 bytes, main.o(i.show_menu))
 <BR><BR>[Stack]<UL><LI>Max Depth = 208 + Unknown Stack Size
 <LI>Call Chain = show_menu &rArr; lcd_printint &rArr; __2snprintf &rArr; _printf_char_common &rArr; __printf
 </UL>
@@ -2030,7 +2030,7 @@ Global Symbols
 <LI><a href="#[4b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;StartLCDTask
 </UL>
 
-<P><STRONG><a name="[10c]"></a>ui_handler</STRONG> (Thumb, 3402 bytes, Stack size 48 bytes, main.o(i.ui_handler))
+<P><STRONG><a name="[10c]"></a>ui_handler</STRONG> (Thumb, 3460 bytes, Stack size 48 bytes, main.o(i.ui_handler))
 <BR><BR>[Stack]<UL><LI>Max Depth = 556<LI>Call Chain = ui_handler &rArr; __0sscanf &rArr; __vfscanf_char &rArr; __vfscanf &rArr; _scanf_real &rArr; _scanf_really_real &rArr; _fp_value &rArr; _btod_etento &rArr; _btod_emul &rArr; _e2e
 </UL>
 <BR>[Calls]<UL><LI><a href="#[10d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osDelay

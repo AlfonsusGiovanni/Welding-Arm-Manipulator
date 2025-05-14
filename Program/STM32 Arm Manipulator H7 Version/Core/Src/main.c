@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "fatfs.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -53,6 +54,14 @@ Kinematics_t kinematics;
 // ---------------------
 
 
+/* SDCARD TYPEDEF */
+// -----------------
+FATFS fs;
+FIL file;
+FRESULT res;
+// -----------------
+
+
 /* PID TYPEDEF*/
 // -------------------
 PIDController pos_pid;
@@ -62,13 +71,15 @@ PIDController pos_pid;
 /* OLED TYPEDEF */
 // --------------------
 typedef enum{
-	BOOT_MENU,
-	COM_INIT_MENU,
-	MAIN_MENU,
-	EEPROM1_ERROR_MENU,
-	EEPROM2_ERROR_MENU,
-	SAVE_MENU,
-	DELETE_MENU,
+	BOOT_MENU,						// STM32 Booting menu
+	COM_INIT_MENU,				// RS-232 initialize menu
+	MAIN_MENU,						// Main menu
+	EEPROM1_ERROR_MENU,		// EEPROM 1 error menu
+	EEPROM2_ERROR_MENU,		// EEPROM 2 error menu
+	SDCARD_ERROR_MENU,		// SDCARD mount error menu
+	ENCODER_ERROR_MENU,		// Encoder init error menu
+	SAVE_MENU,						// Welding data save menu
+	DELETE_MENU,					// Welding data delete meneu
 }Oled_Menu_t;
 // --------------------
 
@@ -76,8 +87,8 @@ typedef enum{
 /* STEPPER DIR TYPEDEF */
 // ----------------------
 typedef enum{
-	DIR_CCW,
-	DIR_CW,
+	DIR_CCW,		// Counterclockwise direction
+	DIR_CW,			// Clockwise direction
 }Stepper_Dir_t;
 // ----------------------
 
@@ -85,8 +96,8 @@ typedef enum{
 /* JOINT DIR TYPEDEF */
 // --------------------
 typedef enum{
-	NEGATIVE_DIR,
-	POSITIVE_DIR,
+	NEGATIVE_DIR,	// Joint negative angle direction
+	POSITIVE_DIR,	// Joint positive angle direction
 }Joint_Dir_t;
 // --------------------
 
@@ -94,9 +105,9 @@ typedef enum{
 /*  LIMIT TYPE TYPEDEF */
 // ----------------------
 typedef enum{
-	ALL_LIMIT_CHECK,
-	SOFT_LIMIT_CHECK,
-	HARD_LIMIT_CHECK,
+	ALL_LIMIT_CHECK,	// Sotf and hard limit check
+	SOFT_LIMIT_CHECK,	// Software only check
+	HARD_LIMIT_CHECK,	// Hardware only check
 }Limit_t;
 // ----------------------
 
@@ -120,6 +131,37 @@ typedef enum{
 // ------------------------
 
 
+/* SDCARD STATUS TYPEDEF */
+// ------------------------
+typedef enum{
+	SD_OK = 0x01, 
+	SD_MOUNT_ERR,
+	SD_CREATE_ERR,
+	SD_OPEN_ERR,
+	SD_READ_ERR,
+	SD_WRITE_ERR,
+}SD_Status_t;
+// ------------------------
+
+
+/* CALIBRATION STEP TYPEDEF */
+// ---------------------------
+typedef enum{
+	COUNT_JOINT,				// Count selected joint
+	J1_J3_CAL,					// J1 to J3 first calibration
+	J1_J3_OFFSET_MOVE,	// Move J1 to J3 to angle offset
+	J1_J3_RECAL,				// J1 to J3 re-calibration
+	J1_J3_HOME,					// Move J1-J3 to home position
+	
+	J4_J6_CAL,					// J4 to J6 first calibration
+	J4_J6_OFFSET_MOVE,	// Move J4 to J6 to angle offset
+	J4_J6_REAL,					// J4 to J6 re-calibration
+	J4_J6_HOME,					// Move J4-J6 to home position
+	
+	CALIBRATION_OK,			// Calibration Done
+}Cal_Step_t;
+// ---------------------------
+
 /* POWER STATUS TYPEDEF */
 // -----------------------
 typedef enum{
@@ -128,26 +170,6 @@ typedef enum{
 }Power_Status_t;
 // -----------------------
 
-
-/* WELDING POINT TYPEDEF */
-// ------------------------
-typedef struct{
-	double
-	x_cor, 
-	y_cor,
-	z_cor;
-	
-	double
-	joint1_angle,
-	joint2_angle,
-	joint3_angle,
-	joint4_angle,
-	joint5_angle,
-	joint6_angle;
-	
-}Welding_Point_t;
-// ------------------------
-
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -155,6 +177,7 @@ typedef struct{
 
 /* SYSTEM CONFIGURATION */
 //----------------------
+//#define USE_SDCARD
 #define USE_EEPROM
 #define USE_RS232
 #define USE_OLED
@@ -164,12 +187,16 @@ typedef struct{
 //#define USE_PID
 
 //#define USE_DEBUG_PROGRAM
+//#define USE_MISS_STEP_CHECK
+#define USE_LIMIT_CHECK
 
+//#define TEST_SDCARD
 //#define TEST_EEPROM
 //#define TEST_RS232
 //#define TEST_OLED
 //#define TEST_STEPPER
 //#define TEST_ENCODER
+//#define TEST_LIMIT_SWITCH
 //#define TEST_KINEMATICS
 
 #define MAIN_PROGRAM
@@ -214,12 +241,12 @@ typedef struct{
 #define MICROSTEP_VALUE3 			800
 #define MICROSTEP_VALUE4 			1600
 #define MICROSTEP_VALUE5			3200
-#define MICROSTEP_VALUE6 			6400
+#define MICROSTEP_VALUE6 			6400  
 
-#define STEPPER1_RATIO				90
-#define	STEPPER2_RATIO				36
+#define STEPPER1_RATIO				162
+#define	STEPPER2_RATIO				144
 #define	STEPPER3_RATIO				36
-#define	STEPPER4_RATIO				9
+#define	STEPPER4_RATIO				20
 #define	STEPPER5_RATIO				90
 #define	STEPPER6_RATIO				9
 
@@ -249,20 +276,32 @@ typedef struct{
 #define JOINT_NUM					6
 #define AXIS_NUM					6
 
-#define JOINT1_MAX_ANGLE	110.0f
-#define JOINT2_MAX_ANGLE	90.0f
-#define JOINT3_MAX_ANGLE	60.0f
-#define JOINT4_MAX_ANGLE	165.0f
-#define JOINT5_MAX_ANGLE	105.0f
-#define JOINT6_MAX_ANGLE	155.0f
+#define JOINT1_MAX_ANGLE	170.0
+#define JOINT2_MAX_ANGLE	90.0
+#define JOINT3_MAX_ANGLE	60.0
+#define JOINT4_MAX_ANGLE	145.0
+#define JOINT5_MAX_ANGLE	105.0
+#define JOINT6_MAX_ANGLE	155.0
 
-#define JOINT1_MIN_ANGLE	-110.0f
-#define JOINT2_MIN_ANGLE	-60.0f
-#define JOINT3_MIN_ANGLE	-90.0f
-#define JOINT4_MIN_ANGLE	-165.0f
-#define JOINT5_MIN_ANGLE	-105.0f
-#define JOINT6_MIN_ANGLE	-155.0f
+#define JOINT1_MIN_ANGLE	-170.0
+#define JOINT2_MIN_ANGLE	-60.0
+#define JOINT3_MIN_ANGLE	-90.0
+#define JOINT4_MIN_ANGLE	-145.0
+#define JOINT5_MIN_ANGLE	-90.0
+#define JOINT6_MIN_ANGLE	-155.0
+
+#define JOINT1_CAL_ANGLE 	-90.0
+#define JOINT2_CAL_ANGLE 	-60.0
+#define JOINT3_CAL_ANGLE 	60.0
+#define JOINT4_CAL_ANGLE 	0.0
+#define JOINT5_CAL_ANGLE 	-90.0
+#define JOINT6_CAL_ANGLE 	0.0
 //-------------------------------
+
+
+/*INTERPOLATION SET*/
+//-------------------
+#define MAX_UPDATE_STEP		50
 
 /* USER CODE END PD */
 
@@ -274,6 +313,8 @@ typedef struct{
 /* Private variables ---------------------------------------------------------*/
 
 I2C_HandleTypeDef hi2c1;
+
+SD_HandleTypeDef hsd1;
 
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
@@ -311,6 +352,14 @@ joint_negative_axisLim[JOINT_NUM] = {
 	JOINT5_MIN_ANGLE,
 	JOINT6_MIN_ANGLE,
 	
+},
+joint_cal_angle[JOINT_NUM] = {
+	JOINT1_CAL_ANGLE,
+	JOINT2_CAL_ANGLE,
+	JOINT3_CAL_ANGLE,
+	JOINT4_CAL_ANGLE,
+	JOINT5_CAL_ANGLE,
+	JOINT6_CAL_ANGLE,
 };
 
 double
@@ -319,6 +368,8 @@ joint_ang_per_step[JOINT_NUM],
 joint_miss_step_angle[JOINT_NUM];
 
 bool
+calibrating = false,
+clear_to_update = false,
 home = false,
 robot_stop = false,
 welding_run = false,
@@ -326,12 +377,14 @@ preview_run = false,
 joint_limit = false,
 joint_miss_step = false,
 joint_error_bypass = false,
+calibrated_joint[JOINT_NUM],
 soft_limit[JOINT_NUM],
 hard_limit[JOINT_NUM],
 positive_limit[JOINT_NUM],
 negative_limit[JOINT_NUM],
 positive_miss[JOINT_NUM],
 negative_miss[JOINT_NUM],
+angle_reached[JOINT_NUM],
 miss_step[JOINT_NUM];
 
 const uint8_t
@@ -374,13 +427,16 @@ invalid_welding_point;
 
 uint16_t
 total_valid_points,
-total_mapped_points;
+total_mapped_points,
+joint_home_offset[JOINT_NUM];
 
 Welding_Data_Status_t
 point_status[MAX_POINTS];
 
 Joint_Dir_t
-joint_current_dir[JOINT_NUM];
+joint_current_dir[JOINT_NUM],
+calibration_dir[JOINT_NUM],
+home_dir[JOINT_NUM];
 
 
 // EEPROM VARIABLE
@@ -439,17 +495,26 @@ fk_pos_output[AXIS_NUM];
 
 // MOVE VARIABLE
 double
-input_position[AXIS_NUM],
 current_position[AXIS_NUM],
 target_position[AXIS_NUM],
 delta_move_pos[AXIS_NUM],
-prev_position[AXIS_NUM],
+prev_move_position[AXIS_NUM],
 
-input_angle[JOINT_NUM],
 current_angle[JOINT_NUM],
 target_angle[JOINT_NUM],
-delta_ang[JOINT_NUM],
-prev_angle[JOINT_NUM];
+delta_move_ang[JOINT_NUM],
+prev_move_angle[JOINT_NUM];
+
+
+// INTERPOLATION VARIABLE
+double
+axis_delta[AXIS_NUM],
+joint_delta[JOINT_NUM],
+int_x_out, int_y_out, int_z_out,
+int_rx_out, int_ry_out, int_rz_out;
+
+uint8_t
+int_counter;
 
 
 // STEPPER VARIABLE 
@@ -496,9 +561,9 @@ rpm_timer;
 
 bool
 step_start[JOINT_NUM],
+step_start_cal[JOINT_NUM],
 step_limit[JOINT_NUM],
-step_positive_dir[JOINT_NUM],
-step_home_dir[JOINT_NUM];
+step_positive_dir[JOINT_NUM];
 
 uint8_t
 step_state[JOINT_NUM];
@@ -556,7 +621,7 @@ step_counter[JOINT_NUM],
 current_step[JOINT_NUM];
 
 float
-feed_rate,
+angular_rate,
 stepper_joint_rpm;
 
 
@@ -576,8 +641,11 @@ rx_move_position[3],
 rx_move_rotation[3],
 rx_move_angle[6];
 
+const uint8_t
+send_data_interval = 50;
+
 uint8_t
-send_data_interval = 50,
+prev_command,
 rx_savepoint,
 rx_patterntype[MAX_POINTS],
 rx_pointtype,
@@ -595,8 +663,10 @@ selected_menu;
 
 char 
 title[] = "   WELDING ARM V1",
-error1[] = "EEPROM1 ERROR    ",
-error2[] = "EEPROM2 ERROR    ",
+eeprom1_err[] = "EEPROM1 ERROR    ",
+eeprom2_err[] = "EEPROM2 ERROR    ",
+sdcard_err[] = "SDCARD ERROR     ",
+encoder_err[] = "ENCODER ERROR    ",
 save_data[]		= "SAVING DATA...   ",
 delete_data[] = "DELTING DATA...  ";
 
@@ -656,10 +726,13 @@ enc_gpio_pin[12] = {
 	ENC6B_Pin
 };
 
+bool
+reset_enc = false;
+
 uint8_t
 enc_mag_status[JOINT_NUM];
 
-uint32_t
+volatile uint32_t
 pwm_freq[JOINT_NUM],
 high_time[JOINT_NUM],
 period_time[JOINT_NUM];
@@ -702,7 +775,7 @@ min_joint_angle[JOINT_NUM] = {
 
 // LIMIT SWITCH VARIABLE
 bool
-limit_switch_state[JOINT_NUM];
+switch_pressed[JOINT_NUM];
 
 GPIO_TypeDef*
 switch_gpio_port[JOINT_NUM] = {
@@ -723,6 +796,19 @@ const uint16_t switch_gpio_pin[JOINT_NUM] = {
 	LIMIT6_Pin,
 };
 
+Cal_Step_t
+calibration_step;
+
+uint8_t
+group1_count = 0,
+group2_count = 0,
+group1_calibrated = 0,
+group2_calibrated = 0;
+
+// SDCARD VARIABLE
+SD_Status_t
+sdcard_status;
+
 // POWER VARIABLE
 uint8_t pwr_status;
 
@@ -731,7 +817,6 @@ uint8_t pwr_status;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_TIM13_Init(void);
 static void MX_TIM14_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM2_Init(void);
@@ -744,6 +829,8 @@ static void MX_TIM8_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_UART4_Init(void);
 static void MX_TIM12_Init(void);
+static void MX_TIM13_Init(void);
+static void MX_SDMMC1_SD_Init(void);
 static void MX_TIM17_Init(void);
 /* USER CODE BEGIN PFP */
 
@@ -760,6 +847,13 @@ Welding_Data_Status_t weldingpoint_validate(uint16_t welding_point);
 //-----------------------------------------------------------------------------------------------------------
 
 
+// SDCARD Function
+//------------------------------------------
+SD_Status_t mount_sdcard(void);
+SD_Status_t create_txt_file(char *filename);
+//------------------------------------------
+
+
 // Stepper Control Function -------------------------------------------------------------------
 void disable_stepper(void);
 void enable_stepper(void);
@@ -767,30 +861,33 @@ void move_stepper(uint8_t select_joint, uint16_t step, Joint_Dir_t dir, uint16_t
 //---------------------------------------------------------------------------------------------
 
 
-// Calculation Function ---------------------------------------------------------------------
-uint32_t calculate_exponential_step_interval(uint8_t select_joint, uint32_t step);
-void linear_interpolation(Welding_Point_t start_pos, Welding_Point_t end_pos, Speed_t speed);
-//-------------------------------------------------------------------------------------------
+// Calculation Function --------------------------------------------------------------------------------------
+uint32_t calc_exp_step_interval(uint8_t select_joint, uint32_t step);
+uint16_t calc_stepper_freq(uint8_t select_joint, float rpm_input);
+uint16_t calc_stepper_step(uint8_t select_joint, double angle);
+void calc_linear_parametric(double start_pos[6], double end_pos[6], uint8_t input_step, uint8_t current_step);
+//------------------------------------------------------------------------------------------------------------
 
 
-// Main Function ------------------------------------------------------------
-void move_joint(uint8_t select_joint, double move_angle, Speed_t set_speed);
+// Main Function ----------------------------------------------------------------------------------------------------
+void move_joint(uint8_t select_joint, double input_angle, Speed_t set_speed);
 void move_world(uint8_t select_axis, double move_pos, Speed_t set_speed);
+void linear_move(double end_pos[6], Speed_t speed);
 void welder_on(void);
 void welder_off(void);
 void welding_preview(void);
 void welding_start(void);
 void update_value(void);
 void check_limit(Limit_t check_mode);
-bool homing(void);
-//---------------------------------------------------------------------------
+bool joint_calibrate(Cal_Mode_t mode, bool j1_cal, bool j2_cal, bool j3_cal, bool j4_cal, bool j5_cal, bool j6_cal);
+//------------------------------------------------------------------------------------------------------------------
 
 
-// Encoder Function ----------------------------------------------------
-void encoder_init(void);
-void encoder_read(uint32_t *buffer, uint8_t buff_size, uint8_t enc_sel);
+// Encoder Function -------
+uint8_t encoder_init(void);
+void encoder_stop(void);
 void encoder_reset(void);
-//----------------------------------------------------------------------
+//-------------------------
 
 
 // Safety Function ------------
@@ -834,46 +931,44 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 
 
 /*STEPPER TIMER CALLBACK*/
-//---------------------------------------------------------------------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	for(int i=0; i<JOINT_NUM; i++){
-		if(htim->Instance == stepper_tim_instance[i]){
-			timer_counter[i]++;
+		if(htim->Instance != stepper_tim_instance[i]) continue;
 			
-			if(step_state[i] == ACCELERATING){
-				if(step_counter[i] < target_step[i]*0.25) step_accel_period[i] = calculate_exponential_step_interval(i, step_counter[i]/2);
-				else step_accel_period[i] = calculate_exponential_step_interval(i, target_step[i]-step_counter[i]/2);
-				
-				t_on[i] = step_accel_period[i] * SET_DUTY_CYCLE;
-				t_off[i] = step_accel_period[i] - t_on[i];
-			}
-			
-			if(timer_counter[i] < t_on[i]) HAL_GPIO_WritePin(stepper_gpio_port[i], stepper_gpio_pin[i], GPIO_PIN_SET);
-			else if(timer_counter[i] >= t_on[i] && timer_counter[i] < step_period[i]-1) HAL_GPIO_WritePin(stepper_gpio_port[i], stepper_gpio_pin[i], GPIO_PIN_RESET);
-			else if(timer_counter[i] == step_period[i]-1){
-				timer_counter[i] = 0;
-				step_counter[i]++;
-			}
-			
-			if(((step_counter[i] >= target_step[i]) && step_limit[i]) || (!step_limit[i] && !step_start[i]) || joint_limit || robot_stop){
-				HAL_GPIO_WritePin(stepper_gpio_port[i], stepper_gpio_pin[i], GPIO_PIN_RESET);
-				HAL_TIM_Base_Stop_IT(stepper_tim_handler[i]);
-				timer_counter[i] = 0;
-				step_counter[i] = 0;
-				step_state[i] = STOPPING;
-			}
+		// Cache Variable
+		uint16_t cnt = ++timer_counter[i];
+		uint16_t t_on_val = t_on[i];
+		uint16_t period = step_period[i];
+		GPIO_TypeDef *port = stepper_gpio_port[i];
+		uint16_t pin = stepper_gpio_pin[i];
+		
+		// Step Signal
+		if(cnt == 1) port->BSRR = (uint32_t)pin;
+		else if(cnt == t_on_val) port->BSRR = (uint32_t)pin << 16;
+		else if (cnt >= period){
+			timer_counter[i] = 0;
+			step_counter[i]++;
+		}
+		
+		// Stop Timer
+		if(((step_counter[i] >= target_step[i]) && step_limit[i]) || (!step_limit[i] && !step_start[i] && !step_start_cal[i]) || joint_limit || robot_stop){
+			port->BSRR = (uint32_t)pin << 16;
+			HAL_TIM_Base_Stop_IT(stepper_tim_handler[i]);
+			timer_counter[i] = 0;
+			step_counter[i] = 0;
+			step_state[i] = STOPPING;
 		}
 	}
 }
-//---------------------------------------------------------------------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 /* INPUT CAPTURE CALLBACK */
-//----------------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 	for(int i=0; i<JOINT_NUM; i++){
 		if(htim->Instance == enc_tim_instance[i]){
-			
 			if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2){
 				high_time[i] = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
 			}
@@ -883,34 +978,42 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 			}
 			
 			if(period_time[i] != 0){
-				duty_cycle[i] = high_time[i] * 100 / period_time[i];
-				pwm_freq[i] = (1000000/period_time[i]);
-				enc_angle[i] = (((duty_cycle[i] - min_duty_cycle) * 360) / (max_duty_cycle - min_duty_cycle));
-				cal_enc_angle[i] = fmod((enc_angle[i] - cal_value[i] + 360), 360);
+				duty_cycle[i] = high_time[i] * 100.0f / period_time[i];
+				pwm_freq[i] = (1000000.0f/period_time[i]);
+				enc_angle[i] = (((duty_cycle[i] - min_duty_cycle) * 360.0f) / (max_duty_cycle - min_duty_cycle));
+				
+				if(reset_enc){
+					cal_value[i] = enc_angle[i];
+					enc_counter[i] = 0;
+				}
+				
+				cal_enc_angle[i] = fmod((enc_angle[i] - cal_value[i] + 360.0f), 360.0f);
 				
 				reduced_cal_enc_angle[i] = cal_enc_angle[i] / stepper_ratio[i];
 				
-				if(prev_cal_enc_angle[i] > 350 && cal_enc_angle[i] < 10) enc_counter[i]++;
-				else if(prev_cal_enc_angle[i] < 10 && cal_enc_angle[i] > 350) enc_counter[i]--;
-				
-				enc_joint_angle[i] = reduced_cal_enc_angle[i] + (enc_counter[i] * (360 / stepper_ratio[i]));
+				if(prev_cal_enc_angle[i] > 350.0f && cal_enc_angle[i] < 10.f) enc_counter[i]++;
+				else if(prev_cal_enc_angle[i] < 10.0f && cal_enc_angle[i] > 350.0f) enc_counter[i]--;
 				
 				prev_cal_enc_angle[i] = cal_enc_angle[i];
+				
+				enc_joint_angle[i] = reduced_cal_enc_angle[i] + (enc_counter[i] * (360.0f / stepper_ratio[i]));
 			}
 		}
 	}
 }
-//----------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------------------
 
 
 /* EXTI BUTTON CALLBACK */
-//--------------------------------------------------------------------------------------------------------
-void HAL_GPIO_EXTI_CALLBACK(uint16_t GPIO_PIN){
+//----------------------------------------------------------------------------------------------------------
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_PIN){
 	for(int i=0; i<JOINT_NUM; i++){
-		limit_switch_state[i] = (HAL_GPIO_ReadPin(switch_gpio_port[i], switch_gpio_pin[i]) == GPIO_PIN_RESET);
+		if(GPIO_PIN == switch_gpio_pin[i]){
+			switch_pressed[i] = (HAL_GPIO_ReadPin(switch_gpio_port[i], switch_gpio_pin[i]) == GPIO_PIN_RESET);
+		}
 	}
 }
-//--------------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------
 
 /* USER CODE END 0 */
 
@@ -948,7 +1051,6 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_TIM13_Init();
   MX_TIM14_Init();
   MX_TIM1_Init();
   MX_TIM2_Init();
@@ -961,6 +1063,9 @@ int main(void)
   MX_I2C1_Init();
   MX_UART4_Init();
   MX_TIM12_Init();
+  MX_TIM13_Init();
+  MX_SDMMC1_SD_Init();
+  MX_FATFS_Init();
   MX_TIM17_Init();
   /* USER CODE BEGIN 2 */
 	
@@ -993,6 +1098,17 @@ int main(void)
 	#endif
 	
 	
+	/* SDCARD SETUP */
+	#ifdef USE_SDCARD
+	sdcard_status = mount_sdcard();
+	if(sdcard_status != SD_OK){
+		while(1){
+			show_menu(SDCARD_ERROR_MENU);
+		}
+	}
+	#endif
+	
+	
 	/* RS-232 COMMUNICATION SETUP */
 	#ifdef USE_RS232
 	RS232_Init(&huart4);
@@ -1005,7 +1121,6 @@ int main(void)
 			break;
 		}
 	}
-	show_menu(MAIN_MENU);
 	command.msg_sent = true;
 	command.msg_get = true;
 	#endif
@@ -1013,10 +1128,15 @@ int main(void)
 	
 	/* ENCODER SETUP */
 	#ifdef USE_ENCODER
-	encoder_init();
+	if(encoder_init() != 0){
+		while(1){
+			show_menu(ENCODER_ERROR_MENU);
+		}
+	}
 	HAL_Delay(500);
-	encoder_reset();
+	reset_enc = true;
 	HAL_Delay(1000);
+	reset_enc = false;
 	#endif
 	
 	
@@ -1025,7 +1145,7 @@ int main(void)
 	DHparam_init(&kinematics, joint_d, joint_a, joint_alpha);
 	tollframe_init(&kinematics, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
 	forward_transform_matrix(&kinematics);
-	calculate_all_link(&kinematics);
+	calc_all_link(&kinematics);
 	
 	run_forward_kinematic(&kinematics, enc_joint_angle);
 	#endif
@@ -1051,10 +1171,22 @@ int main(void)
 	
 	step_positive_dir[0] = DIR_CCW;
 	step_positive_dir[1] = DIR_CCW;
-	step_positive_dir[2] = 0x00;
-	step_positive_dir[3] = 0x00;
-	step_positive_dir[4] = 0x00;
-	step_positive_dir[5] = 0x00;
+	step_positive_dir[2] = DIR_CCW;
+	step_positive_dir[3] = DIR_CCW;
+	step_positive_dir[4] = DIR_CCW;
+	step_positive_dir[5] = DIR_CCW;
+	
+	calibration_dir[0] = NEGATIVE_DIR; 	// Calibration pos -> -90 degree
+	calibration_dir[1] = NEGATIVE_DIR;	// Calibration pos -> -60 degree
+	calibration_dir[2] = POSITIVE_DIR;	// Calibration pos -> 60 Degree
+	calibration_dir[3] = NEGATIVE_DIR; 	// Calibration pos -> 0 Degree
+	calibration_dir[4] = NEGATIVE_DIR; 	// Calibration pos -> -90 Degree
+	
+	home_dir[0] = POSITIVE_DIR;
+	home_dir[1] = POSITIVE_DIR;
+	home_dir[2] = NEGATIVE_DIR;
+	home_dir[3] = POSITIVE_DIR;
+	home_dir[4] = POSITIVE_DIR;
 	#endif
 	
 	
@@ -1069,6 +1201,20 @@ int main(void)
 	pos_pid.limMinInt = 0.0;
 	pos_pid.tau = 0.2;
 	pos_pid.T_sample = 0.01f;
+	#endif	
+	
+	
+	/* LIMIT SWITHC SETUP */
+	#ifdef USE_LIMIT_CHECK
+	for(int i=0; i<JOINT_NUM; i++){
+		switch_pressed[i] = (HAL_GPIO_ReadPin(switch_gpio_port[i], switch_gpio_pin[i]) == GPIO_PIN_RESET);
+	}
+	#endif
+	
+	
+	/* ALL SETUP DONE SHOW MAIN MENU*/
+	#ifdef USE_OLED
+	show_menu(MAIN_MENU);
 	#endif
 	
 	
@@ -1091,6 +1237,10 @@ int main(void)
 	read_welding_speed(0x01);
 
 	HAL_Delay(500);
+	#endif
+	
+	#ifdef TEST_SDCARD
+	
 	#endif
   /* USER CODE END 2 */
 
@@ -1118,23 +1268,27 @@ int main(void)
 		#endif
 		
 		#ifdef TEST_STEPPER
-		move_stepper(0, 16000, POSITIVE_DIR, 2400);
-		
-		if(command.type == MOVE && command.move_mode == DISTANCE){
-			step_start[0] = false;
-		}
+		move_joint(robot_joint[0], 20, LOW);
 		#endif
 		
 		#ifdef TEST_ENCODER
 		
 		#endif
 		
+		#ifdef TEST_LIMIT_SWITCH
+		for(int i=0; i<JOINT_NUM; i++) switch_pressed[i] = HAL_GPIO_ReadPin(switch_gpio_port[i], switch_gpio_pin[i]);
+		#endif
+		
 		#ifdef MAIN_PROGRAM	
 		// Check Miss Step
+		#ifdef USE_MISS_STEP_CHECK
 		check_miss_step();
+		#endif
 		
 		//Check Joint Limit
+		#ifdef USE_LIMIT_CHECK
 		check_limit(HARD_LIMIT_CHECK);
+		#endif
 		
 		// Update Value
 		update_value();
@@ -1143,10 +1297,14 @@ int main(void)
 		receive_data();
 		
 		// Check Auto Home Command
-		if(command.type == AUTO_HOME){
-			if(homing() == true){
-				home = true;
-				Send_feedback(&command, AUTO_HOME_DONE, 0x00);
+		if(command.type == CALIBRATION){
+			if(joint_calibrate(command.calibration_mode, true, true, true, false, false, false)){
+				for(int i=0; i<25; i++){
+					Send_feedback(&command, CALIBRATION_DONE, 0x00);
+				}
+				HAL_Delay(250);
+				command.type = NONE;
+				calibration_step = COUNT_JOINT;
 			}
 		}
 		
@@ -1189,17 +1347,15 @@ int main(void)
 			if(command.control_mode == WORLD_CTRL){			
 				for(int i=0; i<AXIS_NUM; i++){
 					if(command.move_variable == robot_axis[i]){
+						step_limit[i] = true;
+						step_start[i] = false;
+						
 						if(command.move_mode == CONTINUOUS){
-							move_world(command.move_variable, rx_move_position[i], LOW);
+//							move_world(command.move_variable, rx_move_position[i], LOW);
 						}
 						else if(command.move_mode == DISTANCE){
-							step_limit[i] = true;
-							step_start[i] = false;
 							rx_move_position[i] = command.move_value;
-							move_world(command.move_variable, rx_move_position[i], LOW);
-						}
-						else if(command.move_mode == STEP){
-							
+//							move_world(command.move_variable, rx_move_position[i], LOW);
 						}
 					}
 					else rx_move_position[i] = 0.0;
@@ -1329,7 +1485,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLM = 2;
   RCC_OscInitStruct.PLL.PLLN = 64;
   RCC_OscInitStruct.PLL.PLLP = 2;
-  RCC_OscInitStruct.PLL.PLLQ = 4;
+  RCC_OscInitStruct.PLL.PLLQ = 8;
   RCC_OscInitStruct.PLL.PLLR = 2;
   RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_3;
   RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
@@ -1411,6 +1567,33 @@ static void MX_I2C1_Init(void)
 }
 
 /**
+  * @brief SDMMC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SDMMC1_SD_Init(void)
+{
+
+  /* USER CODE BEGIN SDMMC1_Init 0 */
+
+  /* USER CODE END SDMMC1_Init 0 */
+
+  /* USER CODE BEGIN SDMMC1_Init 1 */
+
+  /* USER CODE END SDMMC1_Init 1 */
+  hsd1.Instance = SDMMC1;
+  hsd1.Init.ClockEdge = SDMMC_CLOCK_EDGE_RISING;
+  hsd1.Init.ClockPowerSave = SDMMC_CLOCK_POWER_SAVE_DISABLE;
+  hsd1.Init.BusWide = SDMMC_BUS_WIDE_4B;
+  hsd1.Init.HardwareFlowControl = SDMMC_HARDWARE_FLOW_CONTROL_DISABLE;
+  hsd1.Init.ClockDiv = 4;
+  /* USER CODE BEGIN SDMMC1_Init 2 */
+
+  /* USER CODE END SDMMC1_Init 2 */
+
+}
+
+/**
   * @brief TIM1 Initialization Function
   * @param None
   * @retval None
@@ -1454,7 +1637,7 @@ static void MX_TIM1_Init(void)
   sSlaveConfig.InputTrigger = TIM_TS_TI1FP1;
   sSlaveConfig.TriggerPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sSlaveConfig.TriggerPrescaler = TIM_ICPSC_DIV1;
-  sSlaveConfig.TriggerFilter = 5;
+  sSlaveConfig.TriggerFilter = 10;
   if (HAL_TIM_SlaveConfigSynchro(&htim1, &sSlaveConfig) != HAL_OK)
   {
     Error_Handler();
@@ -1462,7 +1645,7 @@ static void MX_TIM1_Init(void)
   sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 5;
+  sConfigIC.ICFilter = 10;
   if (HAL_TIM_IC_ConfigChannel(&htim1, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
@@ -1529,7 +1712,7 @@ static void MX_TIM2_Init(void)
   sSlaveConfig.InputTrigger = TIM_TS_TI1FP1;
   sSlaveConfig.TriggerPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sSlaveConfig.TriggerPrescaler = TIM_ICPSC_DIV1;
-  sSlaveConfig.TriggerFilter = 5;
+  sSlaveConfig.TriggerFilter = 10;
   if (HAL_TIM_SlaveConfigSynchro(&htim2, &sSlaveConfig) != HAL_OK)
   {
     Error_Handler();
@@ -1537,7 +1720,7 @@ static void MX_TIM2_Init(void)
   sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 5;
+  sConfigIC.ICFilter = 10;
   if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
@@ -1603,7 +1786,7 @@ static void MX_TIM3_Init(void)
   sSlaveConfig.InputTrigger = TIM_TS_TI1FP1;
   sSlaveConfig.TriggerPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sSlaveConfig.TriggerPrescaler = TIM_ICPSC_DIV1;
-  sSlaveConfig.TriggerFilter = 5;
+  sSlaveConfig.TriggerFilter = 10;
   if (HAL_TIM_SlaveConfigSynchro(&htim3, &sSlaveConfig) != HAL_OK)
   {
     Error_Handler();
@@ -1611,7 +1794,7 @@ static void MX_TIM3_Init(void)
   sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 5;
+  sConfigIC.ICFilter = 10;
   if (HAL_TIM_IC_ConfigChannel(&htim3, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
@@ -1677,7 +1860,7 @@ static void MX_TIM4_Init(void)
   sSlaveConfig.InputTrigger = TIM_TS_TI1FP1;
   sSlaveConfig.TriggerPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sSlaveConfig.TriggerPrescaler = TIM_ICPSC_DIV1;
-  sSlaveConfig.TriggerFilter = 5;
+  sSlaveConfig.TriggerFilter = 10;
   if (HAL_TIM_SlaveConfigSynchro(&htim4, &sSlaveConfig) != HAL_OK)
   {
     Error_Handler();
@@ -1685,7 +1868,7 @@ static void MX_TIM4_Init(void)
   sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 5;
+  sConfigIC.ICFilter = 10;
   if (HAL_TIM_IC_ConfigChannel(&htim4, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
@@ -1751,7 +1934,7 @@ static void MX_TIM5_Init(void)
   sSlaveConfig.InputTrigger = TIM_TS_TI1FP1;
   sSlaveConfig.TriggerPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sSlaveConfig.TriggerPrescaler = TIM_ICPSC_DIV1;
-  sSlaveConfig.TriggerFilter = 5;
+  sSlaveConfig.TriggerFilter = 10;
   if (HAL_TIM_SlaveConfigSynchro(&htim5, &sSlaveConfig) != HAL_OK)
   {
     Error_Handler();
@@ -1759,7 +1942,7 @@ static void MX_TIM5_Init(void)
   sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 5;
+  sConfigIC.ICFilter = 10;
   if (HAL_TIM_IC_ConfigChannel(&htim5, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
@@ -1826,7 +2009,7 @@ static void MX_TIM8_Init(void)
   sSlaveConfig.InputTrigger = TIM_TS_TI1FP1;
   sSlaveConfig.TriggerPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sSlaveConfig.TriggerPrescaler = TIM_ICPSC_DIV1;
-  sSlaveConfig.TriggerFilter = 5;
+  sSlaveConfig.TriggerFilter = 10;
   if (HAL_TIM_SlaveConfigSynchro(&htim8, &sSlaveConfig) != HAL_OK)
   {
     Error_Handler();
@@ -1834,7 +2017,7 @@ static void MX_TIM8_Init(void)
   sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 5;
+  sConfigIC.ICFilter = 10;
   if (HAL_TIM_IC_ConfigChannel(&htim8, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
@@ -1879,7 +2062,7 @@ static void MX_TIM12_Init(void)
   htim12.Instance = TIM12;
   htim12.Init.Prescaler = 0;
   htim12.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim12.Init.Period = 99;
+  htim12.Init.Period = 9999;
   htim12.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim12.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim12) != HAL_OK)
@@ -1921,7 +2104,7 @@ static void MX_TIM13_Init(void)
   htim13.Instance = TIM13;
   htim13.Init.Prescaler = 0;
   htim13.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim13.Init.Period = 99;
+  htim13.Init.Period = 9999;
   htim13.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim13.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim13) != HAL_OK)
@@ -1952,7 +2135,7 @@ static void MX_TIM14_Init(void)
   htim14.Instance = TIM14;
   htim14.Init.Prescaler = 0;
   htim14.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim14.Init.Period = 99;
+  htim14.Init.Period = 9999;
   htim14.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim14.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim14) != HAL_OK)
@@ -1986,7 +2169,7 @@ static void MX_TIM15_Init(void)
   htim15.Instance = TIM15;
   htim15.Init.Prescaler = 0;
   htim15.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim15.Init.Period = 99;
+  htim15.Init.Period = 9999;
   htim15.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim15.Init.RepetitionCounter = 0;
   htim15.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -2029,7 +2212,7 @@ static void MX_TIM16_Init(void)
   htim16.Instance = TIM16;
   htim16.Init.Prescaler = 0;
   htim16.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim16.Init.Period = 99;
+  htim16.Init.Period = 9999;
   htim16.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim16.Init.RepetitionCounter = 0;
   htim16.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -2061,7 +2244,7 @@ static void MX_TIM17_Init(void)
   htim17.Instance = TIM17;
   htim17.Init.Prescaler = 0;
   htim17.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim17.Init.Period = 99;
+  htim17.Init.Period = 9999;
   htim17.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim17.Init.RepetitionCounter = 0;
   htim17.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -2164,13 +2347,13 @@ static void MX_GPIO_Init(void)
                            LIMIT5_Pin */
   GPIO_InitStruct.Pin = LIMIT1_Pin|LIMIT2_Pin|LIMIT3_Pin|LIMIT4_Pin
                           |LIMIT5_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LIMIT6_Pin */
   GPIO_InitStruct.Pin = LIMIT6_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(LIMIT6_GPIO_Port, &GPIO_InitStruct);
 
@@ -2230,38 +2413,26 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PC8 PC9 PC10 PC11
-                           PC12 */
-  GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_11
-                          |GPIO_PIN_12;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  /*Configure GPIO pin : SDMMC1_BSP_Pin */
+  GPIO_InitStruct.Pin = SDMMC1_BSP_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF12_SDIO1;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : PD2 */
-  GPIO_InitStruct.Pin = GPIO_PIN_2;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF12_SDIO1;
-  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+  HAL_GPIO_Init(SDMMC1_BSP_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI2_IRQn, 15, 0);
+  HAL_NVIC_SetPriority(EXTI2_IRQn, 11, 0);
   HAL_NVIC_EnableIRQ(EXTI2_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI3_IRQn, 15, 0);
+  HAL_NVIC_SetPriority(EXTI3_IRQn, 11, 0);
   HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI4_IRQn, 15, 0);
+  HAL_NVIC_SetPriority(EXTI4_IRQn, 11, 0);
   HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 15, 0);
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 11, 0);
   HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 15, 0);
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 11, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
@@ -2529,6 +2700,26 @@ Welding_Data_Status_t weldingpoint_validate(uint16_t welding_point){
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
+/*--- SDCARD MOUNT ---*/
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SD_Status_t mount_sdcard(void){
+	res = f_mount(&fs, "", 1);
+	if(res == FR_OK) return SD_OK;
+	else return SD_MOUNT_ERR;
+}
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*--- SDCARD TXT FILE CREATE FUNCTION ---*/
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SD_Status_t create_txt_file(char *filename){
+	res = f_open(&file, filename, FA_CREATE_ALWAYS | FA_WRITE);
+	if (res != FR_OK) return SD_CREATE_ERR;
+	else return SD_OK;
+}
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
 /* --- STEPPER DISABLE --- */
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void disable_stepper(void){
@@ -2547,7 +2738,7 @@ void enable_stepper(void){
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-/* --- MOVE STEPPER FUNCTION ---*/
+/* --- MOVE STEPPER FUNCTION --- */
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void move_stepper(uint8_t select_joint, uint16_t step, Joint_Dir_t dir, uint16_t input_freq){		
 	for(int i=0; i<JOINT_NUM; i++){
@@ -2557,25 +2748,28 @@ void move_stepper(uint8_t select_joint, uint16_t step, Joint_Dir_t dir, uint16_t
 			
 			// Duty Cycle Calculation
 			step_freq[i] = input_freq;
-			step_period[i] = 1000000/step_freq[i];
+			step_period[i] = 10000/step_freq[i];
 			
 			// Set Stepper Direction
-			if(dir == POSITIVE_DIR && step_state[i] == STOPPING){
+			if(dir == POSITIVE_DIR){
 				if(step_positive_dir[i] == DIR_CW) HAL_GPIO_WritePin(stepper_gpio_port[i+6], stepper_gpio_pin[i+6], GPIO_PIN_SET);
 				else HAL_GPIO_WritePin(stepper_gpio_port[i+6], stepper_gpio_pin[i+6], GPIO_PIN_RESET);
 			}
-			else if(dir == NEGATIVE_DIR && step_state[i] == STOPPING){
+			else if(dir == NEGATIVE_DIR){
 				if(step_positive_dir[i] == DIR_CW) HAL_GPIO_WritePin(stepper_gpio_port[i+6], stepper_gpio_pin[i+6], GPIO_PIN_RESET);
 				else HAL_GPIO_WritePin(stepper_gpio_port[i+6], stepper_gpio_pin[i+6], GPIO_PIN_SET);
 			}
 			
 			// Pulse Start
 			target_step[i] = step;
-			
-			if((target_step[i] > 0 && step_counter[i] == 0 && step_state[i] == STOPPING) || (step_start[i] && step_state[i] == STOPPING) || !joint_limit){
+			if((target_step[i] > 0 && step_counter[i] == 0) || (step_start[i]) || (step_start_cal[i]) || !joint_limit){
 				t_on[i] = step_period[i] * SET_DUTY_CYCLE;
 				t_off[i] = step_period[i] - t_on[i];
-				HAL_TIM_Base_Start_IT(stepper_tim_handler[i]);
+				
+				if(step_state[i] == STOPPING){
+					step_state[i] = AT_TOP_SPEED;
+					HAL_TIM_Base_Start_IT(stepper_tim_handler[i]);
+				}
 			}
 		}
 	}
@@ -2585,7 +2779,7 @@ void move_stepper(uint8_t select_joint, uint16_t step, Joint_Dir_t dir, uint16_t
 
 /* --- EXPONENTIAL SPEED RAMP CALCULATION ---*/
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-uint32_t calculate_exponential_step_interval(uint8_t select_joint, uint32_t step){
+uint32_t calc_exp_step_interval(uint8_t select_joint, uint32_t step){
 	if (step == 0) return 100000 / BASE_FREQ;  // Initial delay
 
 	float freq = BASE_FREQ + (step_freq[select_joint] - BASE_FREQ) * (1 - expf(-0.001 * step));
@@ -2594,74 +2788,76 @@ uint32_t calculate_exponential_step_interval(uint8_t select_joint, uint32_t step
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-/* --- LINEAR INTERPOLATION CALCULATION ---*/
+/* --- STEPPER RPM CALCULATION --- */ 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void linear_interpolation(Welding_Point_t start_pos, Welding_Point_t end_pos, Speed_t speed){
-	double xc, yc, zc;
-	double distance;
-	uint16_t duration, steps;
+uint16_t calc_stepper_freq(uint8_t select_joint, float rpm_input){
+	// Synchronize Joint RPM
+	stepper_rpm[select_joint] = rpm_input * stepper_ratio[select_joint];
+	stepper_freq[select_joint] = stepper_rpm[select_joint] * stepper_microstep[select_joint] / 60;
 	
-	double dx = (end_pos.x_cor - start_pos.x_cor) / steps;
-	double dy = (end_pos.y_cor - start_pos.y_cor) / steps;
-	double dz = (end_pos.z_cor - start_pos.z_cor) / steps;
-	
-	steps = 50;
-	distance = sqrt(pow(dx,2) + pow(dy,2) + pow(dz,2));
-	duration = distance / feed_rate;
-
-	for(int i=0; i<=steps; i++){
-		xc = start_pos.x_cor + i * dx;
-		yc = start_pos.y_cor + i * dy;
-		zc = start_pos.z_cor + i * dz;
-		
-		move_world(AXIS_X, xc, speed);
-		move_world(AXIS_Y, yc, speed);
-		move_world(AXIS_Z, zc, speed);
-		
-		HAL_Delay(duration/steps);
-	}
+	return stepper_freq[select_joint];
 }
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-/* --- JOINT BASE MOVE FUNCTION ---*/
+/* --- STEPPER STEP CALCULATION --- */
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void move_joint(uint8_t select_joint, double move_angle, Speed_t set_speed){
-	// Joint RPM Set
-	if(set_speed == LOW) stepper_joint_rpm = 1;
-	else if(set_speed == MED) stepper_joint_rpm = 2;
-	else if(set_speed == HIGH) stepper_joint_rpm = 4;
+uint16_t calc_stepper_step(uint8_t select_joint, double angle){
+	if(step_limit[select_joint] == true){
+		step_count[select_joint] = abs((int)(angle / joint_ang_per_step[select_joint]));
+	}
+	return step_count[select_joint];
+}
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/* --- LINEAR INTERPOLATION CALCULATION --- */
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void calc_linear_parametric(double start_pos[6], double end_pos[6], uint8_t input_step, uint8_t current_step){	
+	axis_delta[0] = (end_pos[0] - start_pos[0]) / input_step;
+	axis_delta[1] = (end_pos[1] - start_pos[1]) / input_step;
+	axis_delta[2] = (end_pos[2] - start_pos[2]) / input_step;
+	axis_delta[3] = (end_pos[3] - start_pos[3]) / input_step;
+	axis_delta[4] = (end_pos[4] - start_pos[4]) / input_step;
+	axis_delta[5] = (end_pos[5] - start_pos[5]) / input_step;
 	
-	if((move_angle > 0 && move_angle < 1) || (move_angle > -1 && move_angle < 0)){
-		stepper_joint_rpm = 0.25;
+	int_x_out = start_pos[0] + current_step * axis_delta[0];
+	int_y_out = start_pos[1] + current_step * axis_delta[1];
+	int_z_out = start_pos[2] + current_step * axis_delta[2];
+	int_rx_out = start_pos[3] + current_step * axis_delta[3];
+	int_ry_out = start_pos[4] + current_step * axis_delta[4];
+	int_rz_out = start_pos[5] + current_step * axis_delta[5];
+}
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/* --- JOINT BASE MOVE FUNCTION --- */
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void move_joint(uint8_t select_joint, double input_angle, Speed_t set_speed){
+	// Joint RPM Set
+	if(set_speed == LOW) stepper_joint_rpm = 0.5f;
+	else if(set_speed == MED) stepper_joint_rpm = 1.0f;
+	else if(set_speed == HIGH) stepper_joint_rpm = 4.0f;
+	
+	if((input_angle > 0 && input_angle < 1) || (input_angle > -1 && input_angle < 0)){
+		stepper_joint_rpm = 0.25f;
 	}
 	
 	for(int i=0; i<JOINT_NUM; i++){
-		if(select_joint == robot_joint[i]){
-			input_angle[i] = move_angle;
-			target_angle[i] = move_angle + enc_joint_angle[i];
-			
-			// Calculate Step
-			if(step_limit[i] == true){
-				step_count[i] = abs((int)(move_angle / joint_ang_per_step[i]));
+		if(select_joint != robot_joint[i]) continue;
+		else{			
+			// Step or Distance Move			
+			if(input_angle > 0){
+				move_stepper(robot_joint[i], calc_stepper_step(i, input_angle), POSITIVE_DIR, calc_stepper_freq(i, stepper_joint_rpm));
 			}
-			
-			// Synchronize Joint RPM
-			stepper_rpm[i] = stepper_joint_rpm * stepper_ratio[i];
-			stepper_freq[i] = stepper_rpm[i] * stepper_microstep[i] / 60;
-			
-			// Step Move
-			if(move_angle > 0){
-				move_stepper(robot_joint[i], step_count[i], POSITIVE_DIR, stepper_freq[i]);
-			}
-			else if(move_angle < 0){
-				move_stepper(robot_joint[i], step_count[i], NEGATIVE_DIR, stepper_freq[i]);
+			else if(input_angle < 0){
+				move_stepper(robot_joint[i], calc_stepper_step(i, input_angle), NEGATIVE_DIR, calc_stepper_freq(i, stepper_joint_rpm));
 			}
 			
 			// Continuous Move
 			if(step_start[i] == true){
-				if(command.move_sign == UNSIGNED_VAR) move_stepper(robot_joint[i], 0, POSITIVE_DIR, stepper_freq[i]);
-				else move_stepper(robot_joint[i], 0, NEGATIVE_DIR, stepper_freq[i]);
+				if(command.move_sign == UNSIGNED_VAR) move_stepper(robot_joint[i], 0, POSITIVE_DIR, calc_stepper_freq(i, stepper_joint_rpm));
+				else move_stepper(robot_joint[i], 0, NEGATIVE_DIR, calc_stepper_freq(i, stepper_joint_rpm));
 			}
 		}
 	}
@@ -2669,28 +2865,58 @@ void move_joint(uint8_t select_joint, double move_angle, Speed_t set_speed){
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-/* --- WORLD BASE MOVE FUNCTION ---*/
+/* --- WORLD BASE MOVE FUNCTION --- */
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void move_world(uint8_t select_axis, double move_pos, Speed_t set_speed){
 	// Check Target Position
 	for(int i=0; i<AXIS_NUM; i++){
-		if(step_state[i] == false && select_axis == robot_axis[i]){
-			target_position[i] = current_position[i] + move_pos;
+		if(step_state[i] == STOPPING && select_axis == robot_axis[i]){
+			if(move_pos == 0.0) target_position[i] = current_position[i] + 1.0;
+			else target_position[i] = current_position[i] + move_pos;
 		}
 	}
 	
 	// Calculate Inverse Kinematics
 	run_inverse_kinematic(&kinematics, target_position[0], target_position[1], target_position[2],
-	kinematics.axis_rot_out[0], kinematics.axis_rot_out[1], kinematics.axis_rot_out[2]);
+	target_position[3], target_position[4], target_position[5]);
 	
 	// Move Joint
-	for(int i=0; i<AXIS_NUM; i++){
-		if(step_state[i] == false){
-			delta_ang[i] = kinematics.joint_ang_out[i] - current_angle[i];
+	for(int i=0; i<JOINT_NUM; i++){
+		delta_move_ang[i] = kinematics.joint_ang_out[i] - enc_joint_angle[i];
+		move_joint(robot_joint[i], delta_move_ang[i], set_speed);
+	}
+}
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/* --- LINEAR MOVE FUNCTION --- */
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void linear_move(double end_pos[6], Speed_t speed){	
+	uint8_t steps = (speed == LOW) ? 50 :	(speed == MED) ? 30 : 10;
+	
+	if(int_counter > steps) int_counter = 0;
+	
+	if(int_counter <= steps){
+		clear_to_update = true;
+		for(int i=0; i<JOINT_NUM; i++){
+			if(step_state[i] != STOPPING){
+				clear_to_update = false;
+				break;
+			}
 		}
 		
-		if(current_angle[i] != kinematics.joint_ang_out[i]){
-			move_joint(robot_joint[i], delta_ang[i], set_speed);
+		if(clear_to_update){
+			// Calculate Linear Parametric
+			calc_linear_parametric(current_position, end_pos, steps, int_counter);
+			
+			// Calculate Inverse Kinematics
+			run_inverse_kinematic(&kinematics, int_x_out, int_y_out, int_z_out, int_rx_out, int_ry_out, int_rz_out);
+			
+			for(int i=0; i<JOINT_NUM; i++){
+				move_joint(robot_joint[i], kinematics.joint_ang_out[i], speed);
+			}
+	
+			int_counter++;
 		}
 	}
 }
@@ -2781,7 +3007,10 @@ void update_value(void){
 	for(int i=0; i<JOINT_NUM; i++){
 		if(i<3) current_position[i] = kinematics.axis_pos_out[i];
 		else current_position[i] = kinematics.axis_rot_out[i];
+		
+		#ifdef USE_ENCODER
 		current_angle[i] = enc_joint_angle[i];
+		#endif
 	}
 }
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2834,33 +3063,187 @@ void check_limit(Limit_t check_mode){
 
 /* --- JOINT ANGLE HOMING FUNCTION ---*/
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-bool homing(void){
-	bool state;
-	stepper_joint_rpm = 4;	
+bool joint_calibrate(Cal_Mode_t mode, bool j1_cal, bool j2_cal, bool j3_cal, bool j4_cal, bool j5_cal, bool j6_cal){
+	bool 
+	filtered_pres[6],
+	selected_group1[3] = {j1_cal, j2_cal, j3_cal},
+	selected_group2[3] = {j4_cal, j5_cal, j6_cal};
+	calibrating = true;
 	
-	// Calculate each joint delta angle
+	// Count Calibrated Joint In Group 1 And 2
+	if(calibration_step == COUNT_JOINT){
+		for(int i=0; i<3; i++){
+			if(selected_group1[i]){
+				calibrated_joint[i] = switch_pressed[i];
+				group1_count++;
+			}
+			
+			if(selected_group2[i]){
+				calibrated_joint[i+3] = switch_pressed[i+3];
+				group2_count++;
+			}
+		}
+		calibration_step = J1_J3_CAL;
+	}
 	
-	while(1){
-		if(limit_switch_state[0] & limit_switch_state[1] & limit_switch_state[2] & limit_switch_state[3] & limit_switch_state[4] & limit_switch_state[5]){
-			state = true;
-			break;
+	// Move First 3 Joints Until Each Limit Switch Pressed
+	else if(calibration_step == J1_J3_CAL){
+		for(int i=0; i<3; i++){
+			if(!selected_group1[i]) continue;
+			
+			if(!calibrated_joint[i]){
+				for(int j=0; j<25; j++){
+					filtered_pres[i] &= filtered_pres[i];
+				}
+				
+				if(!switch_pressed[i]){
+					step_start_cal[i] = true;
+					move_stepper(robot_joint[i], 0, calibration_dir[i], calc_stepper_freq(i, 0.5f));
+				}
+				else{
+					step_start_cal[i] = false;
+					calibrated_joint[i] = true;
+				}
+			}
+		}
+		group1_calibrated = calibrated_joint[0] + calibrated_joint[1] + calibrated_joint[2];
+		if(group1_calibrated == group1_count){
+			HAL_Delay(500);
+			reset_enc = true;
+			HAL_Delay(500);
+			reset_enc = false;
+			calibration_step = J1_J3_OFFSET_MOVE;
 		}
 	}
 	
-	return state;
+	// Move First 3 Joints To Offset Angle
+	else if(calibration_step == J1_J3_OFFSET_MOVE){
+		double offset_angle[3] = {10.0, 10.0, -10.0};
+		
+		for(int i=0; i<2; i++){
+			if(enc_joint_angle[i] < offset_angle[i]){
+				step_start_cal[i] = true;
+				move_stepper(robot_joint[i], 0, home_dir[i], calc_stepper_freq(i, 0.5f));
+			}
+			else{
+				calibrated_joint[i] = false;
+				step_start_cal[i] = false;
+			}
+		}
+		
+		if(enc_joint_angle[2] > offset_angle[2]){
+			step_start_cal[2] = true;
+			move_stepper(robot_joint[2], 0, home_dir[2], calc_stepper_freq(2, 0.5f));
+		}
+		else{
+			step_start_cal[2] = false;
+			calibrated_joint[2] = false;
+		}
+		
+		group1_calibrated = calibrated_joint[0] + calibrated_joint[1] + calibrated_joint[2];
+		if(group1_calibrated == 0){
+			calibration_step = J1_J3_RECAL;
+		}
+	}
+	
+	// Recalibrate First 3 Joints Until Each Limit Switch Pressed
+	else if(calibration_step == J1_J3_RECAL){
+		for(int i=0; i<3; i++){
+			if(!selected_group1[i]) continue;
+			
+			if(!calibrated_joint[i]){			
+				for(int j=0; j<25; j++){
+					filtered_pres[i] &= filtered_pres[i];
+				}
+				
+				if(!switch_pressed[i]){
+					step_start_cal[i] = true;
+					move_stepper(robot_joint[i], 0, calibration_dir[i], calc_stepper_freq(i, 0.25f));
+				}
+				else{
+					step_start_cal[i] = false;
+					calibrated_joint[i] = true;
+				}
+			}
+		}
+		group1_calibrated = calibrated_joint[0] + calibrated_joint[1] + calibrated_joint[2];
+		if(group1_calibrated == group1_count){
+			HAL_Delay(500);
+			reset_enc = true;
+			HAL_Delay(500);
+			reset_enc = false;
+			if(mode == CALIBRATE_ONLY){
+				calibration_step = CALIBRATION_OK;
+			}
+			else if(mode == CALIBRATE_HOMING){
+				calibration_step = J1_J3_HOME;
+			}
+		}
+	}
+	
+	else if(calibration_step == J1_J3_HOME){
+		double offset_angle[3] = {90, 45, -50};
+		
+		for(int i=0; i<2; i++){
+			if(enc_joint_angle[i] < offset_angle[i]){
+				step_start_cal[i] = true;
+				move_stepper(robot_joint[i], 0, home_dir[i], calc_stepper_freq(i, 0.5f));
+			}
+			else{
+				calibrated_joint[i] = false;
+				step_start_cal[i] = false;
+			}
+		}
+		
+		if(enc_joint_angle[2] > offset_angle[2]){
+			step_start_cal[2] = true;
+			move_stepper(robot_joint[2], 0, home_dir[2], calc_stepper_freq(2, 0.5f));
+		}
+		else{
+			step_start_cal[2] = false;
+			calibrated_joint[2] = false;
+		}
+		
+		group1_calibrated = calibrated_joint[0] + calibrated_joint[1] + calibrated_joint[2];
+		if(group1_calibrated == 0){
+			calibration_step = CALIBRATION_OK;
+		}
+	}
+	
+	else if(calibration_step == CALIBRATION_OK){
+		calibrating = false;
+		group1_count = 0;
+		group1_calibrated = 0;
+		group2_count = 0;
+		group2_calibrated = 0;
+		return true;
+	}
+	return false;
 }
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 /* --- ENCODER INITIALIZE FUNCTION ---*/
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void encoder_init(void){	
+uint8_t encoder_init(void){		
 	for(int i=0; i<JOINT_NUM; i++){
-		HAL_TIM_IC_Start_IT(enc_tim_handler[i], TIM_CHANNEL_1);
-		HAL_TIM_IC_Start_IT(enc_tim_handler[i], TIM_CHANNEL_2);
-		
-		if(step_positive_dir[i] == DIR_CW) HAL_GPIO_WritePin(enc_gpio_port[i+6], enc_gpio_pin[i+6], GPIO_PIN_SET);
-		else HAL_GPIO_WritePin(enc_gpio_port[i+6], enc_gpio_pin[i+6], GPIO_PIN_RESET);
+		if(HAL_TIM_IC_Start_IT(enc_tim_handler[i], TIM_CHANNEL_1) == HAL_OK && HAL_TIM_IC_Start_IT(enc_tim_handler[i], TIM_CHANNEL_2) == HAL_OK){
+			if(step_positive_dir[i] == DIR_CW) HAL_GPIO_WritePin(enc_gpio_port[i+6], enc_gpio_pin[i+6], GPIO_PIN_RESET);
+			else HAL_GPIO_WritePin(enc_gpio_port[i+6], enc_gpio_pin[i+6], GPIO_PIN_SET);
+		}
+		else return i+1;
+	}
+	return 0;
+}
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/* --- ENCODER STOP FUNCTION --- */
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void encoder_stop(void){
+	for(int i=0; i<JOINT_NUM; i++){
+		HAL_TIM_IC_Stop_IT(enc_tim_handler[i], TIM_CHANNEL_1);
+		HAL_TIM_IC_Stop_IT(enc_tim_handler[i], TIM_CHANNEL_2);
 	}
 }
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2871,6 +3254,7 @@ void encoder_init(void){
 void encoder_reset(void){
 	for(int i=0; i<JOINT_NUM; i++){
 		cal_value[i] = enc_angle[i];
+		enc_counter[i] = 0;
 		enc_joint_angle[i] = 0.0;
 	}
 }
@@ -2932,21 +3316,6 @@ void send_mapped_data(void){
 /* --- CUSTON RS232 TRANSMIT FUNCTION ---*/
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void send_ang_pos_data(void){
-//	tx_pos[0] = (float)kinematics.axis_pos_out[0];
-//	tx_pos[1] = (float)kinematics.axis_pos_out[1];
-//	tx_pos[2] = (float)kinematics.axis_pos_out[2];
-//	
-//	tx_rot[0] = (float)kinematics.axis_rot_out[0];
-//	tx_rot[1] = (float)kinematics.axis_rot_out[1];
-//	tx_rot[2] = (float)kinematics.axis_rot_out[2];
-//	
-	tx_angle[0] = (float)enc_joint_angle[0];
-//	tx_angle[1] = (float)enc_joint_angle[1];
-//	tx_angle[2] = (float)enc_joint_angle[2];
-//	tx_angle[3] = (float)enc_joint_angle[3];
-//	tx_angle[4] = (float)enc_joint_angle[4];
-//	tx_angle[5] = (float)enc_joint_angle[5];	
-	
 	tx_pos[0] = 12.3;
 	tx_pos[1] = 12.3;
 	tx_pos[2] = 12.3;
@@ -2956,11 +3325,26 @@ void send_ang_pos_data(void){
 	tx_rot[2] = 11.1;
 	
 //	tx_angle[0] = 90.5;
-	tx_angle[1] = 90.5;
-	tx_angle[2] = 90.5;
-	tx_angle[3] = 90.5;
-	tx_angle[4] = 90.5;
-	tx_angle[5] = 90.5;
+//	tx_angle[1] = 90.5;
+//	tx_angle[2] = 90.5;
+//	tx_angle[3] = 90.5;
+//	tx_angle[4] = 90.5;
+//	tx_angle[5] = 90.5;
+	
+//	tx_pos[0] = (float)kinematics.axis_pos_out[0];
+//	tx_pos[1] = (float)kinematics.axis_pos_out[1];
+//	tx_pos[2] = (float)kinematics.axis_pos_out[2];
+	
+//	tx_rot[0] = (float)kinematics.axis_rot_out[0];
+//	tx_rot[1] = (float)kinematics.axis_rot_out[1];
+//	tx_rot[2] = (float)kinematics.axis_rot_out[2];
+	
+	tx_angle[0] = (float)enc_joint_angle[0];
+	tx_angle[1] = (float)enc_joint_angle[1];
+	tx_angle[2] = (float)enc_joint_angle[2];
+	tx_angle[3] = (float)enc_joint_angle[3];
+	tx_angle[4] = (float)enc_joint_angle[4];
+	tx_angle[5] = (float)enc_joint_angle[5];
 	
 	if(HAL_GetTick() - prev_time_send > send_data_interval){
 		for(int i=0; i<25; i++){
@@ -2982,11 +3366,7 @@ void receive_data(void){
 		command.msg_get = false;
 	}
 	
-	if(HAL_GetTick() - prev_time_get > 300 && command.msg_get == false && command.move_mode != STEP){
-		command.type = NONE;
-		prev_time_get = HAL_GetTick();
-	}
-	else if(HAL_GetTick() - prev_time_get > 75 && command.msg_get == false && command.move_mode == STEP){
+	if(HAL_GetTick() - prev_time_get > 300 && command.msg_get == false){
 		command.type = NONE;
 		prev_time_get = HAL_GetTick();
 	}
@@ -3030,7 +3410,7 @@ void show_menu(Oled_Menu_t sel_menu){
 		SSD1306_GotoXY(0,37);
 		SSD1306_Puts("GETCOM:", &Font_7x10, SSD1306_COLOR_WHITE);
 		SSD1306_GotoXY(50,37);
-		if(command.type == AUTO_HOME) SSD1306_Puts("Homing      ", &Font_7x10, SSD1306_COLOR_WHITE);
+		if(command.type == CALIBRATION) SSD1306_Puts("Calibrate   ", &Font_7x10, SSD1306_COLOR_WHITE);
 		else if(command.type == MAPPING) SSD1306_Puts("Mapping     ", &Font_7x10, SSD1306_COLOR_WHITE);
 		else if(command.type == MOVE) SSD1306_Puts("Move        ", &Font_7x10, SSD1306_COLOR_WHITE);
 		else if(command.type == RUN) SSD1306_Puts("Run         ", &Font_7x10, SSD1306_COLOR_WHITE);
@@ -3054,13 +3434,25 @@ void show_menu(Oled_Menu_t sel_menu){
 	
 	else if(sel_menu == EEPROM1_ERROR_MENU){
 		SSD1306_GotoXY(0,0);
-		SSD1306_Puts(error1, &Font_7x10, SSD1306_COLOR_WHITE);
+		SSD1306_Puts(eeprom1_err, &Font_7x10, SSD1306_COLOR_WHITE);
 		SSD1306_UpdateScreen();
 	}
 	
 	else if(sel_menu == EEPROM2_ERROR_MENU){
 		SSD1306_GotoXY(0,0);
-		SSD1306_Puts(error2, &Font_7x10, SSD1306_COLOR_WHITE);
+		SSD1306_Puts(eeprom2_err, &Font_7x10, SSD1306_COLOR_WHITE);
+		SSD1306_UpdateScreen();
+	}
+	
+	else if(sel_menu == SDCARD_ERROR_MENU){
+		SSD1306_GotoXY(0,0);
+		SSD1306_Puts(sdcard_err, &Font_7x10, SSD1306_COLOR_WHITE);
+		SSD1306_UpdateScreen();
+	}
+	
+	else if(sel_menu == ENCODER_ERROR_MENU){
+		SSD1306_GotoXY(0,0);
+		SSD1306_Puts(encoder_err, &Font_7x10, SSD1306_COLOR_WHITE);
 		SSD1306_UpdateScreen();
 	}
 	

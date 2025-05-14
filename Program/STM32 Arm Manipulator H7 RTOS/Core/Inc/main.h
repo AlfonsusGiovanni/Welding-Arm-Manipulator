@@ -127,6 +127,8 @@ void Error_Handler(void);
 #define ENC2A_GPIO_Port GPIOC
 #define ENC2B_Pin GPIO_PIN_7
 #define ENC2B_GPIO_Port GPIOC
+#define SDMMC_BSP_Pin GPIO_PIN_0
+#define SDMMC_BSP_GPIO_Port GPIOD
 #define ENC3B_Pin GPIO_PIN_3
 #define ENC3B_GPIO_Port GPIOB
 

@@ -1,51 +1,51 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <SimscapeMultibodyImportXML version="2.0" xmlns="urn:mathworks:SimscapeMultibody:import" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-<Created by="" on="04/20/25||13:52:32" using="Simscape Multibody Link Version 7.4" from="SolidWorks 31.4.0"/>
+<Created by="" on="04/21/25||15:18:30" using="Simscape Multibody Link Version 7.4" from="SolidWorks 31.4.0"/>
 <ModelUnits mass="kilogram" length="millimeter"/>
 <DataUnits mass="kilogram" length="meter"/>
-<RootAssembly name="arm_manipulator_assembly" uid="arm_manipulator_assembly" version="284">
+<RootAssembly name="arm_manipulator_assembly" uid="arm_manipulator_assembly" version="318">
 <AssemblyFile name="arm_manipulator_assembly.SLDASM" type="SolidWorks Assembly"/>
 <InstanceTree>
-<Instance name="arm_manipulator_link_5-2" uid="arm_manipulator_link_5-2" entityUid="arm_manipulator_link_5*:*Default">
+<Instance name="arm_manipulator_link_4-2" uid="arm_manipulator_link_4-2" entityUid="arm_manipulator_link_4*:*Default">
 <Transform>
-<Rotation>1 0 0 0 1 0 0 0 1</Rotation>
-<Translation>-0.19852348821948723 0.57871680780783963 0.55286837753463836</Translation>
+<Rotation>1 0 -2.087169405960725e-15 0 0.99996716004733566 -0.0081042474583568318 2.0871678259305651e-15 0.0081042474583568318 0.99996716004733566</Rotation>
+<Translation>-0.23564848821957884 0.5759435963795041 -0.25246874166644401</Translation>
 </Transform>
 </Instance>
 <Instance name="arm_manipulator_link_1-2" uid="arm_manipulator_link_1-2" entityUid="arm_manipulator_link_1*:*Default">
 <Transform>
 <Rotation>1 0 0 0 1 0 0 0 1</Rotation>
-<Translation>0.25900167962566789 0.29946872625851312 -0.0082506500311176605</Translation>
+<Translation>0.25900167962566817 0.29246872625851317 -0.0082506500311183683</Translation>
 </Transform>
 </Instance>
-<Instance name="arm_manipulator_link_2-2" uid="arm_manipulator_link_2-2" entityUid="arm_manipulator_link_2*:*Default">
+<Instance name="arm_manipulator_link_5-2" uid="arm_manipulator_link_5-2" entityUid="arm_manipulator_link_5*:*Default">
 <Transform>
 <Rotation>1 0 0 0 1 0 0 0 1</Rotation>
-<Translation>-0.18327348821958087 0.24701941362901361 -0.016750650031117982</Translation>
-</Transform>
-</Instance>
-<Instance name="arm_manipulator_link_3-2" uid="arm_manipulator_link_3-2" entityUid="arm_manipulator_link_3*:*Default">
-<Transform>
-<Rotation>1 0 0 0 1 0 0 0 1</Rotation>
-<Translation>-0.17627348821958053 0.48780329915618148 0.035503172082016934</Translation>
-</Transform>
-</Instance>
-<Instance name="arm_manipulator_link_4-2" uid="arm_manipulator_link_4-2" entityUid="arm_manipulator_link_4*:*Default">
-<Transform>
-<Rotation>1 0 -2.087169405960725e-15 0 0.99996716004733566 -0.0081042474583568318 2.0871678259305651e-15 0.0081042474583568318 0.99996716004733566</Rotation>
-<Translation>-0.23564848821957884 0.58294359637950455 -0.25246874166644306</Translation>
-</Transform>
-</Instance>
-<Instance name="Toolframe-2" uid="Toolframe-2" entityUid="Toolframe*:*Default">
-<Transform>
-<Rotation>1 0 0 0 -3.4914813388431334e-15 -1 0 1 -3.4914813388431334e-15</Rotation>
-<Translation>-0.23452348821957955 0.61529890725551595 0.53186837753459126</Translation>
+<Translation>-0.19852348821957844 0.57171680780783729 0.5528683775345884</Translation>
 </Transform>
 </Instance>
 <Instance name="arm_manipulator_base-2" uid="arm_manipulator_base-2" grounded="true" entityUid="arm_manipulator_base*:*Default">
 <Transform>
 <Rotation>1 0 0 0 1 0 0 0 1</Rotation>
 <Translation>0.20219372483426901 0.27769750031955287 -0.47984609518674365</Translation>
+</Transform>
+</Instance>
+<Instance name="arm_manipulator_link_3-2" uid="arm_manipulator_link_3-2" entityUid="arm_manipulator_link_3*:*Default">
+<Transform>
+<Rotation>1 0 0 0 1 0 0 0 1</Rotation>
+<Translation>-0.17627348821958042 0.48080329915618136 0.035503172082015741</Translation>
+</Transform>
+</Instance>
+<Instance name="Toolframe-2" uid="Toolframe-2" entityUid="Toolframe*:*Default">
+<Transform>
+<Rotation>1 -2.3369358847330735e-15 1.3301516776799633e-12 1.3301516776799631e-12 -4.3836802112395287e-16 -1 2.3369358847336581e-15 1 -4.3836802112395287e-16</Rotation>
+<Translation>-0.23452348821958036 0.60829890725551772 0.53186837753458782</Translation>
+</Transform>
+</Instance>
+<Instance name="arm_manipulator_link_2-2" uid="arm_manipulator_link_2-2" entityUid="arm_manipulator_link_2*:*Default">
+<Transform>
+<Rotation>1 0 0 0 1 0 0 0 1</Rotation>
+<Translation>-0.18327348821957962 0.24001941362901374 -0.016750650031119078</Translation>
 </Transform>
 </Instance>
 </InstanceTree>
@@ -66,22 +66,6 @@
 <Axis>1.6379730226223337e-16 -1 -1.1019798474417035e-16</Axis>
 </ConstraintGeometry>
 </Concentric>
-<Coincident name="Coincident1">
-<ConstraintGeometry geomType="plane">
-<InstancePath>
-<Uid>arm_manipulator_base-2</Uid>
-</InstancePath>
-<Position>-0.46496721305384886 -0.45378074495882736 0.36035052049413907</Position>
-<Axis>0 -1 -6.8001160258290799e-16</Axis>
-</ConstraintGeometry>
-<ConstraintGeometry geomType="plane">
-<InstancePath>
-<Uid>arm_manipulator_link_1-2</Uid>
-</InstancePath>
-<Position>-0.52177516784524725 -0.47555197089778761 -0.084499999999999853</Position>
-<Axis>1.6379730226223337e-16 -1 -1.1019798474417035e-16</Axis>
-</ConstraintGeometry>
-</Coincident>
 <Concentric name="Concentric2">
 <ConstraintGeometry geomType="cylinder">
 <InstancePath>
@@ -94,7 +78,7 @@
 <InstancePath>
 <Uid>arm_manipulator_link_2-2</Uid>
 </InstancePath>
-<Position>-0.0069999999999997287 -0.27710265826828806 -0.052499999999999346</Position>
+<Position>-0.0069999999999997287 -0.27710265826828806 -0.052499999999999332</Position>
 <Axis>-1 0 4.0592529337857266e-16</Axis>
 </ConstraintGeometry>
 </Concentric>
@@ -103,7 +87,7 @@
 <InstancePath>
 <Uid>arm_manipulator_link_2-2</Uid>
 </InstancePath>
-<Position>-0.0069999999999997564 0.047897341731711868 -0.052499999999999748</Position>
+<Position>-0.0069999999999997564 0.047897341731711895 -0.052499999999999748</Position>
 <Axis>-1 0 4.0592529337857266e-16</Axis>
 </ConstraintGeometry>
 <ConstraintGeometry geomType="plane">
@@ -119,7 +103,7 @@
 <InstancePath>
 <Uid>arm_manipulator_link_2-2</Uid>
 </InstancePath>
-<Position>-0.0089999999999998692 0.3728973417317123 -0.052499999999999956</Position>
+<Position>-0.0089999999999998415 0.37289734173171224 -0.05249999999999997</Position>
 <Axis>-1 1.6625156112892654e-15 -1.0603790760583891e-15</Axis>
 </ConstraintGeometry>
 <ConstraintGeometry geomType="cylinder">
@@ -135,7 +119,7 @@
 <InstancePath>
 <Uid>arm_manipulator_link_2-2</Uid>
 </InstancePath>
-<Position>0 0.047897341731711979 -0.052499999999999873</Position>
+<Position>0 0.047897341731712006 -0.052499999999999859</Position>
 <Axis>1 0 0</Axis>
 </ConstraintGeometry>
 <ConstraintGeometry geomType="plane">
@@ -183,14 +167,14 @@
 <InstancePath>
 <Uid>arm_manipulator_link_4-2</Uid>
 </InstancePath>
-<Position>-0.050349999999999645 0.038500000000000645 0.75805000000000011</Position>
+<Position>-0.050349999999999645 0.038500000000000756 0.75805000000000011</Position>
 <Axis>1 -1.8755377385140193e-16 -6.0047317127155927e-16</Axis>
 </ConstraintGeometry>
 <ConstraintGeometry geomType="cylinder">
 <InstancePath>
 <Uid>arm_manipulator_link_5-2</Uid>
 </InstancePath>
-<Position>-0.1069750000000001 0.03658209944768076 -0.04699999999999982</Position>
+<Position>-0.10697500000000004 0.03658209944768076 -0.04699999999999982</Position>
 <Axis>1 -2.4980018054065396e-16 -1.1066271742407473e-15</Axis>
 </ConstraintGeometry>
 </Concentric>
@@ -199,7 +183,7 @@
 <InstancePath>
 <Uid>arm_manipulator_link_4-2</Uid>
 </InstancePath>
-<Position>-0.069099999999999745 0.038500000000000312 0.54317499999999996</Position>
+<Position>-0.069099999999999745 0.038500000000000312 0.54317500000000007</Position>
 <Axis>-1 7.7141463709222488e-16 1.093240067000458e-15</Axis>
 </ConstraintGeometry>
 <ConstraintGeometry geomType="plane">
@@ -242,6 +226,22 @@
 <Axis>0 -1 0</Axis>
 </ConstraintGeometry>
 </Coincident>
+<Coincident name="Coincident14">
+<ConstraintGeometry geomType="plane">
+<InstancePath>
+<Uid>arm_manipulator_base-2</Uid>
+</InstancePath>
+<Position>-0.46496721305384808 -0.3787807449588273 0.38709544515562538</Position>
+<Axis>0 1 8.0247628249764373e-16</Axis>
+</ConstraintGeometry>
+<ConstraintGeometry geomType="plane">
+<InstancePath>
+<Uid>arm_manipulator_link_1-2</Uid>
+</InstancePath>
+<Position>-0.52177516784524725 -0.3935519708977876 -0.08450000000000002</Position>
+<Axis>8.7036844958485471e-16 -1 -2.1559212102827746e-16</Axis>
+</ConstraintGeometry>
+</Coincident>
 </Constraints>
 </RootAssembly>
 <Assemblies>
@@ -251,9 +251,9 @@
 <ModelUnits mass="kilogram" length="millimeter"/>
 <PartFile name="Toolframe.SLDPRT" type="SolidWorks Part"/>
 <MassProperties>
-<Mass>0.016889892983497586</Mass>
-<CenterOfMass>0 0.050000000000000003 0</CenterOfMass>
-<Inertia>1.4751842636395398e-05 1.286876335520367e-06 1.4684855338287618e-05 0 0 0</Inertia>
+<Mass>0.016889892983497589</Mass>
+<CenterOfMass>0 0.049999999999999989 0</CenterOfMass>
+<Inertia>1.4751842636395396e-05 1.2868763355203672e-06 1.4684855338287616e-05 0 0 0</Inertia>
 </MassProperties>
 <GeometryFile name="Toolframe_Default_sldprt.STEP" type="STEP"/>
 <VisualProperties>

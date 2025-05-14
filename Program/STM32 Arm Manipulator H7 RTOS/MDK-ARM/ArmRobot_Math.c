@@ -1,5 +1,5 @@
 /*
-	MATHEMATICAL EQUATION FOR 6-DOF ARM ROBOT
+	6-DOF Arm Manipulator Formula Library
 	Author	: Alfonsus Giovanni Mahendra Putra
 	Date		: Februari 2025
 */

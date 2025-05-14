@@ -20,8 +20,8 @@ void RS232_Init(UART_HandleTypeDef* huart_handler){
 /*TRANSMITING COMMAND*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 /*SEND AUTO HOME COMMAND*/
-void Send_auto_home(Data_Get_t* get){
-	uint8_t tx_buff[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, AUTO_HOME_CMD};	
+void Send_auto_home(Data_Get_t* get, Cal_Mode_t mode){
+	uint8_t tx_buff[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, CALIBRATION_CMD, mode};	
 	HAL_UART_Transmit_IT(huart, tx_buff, sizeof(tx_buff));
 }
 
@@ -136,14 +136,20 @@ void Start_get_command(Data_Get_t* get){
 void Get_command(Data_Get_t* get){	
 	if(rx_buff[0] == HEADER1 && rx_buff[1] == HEADER2 && rx_buff[2] == HEADER3){
 		//CHECK AUTO HOME COMMAND
-		if(rx_buff[3] == AUTO_HOME_CMD){
-			get->type = AUTO_HOME;
+		if(rx_buff[3] == CALIBRATION_CMD){
+			get->type = CALIBRATION;
+			get->calibration_mode = (Cal_Mode_t) rx_buff[4];
 		}
 		
 		//CHECK MAPPING MODE COMMAND
 		else if(rx_buff[3] == MAPPING_CMD){
 			get->type = MAPPING;
-			get->requested_data = (Req_t) rx_buff[4];
+			
+			get->welding_point_num = rx_buff[4];
+			get->welding_point_type = rx_buff[5];
+			get->pattern_type = (Welding_Pattern_t) rx_buff[6];
+			get->running_speed = (Speed_t) rx_buff[7];
+			get->mapping_state = (Mapping_State_t) rx_buff[8];
 		}
 		
 		//CHECK MOVE COMMAND

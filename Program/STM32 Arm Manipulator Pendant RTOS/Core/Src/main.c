@@ -40,8 +40,9 @@ typedef enum{
 	EMERGENCY_MENU3,
 	EMERGENCY_MENU4,
 	BOOTING_MENU,
-	AUTO_HOME_MENU,
-	HOMING_MENU,
+	CALIBRATE_MENU,
+	CAL1_MENU,
+	CAL2_MENU,
 	HOME_MENU,
 	PREP_MENU,
 	MAPPING_MENU,
@@ -144,7 +145,7 @@ const osThreadAttr_t interfaceTask_attributes = {
   .cb_size = sizeof(interfaceTaskControlBlock),
   .stack_mem = &interfaceTaskBuffer[0],
   .stack_size = sizeof(interfaceTaskBuffer),
-  .priority = (osPriority_t) osPriorityHigh,
+  .priority = (osPriority_t) osPriorityAboveNormal,
 };
 /* Definitions for receiveTask */
 osThreadId_t receiveTaskHandle;
@@ -156,7 +157,7 @@ const osThreadAttr_t receiveTask_attributes = {
   .cb_size = sizeof(receiveTaskControlBlock),
   .stack_mem = &receiveTaskBuffer[0],
   .stack_size = sizeof(receiveTaskBuffer),
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityHigh,
 };
 /* Definitions for lcdTask */
 osThreadId_t lcdTaskHandle;
@@ -184,22 +185,15 @@ const osEventFlagsAttr_t lcdUpdate_attributes = {
 //////////////////////////////
 bool 
 saved_dist    		= true,
-saved_speed   		= true,
 saved_prev				= true,
-state_booting 		= false,
-state_home 				= false,
-state_running 		= false,
-stop 							= false,
 prep_done 				= false,
 mapped_start_array[MAX_POINT],
 mapped_end_array[MAX_POINT];
 
 uint8_t
 lcd_error_value,
-stored_welding_data[3],
-running_speed,
 current_running_mode,
-max_speed = 150,
+stored_welding_data[3],
 mapped_array[MAX_POINT],
 mapped_points[MAX_POINT],
 mapped_pattern[MAX_POINT],
@@ -275,8 +269,7 @@ wave_mode[]					= "WAVE",
 
 string_max_dist1[] 	= "100      ",
 string_max_dist2[] 	= "90       ",
-string_max_point[] 	= "250      ",
-string_max_speed[]	= "150      ";
+string_max_point[] 	= "360      ";
 
 int16_t 
 ctrl_mode_counter,			// Counter Mode Kontrol - (World, Joint)
@@ -289,8 +282,8 @@ mapped_point_counter,		// Counter Titik Mapping
 start_point_counter,		// Counter Titik Start Pengelasan
 end_point_counter,			// Counter Titik End Pengelasan
 pattern_sel_counter,		// Counter Pemilihan Pola Pengelasan
-mapped_array_counter,
-welding_menu_counter,
+welding_menu_counter,		// Counter Menu Welding
+cal_mode_counter, 			// Counter Mode Kalibrasi
 add_col;
 
 char num_keys[10] = {
@@ -891,8 +884,8 @@ void ui_handler(void){
 	/* EMERGENCY MENU HANDLER *//////////////////////////////////////////////////////////////////////////////////
 	if(select_menu == EMERGENCY_MENU1){
 		if(HAL_GPIO_ReadPin(EMERGENCY_GPIO_Port, EMERGENCY_Pin) == GPIO_PIN_SET){
-			Send_auto_home(&command);
-			change_menu(HOMING_MENU);
+			Send_auto_home(&command, CALIBRATE_HOMING);
+			change_menu(CAL1_MENU);
 		}
 	}
 	
@@ -904,36 +897,59 @@ void ui_handler(void){
 	}
 	
 	
-	/* AUTO HOME MENU HANDLER */////////////////
-	else if(select_menu == AUTO_HOME_MENU){
+	/* AUTO HOME MENU HANDLER *//////////////////////////
+	else if(select_menu == CALIBRATE_MENU){
 		keys = Keypad_Read(&keypad);
-		if(keys == '#' && prev_keys != keys){
-			change_menu(HOMING_MENU);
+		
+		// CHANGE CURSOR **********************************
+		if(keys == 'R' && prev_keys != keys){
+			cal_mode_counter++;
+			if(cal_mode_counter > 1) cal_mode_counter = 0;
 		}
+		
+		// START CALIBRATION
+		else if(keys == '#' && prev_keys != keys){
+			if(cal_mode_counter == 0) change_menu(CAL1_MENU);
+			else change_menu(CAL2_MENU);
+		}
+		
+		// MOVE TO HOME MENU
 		else if(keys == '.' && prev_keys != keys){
 			change_menu(HOME_MENU);
 		}
 	}
 	
 	
-	/* HOMING MENU HANDLER *///////////////////
-	else if(select_menu == HOMING_MENU){
+	/* CALIBRATION MODE 1 MENU HANDLER */////////
+	else if(select_menu == CAL1_MENU){
 		command.feedback = NO_FEEDBACK;
 		while(1){
-			Send_auto_home(&command);
-			if(command.feedback == AUTO_HOME_DONE){
+			if(command.feedback == CALIBRATION_DONE){
 				change_menu(HOME_MENU);
 				break;
 			}
+			else Send_auto_home(&command, CALIBRATE_ONLY);
+		}
+	}
+	
+	/* CALIBRATION MODE 1 MENU HANDLER *///////////
+	else if(select_menu == CAL2_MENU){
+		command.feedback = NO_FEEDBACK;
+		while(1){
+			if(command.feedback == CALIBRATION_DONE){
+				change_menu(HOME_MENU);
+				break;
+			}
+			else Send_auto_home(&command, CALIBRATE_HOMING);
 		}
 	}
 	
 	
-	/* HOME MENU HANDLER */////////////////////////////////////////////////////////////////
+	/* HOME MENU HANDLER *////////////////////////////////////////////////////////////////
 	else if(select_menu == HOME_MENU){
 		// AUTO HOME ************************
 		if(keys == 'Q' && prev_keys != keys){
-			change_menu(AUTO_HOME_MENU);
+			change_menu(CALIBRATE_MENU);
 		}
 		
 	
@@ -946,14 +962,14 @@ void ui_handler(void){
 		}
 		
 		
-		// CHANGE CURSOR **************************************************************
+		// CHANGE CURSOR *******************************
 		else if(keys == 'R' && prev_keys != keys){
 			move_var_counter++;
 			if(move_var_counter > 5) move_var_counter = 0;
 		}
 		
 		
-		// SELECT MOVE MODE ************************************
+		// SELECT MOVE MODE ******************************
 		else if(keys == 'T' && prev_keys != keys){
 			move_mode_counter++;
 			
@@ -965,7 +981,7 @@ void ui_handler(void){
 			Send_running(&command, RUNNING_STOP, CONTROL_MODE, 0x00);
 		}
 		
-		// MOVE VALUE BY DISTANCE *************************************************************
+		// MOVE VALUE BY DISTANCE **********************************************************
 		else if((move_mode_counter == 1 && check_numkeys_pressed() == true) || keys == '<'){
 			add_col = 0;
 			distance_val = 0;
@@ -1011,10 +1027,10 @@ void ui_handler(void){
 				prev_keys = keys;
 			}
 		}
-		// ************************************************************************************
+		// *********************************************************************************
 		
 		
-		// MOVE VALUE BY STEP ****************************************
+		// MOVE VALUE BY STEP *****************************************
 		else if(move_mode_counter == 2) increase_decrease_value = 0.25;
 		
 		
@@ -1022,7 +1038,7 @@ void ui_handler(void){
 		else increase_decrease_value = 0.0;
 		
 		
-		// INCLREASE VALUE *****************************************************************************************************************
+		// INCLREASE VALUE ***************************************************************************************************************
 		if(keys == 'U' && HAL_GetTick() - prev_tick > debounce){
 			// World Increase Value Control
 			if(ctrl_mode_counter == 0){
@@ -1635,7 +1651,7 @@ void ui_handler(void){
 				Send_running(&command, RUNNING_PAUSE, PREVIEW_MODE, preview_point);
 			}
 			
-			if(command.feedback == AUTO_HOME_DONE){
+			if(command.feedback == CALIBRATION_DONE){
 				ctrl_mode_counter = 0,
 				move_mode_counter = 0,
 				move_var_counter = 0,
@@ -1669,7 +1685,7 @@ void show_menu(LCD_Menu_t menu){
 	/////////////////////////////////////
 	
 	
-	/* EMERGENCY MENU 2 *////////////////
+	/* EMERGENCY MENU 2 */////////////////////////////////
 	if(menu == EMERGENCY_MENU2){
 		lcd_set_cursor(1, 0);
 		lcd_printstr("<JOINT MISS STEPS>");
@@ -1679,10 +1695,10 @@ void show_menu(LCD_Menu_t menu){
 		lcd_set_cursor(0, 3);
 		lcd_printstr("PRESS ESC TO RESET!");
 	}
-	/////////////////////////////////////
+	//////////////////////////////////////////////////////
 	
 	
-	/* EMERGENCY MENU 3 *////////////////
+	/* EMERGENCY MENU 3 */////////////////////////////////
 	if(menu == EMERGENCY_MENU3){
 		lcd_set_cursor(1, 1);
 		lcd_printstr("<ANGLE SOFT LIMIT>");
@@ -1692,10 +1708,10 @@ void show_menu(LCD_Menu_t menu){
 		lcd_set_cursor(0, 2);
 		lcd_printstr("PRESS ESC TO RESET!");
 	}
-	/////////////////////////////////////
+	//////////////////////////////////////////////////////
 	
 	
-	/* EMERGENCY MENU 4 *////////////////
+	/* EMERGENCY MENU 4 */////////////////////////////////
 	if(menu == EMERGENCY_MENU4){
 		lcd_set_cursor(1, 0);
 		lcd_printstr("<ANGLE HARD LIMIT>");
@@ -1705,7 +1721,7 @@ void show_menu(LCD_Menu_t menu){
 		lcd_set_cursor(0, 3);
 		lcd_printstr("PRESS ESC TO RESET!");
 	}
-	/////////////////////////////////////
+	//////////////////////////////////////////////////////
 	
 	
 	/* BOOTING MENU *////////////////
@@ -1718,35 +1734,31 @@ void show_menu(LCD_Menu_t menu){
 	/////////////////////////////////
 	
 	
-	/* AUTO HOME MENU *//////////////////
-	else if(menu == AUTO_HOME_MENU){
-		lcd_set_cursor(3, 1);
-		lcd_printstr("PRESS  ENTER");
-		lcd_set_cursor(1, 2);
-		lcd_printstr("TO START AUTO HOME");
-	}
-	/////////////////////////////////////
-	
-	
-	/* HOMING MENU *//////////////////////////
-	else if(menu == HOMING_MENU){
-		lcd_set_cursor(0, 0);	
-			lcd_printstr("XP:HOMING           ");
-			lcd_set_cursor(0, 1);
-			lcd_printstr("YP:HOMING           ");
-			lcd_set_cursor(0, 2);
-			lcd_printstr("ZP:HOMING           ");
-			
-			lcd_set_cursor(8, 3);
-			lcd_printstr(home_menu);
+	/* AUTO HOME MENU *////////////////////
+	else if(menu == CALIBRATE_MENU){
+		lcd_set_cursor(0, 0);
+		lcd_printstr("1.CALIBRATE ONLY");
+		lcd_set_cursor(0, 1);
+		lcd_printstr("2.CALIBRATE & HOME");
 		
-			lcd_set_cursor(17, 3);
-			lcd_printstr(world_ctrl);
+		lcd_set_cursor(19, cal_mode_counter);
+		lcd_printstr("<");
+		
+		lcd_set_cursor(1, 3);
+		lcd_printstr("Enter To Calibrate");
 	}
-	//////////////////////////////////////////
+	///////////////////////////////////////
 	
 	
-	/* HOME MENU *//////////////////////////////////////////////////
+	/* HOMING MENU *////////////////////////////////
+	else if(menu == CAL1_MENU || menu == CAL2_MENU){
+		lcd_set_cursor(0, 0);	
+		lcd_printstr("CALIBRATING...");
+	}
+	////////////////////////////////////////////////
+	
+	
+	/* HOME MENU *//////////////////////////////////////////////
 	else if(menu == HOME_MENU){		
 		// SHOW POS CTRL *********************
 		if(ctrl_mode_counter == 0){
@@ -1824,10 +1836,10 @@ void show_menu(LCD_Menu_t menu){
 		// ******************************************
 		
 		
-		// CONTINUES MOVE **************************************
+		// CONTINUES MOVE ***********************************
 		lcd_set_cursor(0, 3);	
 		if(move_mode_counter == 0) lcd_printstr(cont_change);
-		// *****************************************************
+		// **************************************************
 		
 		
 		// DISTANCE MOVE ***********************
@@ -1848,9 +1860,9 @@ void show_menu(LCD_Menu_t menu){
 		// *************************************
 		
 		
-		// STEP MOVE ************************************************
+		// STEP MOVE *********************************************
 		else if(move_mode_counter == 2) lcd_printstr(step_change);
-		// **********************************************************
+		// *******************************************************
 		
 		
 		// SHOW CURRENT MENU *********
@@ -1860,7 +1872,7 @@ void show_menu(LCD_Menu_t menu){
 		}
 		// ***************************
 	}
-	///////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////
 	
 	
 	/* PREPARATION MENU *///////////////////////////////////////

@@ -153,12 +153,12 @@
         <Ww>
           <count>0</count>
           <WinNumber>1</WinNumber>
-          <ItemText>command.data_buff</ItemText>
+          <ItemText>command.type</ItemText>
         </Ww>
         <Ww>
           <count>1</count>
           <WinNumber>1</WinNumber>
-          <ItemText>command.World_rot_req</ItemText>
+          <ItemText>command.feedback</ItemText>
         </Ww>
       </WatchWindow1>
       <Tracepoint>

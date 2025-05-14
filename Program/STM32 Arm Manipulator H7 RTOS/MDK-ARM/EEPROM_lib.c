@@ -1,6 +1,7 @@
 /*
-Author	: Alfonsus Giovanni Mahendra Putra
-Date		: 27 November 2023
+	AT-24 Series EEPROM Library
+	Author	: Alfonsus Giovanni Mahendra Putra
+	Date		: 27 November 2023
 */
 
 #include "EEPROM_lib.h"

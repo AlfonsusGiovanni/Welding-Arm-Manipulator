@@ -18,8 +18,8 @@ void RS232_Init(UART_HandleTypeDef* huart_handler){
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 /*SEND AUTO HOME COMMAND*/
-void Send_auto_home(Data_Get_t* get){
-	uint8_t tx_buff[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, AUTO_HOME_CMD};	
+void Send_auto_home(Data_Get_t* get, Cal_Mode_t mode){
+	uint8_t tx_buff[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, CALIBRATION_CMD, mode};	
 	HAL_UART_Transmit_IT(huart, tx_buff, sizeof(tx_buff));
 }
 
@@ -146,8 +146,9 @@ void Get_command(Data_Get_t* get){
 	for(int i=0; i<BUFF_SIZE; i++){
 		if(rx_buff[i] == HEADER1 && rx_buff[i+1] == HEADER2 && rx_buff[i+2] == HEADER3 && get->buff_status == BUFF_ALIGNED){
 			//CHECK AUTO HOME COMMAND 
-			if(rx_buff[i+3] == AUTO_HOME_CMD){
-				get->type = AUTO_HOME;
+			if(rx_buff[i+3] == CALIBRATION_CMD){
+				get->type = CALIBRATION;
+				get->calibration_mode = (Cal_Mode_t) rx_buff[i+4];
 			}
 			
 			//CHECK MAPPING MODE COMMAND

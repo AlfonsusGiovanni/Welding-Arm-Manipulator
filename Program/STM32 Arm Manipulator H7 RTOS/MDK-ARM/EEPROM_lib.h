@@ -1,6 +1,7 @@
 /*
-Author	: Alfonsus Giovanni Mahendra Putra
-Date		: 27 November 2023
+	AT-24 Series EEPROM Library
+	Author	: Alfonsus Giovanni Mahendra Putra
+	Date		: 27 November 2023
 */
 
 #ifndef EEPROM_LIB_H
@@ -39,7 +40,8 @@ typedef enum{
 
 typedef enum{
 	EEPROM_OK = 0x01U,
-	EEPROM_TIMEOUT = 0x02U,
+	EEPROM_TIMEOUT,
+	EEPROM_SIZE_ERR,
 }EEPROM_Status_t;
 
 typedef struct{
@@ -47,12 +49,13 @@ typedef struct{
 	page;
 	
 	uint8_t
-	status,
 	page_size,
 	data_write,
 	data_read,
 	address,
 	dummy_byte[10];
+	
+	EEPROM_Status_t status;
 
 	I2C_HandleTypeDef* hi2c;
 }EEPROM_t;

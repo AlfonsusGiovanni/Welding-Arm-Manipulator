@@ -26,7 +26,7 @@
 #define RS232_TIMEOUT 100
 
 /*RS232 COM COMMAND*/
-#define AUTO_HOME_CMD				0x01	// Robot Homing Command
+#define CALIBRATION_CMD			0x01	// Robot Homing Command
 #define MAPPING_CMD					0x02	// Robot Welding Point Mapping Command
 #define MOVE_POSITION_CMD		0x03	// Move Robot Position Command
 #define RUNNING_CMD					0x04	// Robot Run Command
@@ -40,7 +40,7 @@
 //--- COMMAND TYPE TYPEDEF ---//
 ////////////////////////////////
 typedef enum{
-	AUTO_HOME = 0x01,
+	CALIBRATION = 0x01,
 	MAPPING,
 	MOVE,
 	RUN,
@@ -53,6 +53,15 @@ typedef enum{
 	NONE,
 }Command_t;
 ////////////////////////////////
+
+
+//--- CALIBRATION MODE TYPEDEF ---//
+////////////////////////////////////
+typedef enum{
+	CALIBRATE_ONLY = 0x01,
+	CALIBRATE_HOMING,
+}Cal_Mode_t;
+////////////////////////////////////
 
 
 //--- MANUAL CONTROL MODE TYPEDEF ---//
@@ -196,7 +205,7 @@ typedef enum{
 ////////////////////////////////////
 typedef enum{
 	NO_FEEDBACK,
-	AUTO_HOME_DONE,
+	CALIBRATION_DONE,
 	SAVE_DONE,
 	DISTANCE_MOVE_DONE,
 	CURRENT_POINT_DONE,
@@ -253,6 +262,7 @@ typedef struct ALIGNED_8{
 	float Joint_send[6];
 
 	Command_t type;
+	Cal_Mode_t calibration_mode;
 	Ctrl_Mode_t control_mode;
 	Move_Mode_t move_mode;
 	Move_Var_t move_variable;
@@ -280,7 +290,7 @@ void RS232_Init(UART_HandleTypeDef* huart_handler);
 
 /*TRANSMITING COMMAND*/
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void Send_auto_home(Data_Get_t* get);
+void Send_auto_home(Data_Get_t* get, Cal_Mode_t mode);
 void Send_mapping(Data_Get_t* get, uint8_t point_num, Data_type_t point_type, Welding_Pattern_t pattern_type, Speed_t welding_speed, Mapping_State_t map_state);
 
 void Send_move(Data_Get_t* get, Ctrl_Mode_t control_mode, Move_Mode_t move_mode, Move_Var_t var_type, Move_Sign_t move_sign, float value);

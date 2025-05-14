@@ -121,11 +121,6 @@ typedef struct{
 	jacobian_det; // Determinan dari matrix jacobian
 }Kinematics_t;
 
-typedef struct{
-	double
-	dummy;
-}Interpolation_t;
-
 /* MATRIX FUNCTION ---------------------------------------------------------------------------------------------------------------------------------*/
 
 /* Multiply Matrix 4x4 */

@@ -32,6 +32,10 @@ stm32 arm manipulator h7 rtos\main.o: ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h
 stm32 arm manipulator h7 rtos\main.o: ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_i2c_ex.h
 stm32 arm manipulator h7 rtos\main.o: ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_pwr.h
 stm32 arm manipulator h7 rtos\main.o: ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_pwr_ex.h
+stm32 arm manipulator h7 rtos\main.o: ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_sd.h
+stm32 arm manipulator h7 rtos\main.o: ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_ll_sdmmc.h
+stm32 arm manipulator h7 rtos\main.o: ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_ll_delayblock.h
+stm32 arm manipulator h7 rtos\main.o: ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_sd_ex.h
 stm32 arm manipulator h7 rtos\main.o: ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_tim.h
 stm32 arm manipulator h7 rtos\main.o: ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_tim_ex.h
 stm32 arm manipulator h7 rtos\main.o: ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart.h
@@ -47,6 +51,15 @@ stm32 arm manipulator h7 rtos\main.o: ../Middlewares/Third_Party/FreeRTOS/Source
 stm32 arm manipulator h7 rtos\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h
 stm32 arm manipulator h7 rtos\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/list.h
 stm32 arm manipulator h7 rtos\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h
+stm32 arm manipulator h7 rtos\main.o: ../FATFS/App/fatfs.h
+stm32 arm manipulator h7 rtos\main.o: ../Middlewares/Third_Party/FatFs/src/ff.h
+stm32 arm manipulator h7 rtos\main.o: ../Middlewares/Third_Party/FatFs/src/integer.h
+stm32 arm manipulator h7 rtos\main.o: ../FATFS/Target/ffconf.h
+stm32 arm manipulator h7 rtos\main.o: ../FATFS/Target/bsp_driver_sd.h
+stm32 arm manipulator h7 rtos\main.o: ../FATFS/Target/fatfs_platform.h
+stm32 arm manipulator h7 rtos\main.o: ../Middlewares/Third_Party/FatFs/src/ff_gen_drv.h
+stm32 arm manipulator h7 rtos\main.o: ../Middlewares/Third_Party/FatFs/src/diskio.h
+stm32 arm manipulator h7 rtos\main.o: ../FATFS/Target/sd_diskio.h
 stm32 arm manipulator h7 rtos\main.o: ../MDK-ARM/EEPROM_lib.h
 stm32 arm manipulator h7 rtos\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
 stm32 arm manipulator h7 rtos\main.o: ../MDK-ARM/RS232_Driver.h

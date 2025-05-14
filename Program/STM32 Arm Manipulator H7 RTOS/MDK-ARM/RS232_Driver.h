@@ -1,6 +1,7 @@
 /*
-Author	: Alfonsus Giovanni Mahendra Putra
-Date		: 10 Juli 2024
+	6-DOF ARM Manipulator RS-232 Communication Library
+	Author	: Alfonsus Giovanni Mahendra Putra
+	Date		: 10 Juli 2024
 */
 
 #ifndef RS3232_DRIVER_H
@@ -19,30 +20,28 @@ Date		: 10 Juli 2024
 #define HEADER3 0xFF
 
 /*RS232 COM BUFFER SIZE*/
-#define BUFF_SIZE 43
+#define BUFF_SIZE 60
 
 /*RS232 COM TIMEOUT*/
-#define RS232_TIMEOUT 5
+#define RS232_TIMEOUT 100
 
 /*RS232 COM COMMAND*/
-#define AUTO_HOME_CMD				0x01	// Robot Homing Command
-#define MAPPING_MODE_CMD		0x02	// Robot Welding Point Mapping Command
-#define PREVIEW_MODE_CMD		0x03	// Robot Welding Point Preview Command
-#define MOVE_POSITION_CMD		0x04	// Move Robot Position Command
-#define RUNNING_CMD					0x05	// Robot Run Command
-#define REQ_DATA_CMD				0x06	// Request Data Command
-#define SEND_REQ_CMD				0x07	// Send Requested Data Command
-#define MOTOR_STATE_CMD			0x08	// Motor State Command
-#define WELDER_STATE_CMD		0x09	// Welder State Command
-#define FEEDBACK_CMD				0x0A	// Feedback Command
-#define RESET_CMD						0x0B	// Standby Command
+#define CALIBRATION_CMD			0x01	// Robot Homing Command
+#define MAPPING_CMD					0x02	// Robot Welding Point Mapping Command
+#define MOVE_POSITION_CMD		0x03	// Move Robot Position Command
+#define RUNNING_CMD					0x04	// Robot Run Command
+#define REQ_DATA_CMD				0x05	// Request Data Command
+#define SEND_REQ_CMD				0x06	// Send Requested Data Command
+#define MOTOR_STATE_CMD			0x07	// Motor State Command
+#define WELDER_STATE_CMD		0x08	// Welder State Command
+#define FEEDBACK_CMD				0x09	// Feedback Command
+#define RESET_CMD						0x0A	// Reset Command
 
 //--- COMMAND TYPE TYPEDEF ---//
 ////////////////////////////////
 typedef enum{
-	AUTO_HOME = 0x01,
+	CALIBRATION = 0x01,
 	MAPPING,
-	PREVIEW,
 	MOVE,
 	RUN,
 	REQ_DATA,
@@ -56,10 +55,19 @@ typedef enum{
 ////////////////////////////////
 
 
+//--- CALIBRATION MODE TYPEDEF ---//
+////////////////////////////////////
+typedef enum{
+	CALIBRATE_ONLY = 0x01,
+	CALIBRATE_HOMING,
+}Cal_Mode_t;
+////////////////////////////////////
+
+
 //--- MANUAL CONTROL MODE TYPEDEF ---//
 ///////////////////////////////////////
 typedef enum{
-	CARTESIAN_CTRL = 0x01,
+	WORLD_CTRL = 0x01,
 	JOINT_CTRL,
 }Ctrl_Mode_t;
 ///////////////////////////////////////
@@ -81,17 +89,16 @@ typedef enum{
 	AXIS_X = 0x01,
 	AXIS_Y,
 	AXIS_Z,
-
+	AXIS_RX,
+	AXIS_RY,
+	AXIS_RZ,
+	
 	JOINT_1,
 	JOINT_2,
 	JOINT_3,
 	JOINT_4,
 	JOINT_5,
 	JOINT_6,
-	
-	AXIS_RX,
-	AXIS_RY,
-	AXIS_RZ,
 }Move_Var_t;
 /////////////////////////////////
 
@@ -108,8 +115,9 @@ typedef enum{
 //--- RUNNING MODE TYPEDEF ---//
 ////////////////////////////////
 typedef enum{
-	PATTERN_POS_MODE = 0x01,
-	PATTERN_ANG_MODE,
+	CONTROL_MODE = 0x01,
+	WELDING_MODE,
+	PREVIEW_MODE,
 }Run_Mode_t;
 ////////////////////////////////
 
@@ -122,17 +130,6 @@ typedef enum{
 	RUNNING_STOP,
 	RUNNING_CONTINUE
 }Run_State_t;
-////////////////////////////////
-
-
-//--- PREVIEW STATE TYPEDEF ---//
-////////////////////////////////
-typedef enum{
-	PREVIEW_START = 0x01,
-	PREVIEW_PAUSE,
-	PREVIEW_STOP,
-	PREVIEW_CONTINUE
-}Preview_State_t;
 ////////////////////////////////
 
 
@@ -207,14 +204,17 @@ typedef enum{
 //--- COMMAND FEEDBACK TYPEDEF ---//
 ////////////////////////////////////
 typedef enum{
-	AUTO_HOME_DONE = 0x01,
+	NO_FEEDBACK,
+	CALIBRATION_DONE,
 	SAVE_DONE,
 	DISTANCE_MOVE_DONE,
 	CURRENT_POINT_DONE,
 	MAIN_ONLINE,
 	PENDANT_ONLINE,
+	JOINT_MISS_STEP,
 	ANGLE_SOFT_LIMIT,
 	ANGLE_HARD_LIMIT,
+	POINT_INVALID,
 }Feedback_t;
 ////////////////////////////////////
 
@@ -250,26 +250,25 @@ typedef struct ALIGNED_8{
 	uint8_t preview_point_num;
 	uint8_t welding_point_num;
 	uint8_t welding_point_type;
-
-	uint8_t padding2[7];
+	
+	uint16_t feedback_num;
 	
 	float move_value;
-	float Cartesian_pos[3];
-	float Cartesian_pos_req[3];
-	float Joint_angle[6];
+	float World_pos_req[3];
+	float World_rot_req[3];
 	float Joint_angle_req[6];
 
 	float Cartesian_send[3];
 	float Joint_send[6];
 
 	Command_t type;
+	Cal_Mode_t calibration_mode;
 	Ctrl_Mode_t control_mode;
 	Move_Mode_t move_mode;
 	Move_Var_t move_variable;
 	Move_Sign_t move_sign;
 	Run_Mode_t running_mode;
 	Run_State_t running_state;
-	Preview_State_t preview_state;
 	Welding_Pattern_t pattern_type;
 	Data_type_t data_type;
 	Mapping_State_t mapping_state;
@@ -290,25 +289,24 @@ void RS232_Init(UART_HandleTypeDef* huart_handler);
 //-------------------------------------------------
 
 /*TRANSMITING COMMAND*/
-//---------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void Send_auto_home(Data_Get_t* get);
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void Send_auto_home(Data_Get_t* get, Cal_Mode_t mode);
 void Send_mapping(Data_Get_t* get, uint8_t point_num, Data_type_t point_type, Welding_Pattern_t pattern_type, Speed_t welding_speed, Mapping_State_t map_state);
-void Send_preview(Data_Get_t* get, uint16_t point_num, Run_State_t state);
 
 void Send_move(Data_Get_t* get, Ctrl_Mode_t control_mode, Move_Mode_t move_mode, Move_Var_t var_type, Move_Sign_t move_sign, float value);
-void Send_running(Data_Get_t* get, Preview_State_t state);
+void Send_running(Data_Get_t* get, Run_State_t state, Run_Mode_t mode, uint16_t point_num);
 
 void Req_data(Data_Get_t* get, Req_t data);
  
-void Send_requested_data(Data_Get_t* get, float* cartesian_value, float* joint_value, uint8_t welding_point, Welding_Pattern_t pattern_type, Speed_t welding_speed);
+void Send_requested_data(Data_Get_t* get, float* world_pos, float* world_rot, float* joint_value, uint8_t welding_point, Welding_Pattern_t pattern_type, Speed_t welding_speed);
 
 void Send_motor_state(Data_Get_t* get, Motor_State_t state);
 void Send_welder_state(Data_Get_t* get, Welder_State_t state);
 
-void Send_feedback(Data_Get_t* get, Feedback_t fdbck);
+void Send_feedback(Data_Get_t* get, Feedback_t fdbck, uint16_t num);
 
-void Send_reset_state(Data_Get_t* get);
-//---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void Send_state_reset(Data_Get_t* get);
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 /*RECIEVING COMMAND*/
 //--------------------------------------

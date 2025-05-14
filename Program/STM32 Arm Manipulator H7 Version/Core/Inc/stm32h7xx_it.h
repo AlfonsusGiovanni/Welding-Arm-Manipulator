@@ -68,6 +68,7 @@ void TIM8_BRK_TIM12_IRQHandler(void);
 void TIM8_UP_TIM13_IRQHandler(void);
 void TIM8_TRG_COM_TIM14_IRQHandler(void);
 void TIM8_CC_IRQHandler(void);
+void SDMMC1_IRQHandler(void);
 void TIM5_IRQHandler(void);
 void UART4_IRQHandler(void);
 void TIM15_IRQHandler(void);
