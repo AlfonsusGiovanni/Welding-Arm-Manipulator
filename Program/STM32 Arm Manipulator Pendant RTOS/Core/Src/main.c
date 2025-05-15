@@ -40,9 +40,10 @@ typedef enum{
 	EMERGENCY_MENU3,
 	EMERGENCY_MENU4,
 	BOOTING_MENU,
-	CALIBRATE_MENU,
+	SETTING_MENU,
 	CAL1_MENU,
 	CAL2_MENU,
+	ZEROING_MENU,
 	HOME_MENU,
 	PREP_MENU,
 	MAPPING_MENU,
@@ -145,11 +146,11 @@ const osThreadAttr_t interfaceTask_attributes = {
   .cb_size = sizeof(interfaceTaskControlBlock),
   .stack_mem = &interfaceTaskBuffer[0],
   .stack_size = sizeof(interfaceTaskBuffer),
-  .priority = (osPriority_t) osPriorityAboveNormal,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for receiveTask */
 osThreadId_t receiveTaskHandle;
-uint32_t receiveTaskBuffer[ 128 ];
+uint32_t receiveTaskBuffer[ 256 ];
 osStaticThreadDef_t receiveTaskControlBlock;
 const osThreadAttr_t receiveTask_attributes = {
   .name = "receiveTask",
@@ -161,7 +162,7 @@ const osThreadAttr_t receiveTask_attributes = {
 };
 /* Definitions for lcdTask */
 osThreadId_t lcdTaskHandle;
-uint32_t lcdTaskBuffer[ 128 ];
+uint32_t lcdTaskBuffer[ 256 ];
 osStaticThreadDef_t lcdTaskControlBlock;
 const osThreadAttr_t lcdTask_attributes = {
   .name = "lcdTask",
@@ -169,7 +170,7 @@ const osThreadAttr_t lcdTask_attributes = {
   .cb_size = sizeof(lcdTaskControlBlock),
   .stack_mem = &lcdTaskBuffer[0],
   .stack_size = sizeof(lcdTaskBuffer),
-  .priority = (osPriority_t) osPriorityRealtime,
+  .priority = (osPriority_t) osPriorityAboveNormal,
 };
 /* Definitions for lcdUpdate */
 osEventFlagsId_t lcdUpdateHandle;
@@ -245,6 +246,7 @@ mapping_menu[]    	= "(MAP)",
 preview_menu[] 			= "(PREV)",
 welding_menu[]			= "(WELD)",
 mem_menu[]        	= "(MEM)",
+set_menu[]					= "(SET)",
 
 world_ctrl[]				= "(W)",
 joint_ctrl[] 				= "(J)",
@@ -256,6 +258,8 @@ step_change[] 			= "(STP)",
 mapping_mode[]			= "(MAPPING)",
 welding_mode[] 			= "(WELDING)",
 preview_mode[] 			= "(PREVIEW)",
+cal_mode[]					= "(CALIBRATE)",
+zero_mode[]					= "(ZEROING)",
 
 low_speed[] 				= "LOW",
 med_speed[] 				= "MED",
@@ -284,6 +288,8 @@ end_point_counter,			// Counter Titik End Pengelasan
 pattern_sel_counter,		// Counter Pemilihan Pola Pengelasan
 welding_menu_counter,		// Counter Menu Welding
 cal_mode_counter, 			// Counter Mode Kalibrasi
+setting_menu_counter,		// Counter Menu Setting
+joint_sel_counter,			// Counter Pemilihan Joint Yang Akan Dilakukan Zeroing
 add_col;
 
 char num_keys[10] = {
@@ -368,7 +374,6 @@ uint32_t RS232_state, RS232_err_status;
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	if(huart->Instance == USART1){
 		Get_command(&command);
-		Start_get_command(&command);
 	}
 }
 
@@ -415,7 +420,7 @@ int main(void)
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
-	HAL_Delay(1500);
+	HAL_Delay(2000);
 	
 	/*LCD CONFIGURATION*/
 	//---------------------------------
@@ -864,17 +869,6 @@ void blink_led(uint8_t delay_time, uint8_t count){
 /*--- USER INTERFACE HANDLER ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void ui_handler(void){
-	// Get Request *****************************************
-	if(command.type == SEND_REQ){
-		for(int i=0; i<6; i++){
-			if(i<3){
-				pos_value[i] = command.World_pos_req[i];
-				rot_value[i] = command.World_rot_req[i];
-			}
-			angle_value[i] = command.Joint_angle_req[i];
-		}
-	}
-	
 	// Read Keypad ***********************
 	keys = Keypad_Read(&keypad);
 	if(keys != prev_keys && keys != 0x00){
@@ -884,74 +878,120 @@ void ui_handler(void){
 	/* EMERGENCY MENU HANDLER *//////////////////////////////////////////////////////////////////////////////////
 	if(select_menu == EMERGENCY_MENU1){
 		if(HAL_GPIO_ReadPin(EMERGENCY_GPIO_Port, EMERGENCY_Pin) == GPIO_PIN_SET){
-			Send_auto_home(&command, CALIBRATE_HOMING);
-			change_menu(CAL1_MENU);
+			change_menu(CAL2_MENU);
 		}
 	}
 	
 	else if(select_menu == EMERGENCY_MENU2 || select_menu == EMERGENCY_MENU3 || select_menu == EMERGENCY_MENU4){
 		if(keys == '.' && prev_keys != keys){
-			Send_state_reset(&command);
+			for(int i=0; i<50; i++){
+				Send_state_reset(&command);
+				osDelay(5);
+			}
 			change_menu(HOME_MENU);
 		}
 	}
 	
 	
-	/* AUTO HOME MENU HANDLER *//////////////////////////
-	else if(select_menu == CALIBRATE_MENU){
+	/* SETTING MENU HANDLER *//////////////////////////
+	else if(select_menu == SETTING_MENU){
 		keys = Keypad_Read(&keypad);
 		
-		// CHANGE CURSOR **********************************
-		if(keys == 'R' && prev_keys != keys){
-			cal_mode_counter++;
-			if(cal_mode_counter > 1) cal_mode_counter = 0;
+		// CHANGE SETTING MENU  ********************************
+		if(keys == 'W' && prev_keys != keys){
+			setting_menu_counter++;
+			if(setting_menu_counter > 1) setting_menu_counter = 0;
+			cal_mode_counter = 0;
+			joint_sel_counter = 0;
 		}
 		
-		// START CALIBRATION
-		else if(keys == '#' && prev_keys != keys){
-			if(cal_mode_counter == 0) change_menu(CAL1_MENU);
-			else change_menu(CAL2_MENU);
-		}
-		
-		// MOVE TO HOME MENU
+		// MOVE TO HOME MENU *********************
 		else if(keys == '.' && prev_keys != keys){
 			change_menu(HOME_MENU);
 		}
+		
+		// SETTING MENU 1 ***********************************
+		if(setting_menu_counter == 0){
+			// CALIBRATION MODE SELECT ---------------------
+			if(keys == 'R' && prev_keys != keys){
+				cal_mode_counter++;
+				if(cal_mode_counter > 1) cal_mode_counter = 0;
+			}
+			
+			// START CALIBRATION ------------------------------
+			else if(keys == '#' && prev_keys != keys){
+				command.feedback = NO_FEEDBACK;
+				if(cal_mode_counter == 0) change_menu(CAL1_MENU);
+				else change_menu(CAL2_MENU);
+			}
+		}
+		
+		// SETTING MENU 2 **********************************
+		else if(setting_menu_counter == 1){
+			// JOINT SELECT ----------------------------------
+			if(keys == 'R' && prev_keys != keys){
+				joint_sel_counter++;
+				if(joint_sel_counter > 5) joint_sel_counter = 0;
+			}
+			
+			// SEND ZEROING JOINT --------------------------------------------------------------------------------
+			else if(keys == '#' && prev_keys != keys){
+				command.feedback = NO_FEEDBACK;
+				change_menu(ZEROING_MENU);
+			}
+		}
 	}
 	
-	
-	/* CALIBRATION MODE 1 MENU HANDLER */////////
+	/* CALIBRATION MODE 1 MENU HANDLER *////////////////////////////////////////////////
 	else if(select_menu == CAL1_MENU){
-		command.feedback = NO_FEEDBACK;
-		while(1){
-			if(command.feedback == CALIBRATION_DONE){
-				change_menu(HOME_MENU);
-				break;
+		if(command.feedback == CALIBRATION_DONE){
+			command.feedback = NO_FEEDBACK;
+			change_menu(HOME_MENU);
+		}
+		else Send_setting_data(&command, JOINT_CALIBRATION, CALIBRATE_ONLY, NO_SELECTION);
+		
+		if(keys == '.' && prev_keys != keys){
+			for(int j=0; j<100; j++){
+				Send_running(&command, RUNNING_STOP, SETTING_MODE, 0);
+				osDelay(5);
 			}
-			else Send_auto_home(&command, CALIBRATE_ONLY);
+			change_menu(HOME_MENU);
 		}
 	}
 	
-	/* CALIBRATION MODE 1 MENU HANDLER *///////////
+	/* CALIBRATION MODE 2 MENU HANDLER *//////////////////////////////////////////////////
 	else if(select_menu == CAL2_MENU){
-		command.feedback = NO_FEEDBACK;
-		while(1){
-			if(command.feedback == CALIBRATION_DONE){
-				change_menu(HOME_MENU);
-				break;
-			}
-			else Send_auto_home(&command, CALIBRATE_HOMING);
+		if(command.feedback == CALIBRATION_DONE){
+			command.feedback = NO_FEEDBACK;
+			change_menu(HOME_MENU);
 		}
+		else Send_setting_data(&command, JOINT_CALIBRATION, CALIBRATE_HOMING, NO_SELECTION);
+		
+		if(keys == '.' && prev_keys != keys){
+			for(int j=0; j<100; j++){
+				Send_running(&command, RUNNING_STOP, SETTING_MODE, 0);
+				osDelay(5);
+			}
+			change_menu(HOME_MENU);
+		}
+	}
+	
+	/* ZEROING MANU HANDLER *//////////////////////////////////////////////////////////////////////////////////
+	else if(select_menu == ZEROING_MENU){
+		if(command.feedback == ZEROING_DONE || (keys == '.' && prev_keys != keys)){
+			command.feedback = NO_FEEDBACK;
+			change_menu(HOME_MENU);
+		}
+		else Send_setting_data(&command, JOINT_ZEROING, NO_CALIBRATION, (Zeroing_Select_t)(joint_sel_counter+1));
 	}
 	
 	
 	/* HOME MENU HANDLER *////////////////////////////////////////////////////////////////
 	else if(select_menu == HOME_MENU){
-		// AUTO HOME ************************
+		// SETTING MENU *********************
 		if(keys == 'Q' && prev_keys != keys){
-			change_menu(CALIBRATE_MENU);
+			change_menu(SETTING_MENU);
 		}
-		
 	
 		// CHANGE MOVE CONTROL ***************************
 		else if(keys == 'W' && prev_keys != keys){
@@ -961,13 +1001,11 @@ void ui_handler(void){
 			if(ctrl_mode_counter > 1) ctrl_mode_counter = 0;
 		}
 		
-		
 		// CHANGE CURSOR *******************************
 		else if(keys == 'R' && prev_keys != keys){
 			move_var_counter++;
 			if(move_var_counter > 5) move_var_counter = 0;
 		}
-		
 		
 		// SELECT MOVE MODE ******************************
 		else if(keys == 'T' && prev_keys != keys){
@@ -976,9 +1014,9 @@ void ui_handler(void){
 			if(move_mode_counter > 2) move_mode_counter = 0;
 		}
 		
-		// CANCEL STEPPER MOVE
+		// CANCEL STEPPER MOVE ************************************
 		else if(keys == '.' && prev_keys != keys){
-			Send_running(&command, RUNNING_STOP, CONTROL_MODE, 0x00);
+			Send_running(&command, RUNNING_STOP, CONTROL_MODE, 0);
 		}
 		
 		// MOVE VALUE BY DISTANCE **********************************************************
@@ -1040,7 +1078,7 @@ void ui_handler(void){
 		
 		// INCLREASE VALUE ***************************************************************************************************************
 		if(keys == 'U' && HAL_GetTick() - prev_tick > debounce){
-			// World Increase Value Control
+			// WORLD INCREASE VALUE CONTROL ------------------------------------------------------------------------------------------------
 			if(ctrl_mode_counter == 0){
 				for(int i=0; i<6; i++){
 					if(move_var_counter == i){
@@ -1051,7 +1089,7 @@ void ui_handler(void){
 				}
 			}
 			
-			// Joint Increase Value Control
+			// JOINT INCREASE VALUE CONTROL ------------------------------------------------------------------------------------------------
 			else{
 				for(int i=0; i<6; i++){
 					if(move_var_counter == i){
@@ -1067,7 +1105,7 @@ void ui_handler(void){
 		
 		// DECREASE VALUE *****************************************************************************************************************
 		else if(keys == 'D' && HAL_GetTick() - prev_tick > debounce){
-			// World Decrease Value Control
+			// WORLD DECREASE VALUE CONTROL --------------------------------------------------------------------------------------------
 			if(ctrl_mode_counter == 0){
 				for(int i=0; i<6; i++){
 					if(move_var_counter == i){
@@ -1077,7 +1115,7 @@ void ui_handler(void){
 					}
 				}
 			}
-			// Joint Increase Value Control
+			// JOINT DECREASE VALUE CONTROL ----------------------------------------------------------------------------------------------
 			else{
 				for(int i=0; i<6; i++){
 					if(move_var_counter == i){
@@ -1104,7 +1142,6 @@ void ui_handler(void){
 		if(keys == '.' && prev_keys != keys){
 			change_menu(HOME_MENU);
 		}
-		// ***********************************
 		
 		
 		// CHANGE RUNNING MODE *************************
@@ -1113,7 +1150,6 @@ void ui_handler(void){
 			if(run_mode_counter > 2) run_mode_counter = 0;
 			strcpy(string_preview, "-");
 		}
-		// *********************************************
 		
 		
 		// MAPPING PREPARATION MENU ***************************************************************
@@ -1136,12 +1172,11 @@ void ui_handler(void){
 				mapping_menu_counter = 0;
 			}
 		}
-		// ****************************************************************************************
 		
 		
 		// PREVIEW PREPARATION MENU **************************************************
 		else if(run_mode_counter == 1){
-			// CHECK FIRST NUMKEY INPUT
+			// CHECK FIRST NUMKEY INPUT ------------------------------------------------
 			if(check_numkeys_pressed() == true || keys == '<'){
 				add_col = 0;
 				*string_preview = '0';
@@ -1152,13 +1187,13 @@ void ui_handler(void){
 					}
 					saved_prev = false;
 					
-					// INSERT VALUE
+					// INSERT VALUE 
 					if(check_numkeys_pressed() == true && prev_keys != keys && add_col < 3){
 						string_preview[add_col] = keys;
 						add_col++;
 					}
 					
-					// SAVE VALUE
+					// SAVE VALUE 
 					else if((keys == '>') && prev_keys != keys){
 						preview_point = atoi(string_preview);
 						if(preview_point > max_welding_point){
@@ -1169,7 +1204,7 @@ void ui_handler(void){
 						break;
 					}
 					
-					// DELETE VALUE
+					// DELETE VALUE 
 					else if(keys == '<' && prev_keys != keys){
 						if(add_col > 0) add_col-=1;
 						
@@ -1180,7 +1215,7 @@ void ui_handler(void){
 				}
 			}
 			
-			// PREVIEW RUN
+			// PREVIEW RUN ---------------------------
 			else if(keys == '#' && prev_keys != keys){
 				for(int i=0; i<20; i++){
 					
@@ -1192,7 +1227,7 @@ void ui_handler(void){
 		// **************************************************************************
 		
 		
-		// WELDING PREPARATION MENU **************
+		// WELDING PREPARATION MENU *******************************
 		else if(run_mode_counter == 2){			
 			// WELDING RUN
 			if(keys == '#' && prev_keys != keys){
@@ -1209,7 +1244,6 @@ void ui_handler(void){
 				preview_speed = command.running_speed;
 			}
 		}
-		// ***************************************
 	}
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	
@@ -1220,7 +1254,6 @@ void ui_handler(void){
 		if(keys == '.' && prev_keys != keys && mapping_menu_counter == 0){
 			change_menu(PREP_MENU);
 		}
-		// ***************************************************************
 		
 		
 		// CHANGE MAPPING MENU *********************************
@@ -1229,12 +1262,11 @@ void ui_handler(void){
 			mapping_menu_counter++;
 			if(mapping_menu_counter > 2) mapping_menu_counter = 0;
 		}
-		// *****************************************************
 		
 		
 		// MAPPING MENU 1 **************************************************************************************************************************
 		if(mapping_menu_counter == 0){
-			// CHANGE MOVE CONTROL
+			// CHANGE MOVE CONTROL ---------------------------
 			if(keys == 'W' && prev_keys != keys){
 				move_var_counter = 0;
 				ctrl_mode_counter++;
@@ -1242,25 +1274,25 @@ void ui_handler(void){
 				distance_val = 0;
 			}
 			
-			// CHANGE CURSOR FOR SELECT MOVE VARIABLE
+			// CHANGE CURSOR FOR SELECT MOVE VARIABLE -------------------------------------
 			else if(keys == 'R' && prev_keys != keys){
 				move_var_counter++;
 				if(ctrl_mode_counter == 0 && move_var_counter > 2) move_var_counter = 0;
 				else if(ctrl_mode_counter == 1 && move_var_counter > 5) move_var_counter = 0;
 			}
 			
-			// SELECT MOVE VALUE
+			// SELECT MOVE VALUE -----------------------------
 			else if(keys == 'T' && prev_keys != keys){
 				move_mode_counter++;
 				if(move_mode_counter > 2) move_mode_counter = 0;
 			}
 			
-			// CANCEL STEPPER MOVE
+			// CANCEL STEPPER MOVE ------------------------------------
 			else if(keys == '.' && prev_keys != keys){
-				Send_running(&command, RUNNING_STOP, CONTROL_MODE, 0x00);
+				Send_running(&command, RUNNING_STOP, CONTROL_MODE, 0);
 			}
 			
-			// MOVE VALUE BY DISTANCE *************************************************************
+			// MOVE VALUE BY DISTANCE ----------------------------------------------------------
 			else if((move_mode_counter == 1 && check_numkeys_pressed() == true) || keys == '<'){
 				add_col = 0;
 				*string_distance = '0';
@@ -1308,11 +1340,13 @@ void ui_handler(void){
 				}
 			}
 			
-			// MOVE VALUE BY STEP
+			// MOVE VALUE BY STEP -----------------------------------------
 			else if(move_mode_counter == 2) increase_decrease_value = 0.25;
 			
-			// MOVE VALUE CONTINUOUS
+			
+			// MOVE VALUE CONTINUOUS ----------
 			else increase_decrease_value = 0.0;
+			
 			
 			// INCLREASE VALUE 
 			if(keys == 'U' && HAL_GetTick() - prev_tick > debounce){
@@ -1415,14 +1449,14 @@ void ui_handler(void){
 				if(move_var_counter == 0 && start_point_counter != 0){
 					mapped_start_array[start_point_counter] = true;
 					for(int i=0; i<25; i++){
-						Send_mapping(&command, start_point_counter, START_POINT, NOT_SET, LOW, SAVE_VALUE);
+						Send_mapping(&command, start_point_counter, START_POINT, NO_PATTERN, LOW, SAVE_VALUE);
 						osDelay(5);
 					}
 				}
 				else if(move_var_counter == 1 && end_point_counter != 0){
 					mapped_end_array[end_point_counter] = true;
 					for(int i=0; i<25; i++){
-						Send_mapping(&command, end_point_counter, END_POINT, NOT_SET, LOW, SAVE_VALUE);
+						Send_mapping(&command, end_point_counter, END_POINT, NO_PATTERN, LOW, SAVE_VALUE);
 						osDelay(5);
 					}
 				}
@@ -1440,7 +1474,7 @@ void ui_handler(void){
 					mapped_start_array[start_point_counter] = false;
 					for(int i=0; i<25; i++){
 						Delete_WeldingData(start_point_counter);
-						Send_mapping(&command, start_point_counter, START_POINT, NOT_SET, LOW, DELETE_VALUE);
+						Send_mapping(&command, start_point_counter, START_POINT, NO_PATTERN, LOW, DELETE_VALUE);
 						osDelay(5);
 					}
 				}
@@ -1448,7 +1482,7 @@ void ui_handler(void){
 					mapped_end_array[end_point_counter] = false;
 					for(int i=0; i<25; i++){
 						Delete_WeldingData(end_point_counter);
-						Send_mapping(&command, end_point_counter, END_POINT, NOT_SET, LOW, DELETE_VALUE);
+						Send_mapping(&command, end_point_counter, END_POINT, NO_PATTERN, LOW, DELETE_VALUE);
 						osDelay(5);
 					}
 				}
@@ -1534,6 +1568,7 @@ void ui_handler(void){
 					move_mode_counter = 0;
 					ctrl_mode_counter = 0;
 					move_var_counter = 0;
+					command.feedback = NO_FEEDBACK;
 					change_menu(HOME_MENU);
 					break;
 				}
@@ -1656,6 +1691,7 @@ void ui_handler(void){
 				move_mode_counter = 0,
 				move_var_counter = 0,
 				run_mode_counter = 0,
+				command.feedback = NO_FEEDBACK;
 				
 				change_menu(HOME_MENU);
 				break;
@@ -1734,28 +1770,72 @@ void show_menu(LCD_Menu_t menu){
 	/////////////////////////////////
 	
 	
-	/* AUTO HOME MENU *////////////////////
-	else if(menu == CALIBRATE_MENU){
-		lcd_set_cursor(0, 0);
-		lcd_printstr("1.CALIBRATE ONLY");
-		lcd_set_cursor(0, 1);
-		lcd_printstr("2.CALIBRATE & HOME");
+	/* SETTING MENU *////////////////////
+	else if(menu == SETTING_MENU){
+		// SETTING MENU 1 ************
+		if(setting_menu_counter == 0){
+			lcd_set_cursor(0, 0);
+			lcd_printstr("Select Mode: ");
+			lcd_set_cursor(13, 0);			
+			lcd_printint(cal_mode_counter+1);
+			
+			lcd_set_cursor(0, 3);
+			lcd_printstr(cal_mode);
+		}
 		
-		lcd_set_cursor(19, cal_mode_counter);
-		lcd_printstr("<");
+		// SETTING MENU 2 *****************
+		else if(setting_menu_counter == 1){
+			lcd_set_cursor(0, 0);
+			lcd_printstr("Select Joint: J");
+			lcd_set_cursor(15, 0);			
+			lcd_printint(joint_sel_counter+1);
+			
+			lcd_set_cursor(0, 3);
+			lcd_printstr(zero_mode);
+		}
 		
-		lcd_set_cursor(1, 3);
-		lcd_printstr("Enter To Calibrate");
+		// SHOW CURRENT MENU **
+		lcd_set_cursor(15, 3);
+		lcd_printstr(set_menu);
+		// ********************
 	}
 	///////////////////////////////////////
 	
 	
-	/* HOMING MENU *////////////////////////////////
+	/* CALIBRATION MENU *////////////////////////////
 	else if(menu == CAL1_MENU || menu == CAL2_MENU){
-		lcd_set_cursor(0, 0);	
-		lcd_printstr("CALIBRATING...");
+		lcd_set_cursor(1, 0);	
+		lcd_printstr("JOINTS CALIBRATION");
+		lcd_set_cursor(0, 2);
+		lcd_printstr("Mode: ");
+		lcd_set_cursor(0, 3);
+		lcd_printstr("Home: ");
+		
+		if(menu == CAL1_MENU){
+			lcd_set_cursor(6, 2);
+			lcd_printint(cal_mode_counter+1);
+			lcd_set_cursor(6, 3);
+			lcd_printstr("No");
+		}
+		
+		else if(menu == CAL2_MENU){
+			lcd_set_cursor(6, 2);
+			lcd_printint(cal_mode_counter+1);
+			lcd_set_cursor(6, 3);
+			lcd_printstr("Yes");
+		}
 	}
-	////////////////////////////////////////////////
+	/////////////////////////////////////////////////
+	
+	
+	/* ZEROING MENU */////////////////
+	else if(menu == ZEROING_MENU){
+		lcd_set_cursor(3, 1);
+		lcd_printstr("JOINT  ZEROING");
+		lcd_set_cursor(4, 2);
+		lcd_printstr("PLEASE  WAIT");
+	}
+	//////////////////////////////////
 	
 	
 	/* HOME MENU *//////////////////////////////////////////////
@@ -2436,6 +2516,12 @@ void reset_counter(LCD_Menu_t menu){
 		start_point_counter = 0;
 		end_point_counter = 0;
 	}
+	
+	else if(menu == SETTING_MENU){
+		cal_mode_counter = 0; 			
+		setting_menu_counter = 0;
+		joint_sel_counter = 0;
+	}
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -2513,12 +2599,14 @@ void Update_Data(Mem_Update_t update_type){
 				mapped_pattern[i-1] = 0;
 				mapped_speed[i-1] 	= 0;
 			}
-			HAL_Delay(1);
+			if(prep_done) osDelay(1);
+			else HAL_Delay(1);
 		}
 	}
 	
 	else if(update_type == SELECTED_ONLY){
-		HAL_Delay(1000);
+		if(prep_done) osDelay(1000);
+		else HAL_Delay(1000);
 		
 		Read_WeldingData(start_point_counter, stored_welding_data);
 		mapped_points[start_point_counter-1] 	= stored_welding_data[0];
@@ -2590,6 +2678,16 @@ void StartReceiveTask(void *argument)
 				lcd_update();
 				select_menu = EMERGENCY_MENU4;
 				command.feedback = NO_FEEDBACK;
+			}
+		}
+		
+		if(command.type == SEND_REQ){
+			for(int i=0; i<6; i++){
+				if(i<3){
+					pos_value[i] = command.World_pos_req[i];
+					rot_value[i] = command.World_rot_req[i];
+				}
+				angle_value[i] = command.Joint_angle_req[i];
 			}
 		}
 		

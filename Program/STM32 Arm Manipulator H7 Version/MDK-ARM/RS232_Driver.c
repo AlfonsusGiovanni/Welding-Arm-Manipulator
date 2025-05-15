@@ -15,16 +15,16 @@ void RS232_Init(UART_HandleTypeDef* huart_handler){
 }
 
 /*TRANSMITING COMMAND*/
-//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-/*SEND AUTO HOME COMMAND*/
-void Send_auto_home(Data_Get_t* get, Cal_Mode_t mode){
-	uint8_t tx_buff[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, CALIBRATION_CMD, mode};	
+/*SEND SETTING COMMAND*/
+void Send_setting_data(Data_Get_t* get, Setting_Mode_t set_mode,  Cal_Mode_t cal_mode, Zeroing_Select_t sel_joint){
+	uint8_t tx_buff[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, SETTING_CMD, set_mode, cal_mode, sel_joint};	
 	HAL_UART_Transmit_IT(huart, tx_buff, sizeof(tx_buff));
 }
 
 /*SEND MAPPING MODE DATA COMMAND*/
-void Send_mapping(Data_Get_t* get, uint8_t point_num, Data_type_t point_type, Welding_Pattern_t pattern_type, Speed_t welding_speed, Mapping_State_t map_state){
+void Send_mapping(Data_Get_t* get, uint8_t point_num, Data_Point_t point_type, Welding_Pattern_t pattern_type, Speed_t welding_speed, Mapping_State_t map_state){
 	uint8_t mapping_data[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, MAPPING_CMD, point_num, point_type, pattern_type, welding_speed, map_state};	
 	HAL_UART_Transmit_IT(huart, mapping_data, sizeof(mapping_data));
 }
@@ -54,7 +54,7 @@ void Send_move(Data_Get_t* get, Ctrl_Mode_t control_mode, Move_Mode_t move_mode,
 
 /*SEND RUNNING COMMAND*/
 void Send_running(Data_Get_t* get, Run_State_t state, Run_Mode_t mode, uint16_t point_num){
-	uint8_t run[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, RUNNING_CMD, state, mode, point_num};	
+	uint8_t run[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, RUNNING_CMD, state, mode, (point_num >> 8) & 0xFF, point_num & 0xFF};	
 	HAL_UART_Transmit_IT(huart, run, sizeof(run));
 }
 
@@ -125,11 +125,11 @@ void Send_state_reset(Data_Get_t* get){
 	uint8_t standby_buff[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, RESET_CMD};		
 	HAL_UART_Transmit_IT(huart, standby_buff, sizeof(standby_buff));
 }
-//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 /*RECIEVING COMMAND*/
-//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 /*START GET COM DATA*/
 void Start_get_command(Data_Get_t* get){
@@ -146,9 +146,11 @@ void Get_command(Data_Get_t* get){
 	for(int i=0; i<BUFF_SIZE; i++){
 		if(rx_buff[i] == HEADER1 && rx_buff[i+1] == HEADER2 && rx_buff[i+2] == HEADER3 && get->buff_status == BUFF_ALIGNED){
 			//CHECK AUTO HOME COMMAND 
-			if(rx_buff[i+3] == CALIBRATION_CMD){
-				get->type = CALIBRATION;
-				get->calibration_mode = (Cal_Mode_t) rx_buff[i+4];
+			if(rx_buff[i+3] == SETTING_CMD){
+				get->type = SETTING;
+				get->setting_mode = (Setting_Mode_t) rx_buff[i+4];
+				get->calibration_mode = (Cal_Mode_t) rx_buff[i+5];
+				get->joint_zeroing = (Zeroing_Select_t) rx_buff[i+6];
 			}
 			
 			//CHECK MAPPING MODE COMMAND
@@ -156,7 +158,7 @@ void Get_command(Data_Get_t* get){
 				get->type = MAPPING;
 				
 				get->welding_point_num = rx_buff[i+4];
-				get->welding_point_type = rx_buff[i+5];
+				get->data_type = (Data_Point_t) rx_buff[i+5];
 				get->pattern_type = (Welding_Pattern_t) rx_buff[i+6];
 				get->running_speed = (Speed_t) rx_buff[i+7];
 				get->mapping_state = (Mapping_State_t) rx_buff[i+8];
@@ -178,7 +180,7 @@ void Get_command(Data_Get_t* get){
 				get->type = RUN;
 				get->running_state = (Run_State_t) rx_buff[i+4];
 				get->running_mode = (Run_Mode_t) rx_buff[i+5];
-				get->preview_point_num = rx_buff[i+6];
+				get->preview_point_num = (uint16_t)((rx_buff[i+6] << 8) | rx_buff[i+7]);
 			}
 			
 			//CHECK REQ POSITION COMMAND
@@ -239,11 +241,35 @@ void Get_command(Data_Get_t* get){
 	}
 	memset(rx_buff, 0x00, BUFF_SIZE);
 }
-//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*RESET COMMAND*/
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void Reset_command(Data_Get_t* get){
+	get->type = NO_COMMAND;
+	get->setting_mode = NO_SETTING;
+	get->joint_zeroing = NO_SELECTION;
+	get->calibration_mode = NO_CALIBRATION;
+	get->control_mode = NO_CTRL;
+	get->move_mode = NO_MOVE;
+	get->move_variable = NO_VAR;
+	get->move_sign = NO_SIGN;
+	get->running_mode = NO_RUN_MODE;
+	get->running_state = NO_RUN_STATE;
+	get->pattern_type = NO_PATTERN;
+	get->data_type = NO_DATA_TYPE;
+	get->mapping_state = NO_MAP_STATE;
+	get->requested_data = NO_REQ;
+	get->motor_state = NO_MOTOR_STATE;
+	get->welder_state = NO_WELDER_STATE;
+	get->running_speed = NO_SPEED;
+	get->feedback = NO_FEEDBACK;
+}
 
 
 /*TRANSMIT RECIEVE MONITOR*/
-//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 uint32_t check_state(void){
 	return HAL_UART_GetState(huart);
 }
@@ -251,4 +277,4 @@ uint32_t check_state(void){
 uint32_t check_error(void){
 	return HAL_UART_GetError(huart);
 }
-//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

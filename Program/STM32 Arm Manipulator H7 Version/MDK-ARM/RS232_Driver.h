@@ -23,10 +23,10 @@
 #define BUFF_SIZE 60
 
 /*RS232 COM TIMEOUT*/
-#define RS232_TIMEOUT 100
+#define RS232_TIMEOUT 10
 
 /*RS232 COM COMMAND*/
-#define CALIBRATION_CMD			0x01	// Robot Homing Command
+#define SETTING_CMD					0x01	// Robot Homing Command
 #define MAPPING_CMD					0x02	// Robot Welding Point Mapping Command
 #define MOVE_POSITION_CMD		0x03	// Move Robot Position Command
 #define RUNNING_CMD					0x04	// Robot Run Command
@@ -40,7 +40,8 @@
 //--- COMMAND TYPE TYPEDEF ---//
 ////////////////////////////////
 typedef enum{
-	CALIBRATION = 0x01,
+	NO_COMMAND,
+	SETTING,
 	MAPPING,
 	MOVE,
 	RUN,
@@ -50,15 +51,39 @@ typedef enum{
 	WELDER_STATE,
 	FEEDBACK,
 	RESET_STATE,
-	NONE,
 }Command_t;
 ////////////////////////////////
+
+
+//--- SETTING MODE TYPEDEF ---//
+////////////////////////////////
+typedef enum{
+	NO_SETTING,
+	JOINT_CALIBRATION,
+	JOINT_ZEROING,
+}Setting_Mode_t;
+////////////////////////////////
+
+
+//--- ZEROING SELECTION TYPEDEF ---//
+/////////////////////////////////////
+typedef enum{
+	NO_SELECTION,
+	JOINT_1_SELECT,
+	JOINT_2_SELECT,
+	JOINT_3_SELECT,
+	JOINT_4_SELECT,
+	JOINT_5_SELECT,
+	JOINT_6_SELECT,
+}Zeroing_Select_t;
+/////////////////////////////////////
 
 
 //--- CALIBRATION MODE TYPEDEF ---//
 ////////////////////////////////////
 typedef enum{
-	CALIBRATE_ONLY = 0x01,
+	NO_CALIBRATION,
+	CALIBRATE_ONLY,
 	CALIBRATE_HOMING,
 }Cal_Mode_t;
 ////////////////////////////////////
@@ -67,7 +92,8 @@ typedef enum{
 //--- MANUAL CONTROL MODE TYPEDEF ---//
 ///////////////////////////////////////
 typedef enum{
-	WORLD_CTRL = 0x01,
+	NO_CTRL,
+	WORLD_CTRL,
 	JOINT_CTRL,
 }Ctrl_Mode_t;
 ///////////////////////////////////////
@@ -76,7 +102,8 @@ typedef enum{
 //--- MOVE MODE TYPEDEF ---//
 /////////////////////////////
 typedef enum{
-	CONTINUOUS = 0x01,
+	NO_MOVE,
+	CONTINUOUS,
 	DISTANCE,
 	STEP,
 }Move_Mode_t;
@@ -86,13 +113,13 @@ typedef enum{
 //--- MOVE VARIABLE TYPEDEF ---//
 /////////////////////////////////
 typedef enum{
-	AXIS_X = 0x01,
+	NO_VAR,
+	AXIS_X,
 	AXIS_Y,
 	AXIS_Z,
 	AXIS_RX,
 	AXIS_RY,
 	AXIS_RZ,
-	
 	JOINT_1,
 	JOINT_2,
 	JOINT_3,
@@ -106,7 +133,8 @@ typedef enum{
 //--- VARIABLE MOVE SIGN TYPEDEF ---//
 //////////////////////////////////////
 typedef enum{
-	SIGNED_VAR = 0x01,
+	NO_SIGN,
+	SIGNED_VAR,
 	UNSIGNED_VAR,
 }Move_Sign_t;
 //////////////////////////////////////
@@ -115,7 +143,9 @@ typedef enum{
 //--- RUNNING MODE TYPEDEF ---//
 ////////////////////////////////
 typedef enum{
-	CONTROL_MODE = 0x01,
+	NO_RUN_MODE,
+	SETTING_MODE,
+	CONTROL_MODE,
 	WELDING_MODE,
 	PREVIEW_MODE,
 }Run_Mode_t;
@@ -125,7 +155,8 @@ typedef enum{
 //--- RUNNING STATE TYPEDEF ---//
 ////////////////////////////////
 typedef enum{
-	RUNNING_START = 0x01,
+	NO_RUN_STATE,
+	RUNNING_START,
 	RUNNING_PAUSE,
 	RUNNING_STOP,
 	RUNNING_CONTINUE
@@ -136,7 +167,7 @@ typedef enum{
 //--- MEMORY TYPEDEF ---//
 ////////////////////////////////
 typedef enum{
-	NOT_SET,
+	NO_PATTERN,
 	DOT,
 	LINEAR,
 	CIRCULAR,
@@ -148,17 +179,19 @@ typedef enum{
 //--- POINT COORDINATE TYPDEF ---//
 ///////////////////////////////////
 typedef enum{
-	START_POINT =  0x01,
+	NO_DATA_TYPE,
+	START_POINT,
 	END_POINT,
 	PATTERN,
-}Data_type_t;
+}Data_Point_t;
 ///////////////////////////////////
 
 
 //--- MAPPING COMMAND TYPEDF ---//
 //////////////////////////////////
 typedef enum{
-	SAVE_VALUE = 0x01,
+	NO_MAP_STATE,
+	SAVE_VALUE,
 	DELETE_VALUE,
 }Mapping_State_t;
 //////////////////////////////////
@@ -167,7 +200,8 @@ typedef enum{
 //--- REQUESTED TYPEDEF ---//
 ////////////////////////////////
 typedef enum{
-	MAPPED_START_POINT = 0x01,
+	NO_REQ,
+	MAPPED_START_POINT,
 	MAPPED_END_POINT
 }Req_t;
 ////////////////////////////////
@@ -176,7 +210,8 @@ typedef enum{
 //--- MOTOR STATE TYPEDEF ---//
 ////////////////////////////////
 typedef enum{
-	MOTOR_OFF = 0x01,
+	NO_MOTOR_STATE,
+	MOTOR_OFF,
 	MOTOR_ON,
 }Motor_State_t;
 ////////////////////////////////
@@ -185,7 +220,8 @@ typedef enum{
 //--- WELDER STATE TYPEDEF ---//
 ////////////////////////////////
 typedef enum{
-	WELDER_OFF = 0x01,
+	NO_WELDER_STATE,
+	WELDER_OFF,
 	WELDER_ON,
 }Welder_State_t;
 ////////////////////////////////
@@ -194,7 +230,8 @@ typedef enum{
 //--- GLOBAL SPEED TYPEDEF ---//
 ////////////////////////////////
 typedef enum{
-	LOW = 0x01,
+	NO_SPEED,
+	LOW,
 	MED,
 	HIGH,
 }Speed_t;
@@ -206,6 +243,7 @@ typedef enum{
 typedef enum{
 	NO_FEEDBACK,
 	CALIBRATION_DONE,
+	ZEROING_DONE,
 	SAVE_DONE,
 	DISTANCE_MOVE_DONE,
 	CURRENT_POINT_DONE,
@@ -222,7 +260,8 @@ typedef enum{
 //--- RS232 BUFF STATUS ---//
 /////////////////////////////
 typedef enum{
-	BUFF_ALIGNED = 0x01,
+	NO_BUFF_STATUS,
+	BUFF_ALIGNED,
 	BUFF_MISSALIGNED,
 }Buff_Status_t;
 /////////////////////////////
@@ -231,7 +270,8 @@ typedef enum{
 //--- RS232 DATA STATUS ---//
 /////////////////////////////
 typedef enum{
-	POSDATA_ALIGNED = 0x01,
+	NO_DATA_STATUS,
+	POSDATA_ALIGNED,
 	POSDATA_MISSALIGNED,
 	JOINTDATA_ALIGNED,
 	JOINTDATA_MISSALIGNED,
@@ -249,7 +289,6 @@ typedef struct ALIGNED_8{
 	uint8_t check_data_buff[BUFF_SIZE];
 	uint8_t preview_point_num;
 	uint8_t welding_point_num;
-	uint8_t welding_point_type;
 	
 	uint16_t feedback_num;
 	
@@ -262,6 +301,8 @@ typedef struct ALIGNED_8{
 	float Joint_send[6];
 
 	Command_t type;
+	Setting_Mode_t setting_mode;
+	Zeroing_Select_t joint_zeroing;
 	Cal_Mode_t calibration_mode;
 	Ctrl_Mode_t control_mode;
 	Move_Mode_t move_mode;
@@ -270,7 +311,7 @@ typedef struct ALIGNED_8{
 	Run_Mode_t running_mode;
 	Run_State_t running_state;
 	Welding_Pattern_t pattern_type;
-	Data_type_t data_type;
+	Data_Point_t data_type;
 	Mapping_State_t mapping_state;
 	Req_t requested_data;
 	Motor_State_t motor_state;
@@ -290,8 +331,8 @@ void RS232_Init(UART_HandleTypeDef* huart_handler);
 
 /*TRANSMITING COMMAND*/
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void Send_auto_home(Data_Get_t* get, Cal_Mode_t mode);
-void Send_mapping(Data_Get_t* get, uint8_t point_num, Data_type_t point_type, Welding_Pattern_t pattern_type, Speed_t welding_speed, Mapping_State_t map_state);
+void Send_setting_data(Data_Get_t* get, Setting_Mode_t set_mode,  Cal_Mode_t cal_mode, Zeroing_Select_t sel_joint);
+void Send_mapping(Data_Get_t* get, uint8_t point_num, Data_Point_t point_type, Welding_Pattern_t pattern_type, Speed_t welding_speed, Mapping_State_t map_state);
 
 void Send_move(Data_Get_t* get, Ctrl_Mode_t control_mode, Move_Mode_t move_mode, Move_Var_t var_type, Move_Sign_t move_sign, float value);
 void Send_running(Data_Get_t* get, Run_State_t state, Run_Mode_t mode, uint16_t point_num);

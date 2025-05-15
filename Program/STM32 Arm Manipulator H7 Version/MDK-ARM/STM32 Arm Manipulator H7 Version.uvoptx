@@ -183,39 +183,111 @@
         <Ww>
           <count>6</count>
           <WinNumber>1</WinNumber>
-          <ItemText>reset_enc</ItemText>
+          <ItemText>step_start_cal</ItemText>
         </Ww>
         <Ww>
           <count>7</count>
           <WinNumber>1</WinNumber>
-          <ItemText>calibration_step</ItemText>
+          <ItemText>calibrated_joint</ItemText>
         </Ww>
         <Ww>
           <count>8</count>
           <WinNumber>1</WinNumber>
-          <ItemText>step_start_cal</ItemText>
+          <ItemText>switch_pressed</ItemText>
         </Ww>
         <Ww>
           <count>9</count>
           <WinNumber>1</WinNumber>
-          <ItemText>calibrated_joint</ItemText>
+          <ItemText>step_start</ItemText>
+        </Ww>
+      </WatchWindow1>
+      <WatchWindow2>
+        <Ww>
+          <count>0</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>command.type</ItemText>
+        </Ww>
+        <Ww>
+          <count>1</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>command.setting_mode</ItemText>
+        </Ww>
+        <Ww>
+          <count>2</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>command.joint_zeroing</ItemText>
+        </Ww>
+        <Ww>
+          <count>3</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>command.calibration_mode</ItemText>
+        </Ww>
+        <Ww>
+          <count>4</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>command.control_mode</ItemText>
+        </Ww>
+        <Ww>
+          <count>5</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>command.move_mode</ItemText>
+        </Ww>
+        <Ww>
+          <count>6</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>command.move_variable</ItemText>
+        </Ww>
+        <Ww>
+          <count>7</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>command.move_sign</ItemText>
+        </Ww>
+        <Ww>
+          <count>8</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>command.running_mode</ItemText>
+        </Ww>
+        <Ww>
+          <count>9</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>command.running_state</ItemText>
         </Ww>
         <Ww>
           <count>10</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>group1_count</ItemText>
+          <WinNumber>2</WinNumber>
+          <ItemText>command.pattern_type</ItemText>
         </Ww>
         <Ww>
           <count>11</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>group1_calibrated</ItemText>
+          <WinNumber>2</WinNumber>
+          <ItemText>command.data_type</ItemText>
         </Ww>
         <Ww>
           <count>12</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>switch_pressed</ItemText>
+          <WinNumber>2</WinNumber>
+          <ItemText>command.mapping_state</ItemText>
         </Ww>
-      </WatchWindow1>
+        <Ww>
+          <count>13</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>command.motor_state</ItemText>
+        </Ww>
+        <Ww>
+          <count>14</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>command.welder_state</ItemText>
+        </Ww>
+        <Ww>
+          <count>15</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>command.running_speed</ItemText>
+        </Ww>
+        <Ww>
+          <count>16</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>command.feedback</ItemText>
+        </Ww>
+      </WatchWindow2>
       <Tracepoint>
         <THDelay>0</THDelay>
       </Tracepoint>

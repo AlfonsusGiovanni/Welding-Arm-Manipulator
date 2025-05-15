@@ -178,12 +178,12 @@ typedef enum{
 /* SYSTEM CONFIGURATION */
 //----------------------
 //#define USE_SDCARD
-#define USE_EEPROM
+//#define USE_EEPROM
 #define USE_RS232
 #define USE_OLED
 #define USE_STEPPER
 #define USE_ENCODER
-//#define USE_KINEMATICS
+#define USE_KINEMATICS
 //#define USE_PID
 
 //#define USE_DEBUG_PROGRAM
@@ -247,8 +247,8 @@ typedef enum{
 #define	STEPPER2_RATIO				144
 #define	STEPPER3_RATIO				36
 #define	STEPPER4_RATIO				20
-#define	STEPPER5_RATIO				90
-#define	STEPPER6_RATIO				9
+#define	STEPPER5_RATIO				22.5f
+#define	STEPPER6_RATIO				5
 
 #define STEPPER1_MAXSPD				420
 #define STEPPER2_MAXSPD				315
@@ -406,7 +406,7 @@ robot_joint[JOINT_NUM] = {
 	JOINT_6
 };
 
-const double
+double
 joint_d[JOINT_NUM] = {
 	191.0, 0.0, 0.0,
 	575.0, 0.0, 65.0,
@@ -423,6 +423,7 @@ joint_alpha[JOINT_NUM] = {
 };
 
 uint8_t
+joint_zero_sel,
 invalid_welding_point;
 
 uint16_t
@@ -652,9 +653,6 @@ rx_pointtype,
 rx_rotate_mode,
 rx_rotate_value[8];
 
-uint8_t
-struct_size;
-
 
 // OLED LCD VARIABLE
 uint8_t 
@@ -883,11 +881,11 @@ bool joint_calibrate(Cal_Mode_t mode, bool j1_cal, bool j2_cal, bool j3_cal, boo
 //------------------------------------------------------------------------------------------------------------------
 
 
-// Encoder Function -------
+// Encoder Function ---------------------------------------------------
 uint8_t encoder_init(void);
 void encoder_stop(void);
-void encoder_reset(void);
-//-------------------------
+void encoder_reset(bool state, Zeroing_Select_t sel_joint, uint8_t current_tim);
+//---------------------------------------------------------------------
 
 
 // Safety Function ------------
@@ -968,36 +966,33 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 //--------------------------------------------------------------------------------------------------------
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 	for(int i=0; i<JOINT_NUM; i++){
-		if(htim->Instance == enc_tim_instance[i]){
-			if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2){
-				high_time[i] = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
-			}
+		if(htim->Instance != enc_tim_instance[i]) continue;
+		
+		if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2){
+			high_time[i] = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
+		}
+		
+		if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1){
+			period_time[i] = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+		}
+		
+		if(period_time[i] != 0){
+			duty_cycle[i] = high_time[i] * 100.0f / period_time[i];
+			pwm_freq[i] = (1000000.0f/period_time[i]);
+			enc_angle[i] = (((duty_cycle[i] - min_duty_cycle) * 360.0f) / (max_duty_cycle - min_duty_cycle));
 			
-			if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1){
-				period_time[i] = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
-			}
+			encoder_reset(reset_enc, (Zeroing_Select_t)joint_zero_sel, i);
 			
-			if(period_time[i] != 0){
-				duty_cycle[i] = high_time[i] * 100.0f / period_time[i];
-				pwm_freq[i] = (1000000.0f/period_time[i]);
-				enc_angle[i] = (((duty_cycle[i] - min_duty_cycle) * 360.0f) / (max_duty_cycle - min_duty_cycle));
-				
-				if(reset_enc){
-					cal_value[i] = enc_angle[i];
-					enc_counter[i] = 0;
-				}
-				
-				cal_enc_angle[i] = fmod((enc_angle[i] - cal_value[i] + 360.0f), 360.0f);
-				
-				reduced_cal_enc_angle[i] = cal_enc_angle[i] / stepper_ratio[i];
-				
-				if(prev_cal_enc_angle[i] > 350.0f && cal_enc_angle[i] < 10.f) enc_counter[i]++;
-				else if(prev_cal_enc_angle[i] < 10.0f && cal_enc_angle[i] > 350.0f) enc_counter[i]--;
-				
-				prev_cal_enc_angle[i] = cal_enc_angle[i];
-				
-				enc_joint_angle[i] = reduced_cal_enc_angle[i] + (enc_counter[i] * (360.0f / stepper_ratio[i]));
-			}
+			cal_enc_angle[i] = fmod((enc_angle[i] - cal_value[i] + 360.0f), 360.0f);
+			
+			reduced_cal_enc_angle[i] = cal_enc_angle[i] / stepper_ratio[i];
+			
+			if(prev_cal_enc_angle[i] > 350.0f && cal_enc_angle[i] < 10.f) enc_counter[i]++;
+			else if(prev_cal_enc_angle[i] < 10.0f && cal_enc_angle[i] > 350.0f) enc_counter[i]--;
+			
+			prev_cal_enc_angle[i] = cal_enc_angle[i];
+			
+			enc_joint_angle[i] = reduced_cal_enc_angle[i] + (enc_counter[i] * (360.0f / stepper_ratio[i]));
 		}
 	}
 }
@@ -1145,7 +1140,7 @@ int main(void)
 	DHparam_init(&kinematics, joint_d, joint_a, joint_alpha);
 	tollframe_init(&kinematics, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
 	forward_transform_matrix(&kinematics);
-	calc_all_link(&kinematics);
+	calculate_all_link(&kinematics);
 	
 	run_forward_kinematic(&kinematics, enc_joint_angle);
 	#endif
@@ -1250,21 +1245,10 @@ int main(void)
   {
 		#ifdef TEST_RS232 
 		receive_data();
-		
-		tx_angle[0] = 70.28;
-		tx_angle[1] = 90.55;
-		tx_angle[2] = 45.78;
-		tx_angle[3] = 100.11;
-		tx_angle[4] = 30.17;
-		tx_angle[5] = 15.99;
-		
-		tx_pos[0] = 100.55;
-		tx_pos[1] = 20.67;
-		tx_pos[2] = 45.22;
 		#endif
 		
 		#ifdef TEST_OLED
-		
+		show_menu(MAIN_MENU);
 		#endif
 		
 		#ifdef TEST_STEPPER
@@ -1287,7 +1271,9 @@ int main(void)
 		
 		//Check Joint Limit
 		#ifdef USE_LIMIT_CHECK
-		check_limit(HARD_LIMIT_CHECK);
+		if(!calibrating){
+			check_limit(HARD_LIMIT_CHECK);
+		}
 		#endif
 		
 		// Update Value
@@ -1297,27 +1283,44 @@ int main(void)
 		receive_data();
 		
 		// Check Auto Home Command
-		if(command.type == CALIBRATION){
-			if(joint_calibrate(command.calibration_mode, true, true, true, false, false, false)){
-				for(int i=0; i<25; i++){
-					Send_feedback(&command, CALIBRATION_DONE, 0x00);
+		if(command.type == SETTING){
+			if(command.setting_mode == JOINT_CALIBRATION){
+				if(joint_calibrate(command.calibration_mode, true, true, true, false, false, false)){
+					for(int i=0; i<50; i++){
+						Send_feedback(&command, CALIBRATION_DONE, 0x00);
+						HAL_Delay(10);
+					}
+					HAL_Delay(250);
+					command.type = NO_COMMAND;
+					calibration_step = COUNT_JOINT;
 				}
-				HAL_Delay(250);
-				command.type = NONE;
-				calibration_step = COUNT_JOINT;
+			}
+			else if(command.setting_mode == JOINT_ZEROING){
+				reset_enc = true;
+				joint_zero_sel = command.joint_zeroing;
+				HAL_Delay(500);
+				reset_enc = false;
+				joint_zero_sel = 0;
+				command.joint_zeroing = NO_SELECTION;
+				HAL_Delay(500);
+				
+				for(int i=0; i<50; i++){
+					Send_feedback(&command, ZEROING_DONE, 0x00);
+					HAL_Delay(10);
+				}
 			}
 		}
 		
 		// Check Mapping Command
 		else if(command.type == MAPPING){
 			if(command.mapping_state == SAVE_VALUE){
-				if(command.welding_point_type == START_POINT){
+				if(command.data_type == START_POINT){
 					show_menu(SAVE_MENU);
 					save_welding_point(command.welding_point_num, START_POINT, current_position, current_angle);
 				
 					HAL_Delay(1000);
 				}
-				else if(command.welding_point_type == END_POINT){
+				else if(command.data_type == END_POINT){
 					show_menu(SAVE_MENU);
 					save_welding_point(command.welding_point_num, END_POINT, current_position, current_angle);
 					
@@ -1325,13 +1328,13 @@ int main(void)
 				}
 			}
 			else if(command.mapping_state == DELETE_VALUE){
-				if(command.welding_point_type == START_POINT){
+				if(command.data_type == START_POINT){
 					show_menu(DELETE_MENU);
 					delete_welding_data(command.welding_point_num, START_POINT);
 					
 					HAL_Delay(1000);
 				}
-				else if(command.welding_point_type == END_POINT){
+				else if(command.data_type == END_POINT){
 					show_menu(DELETE_MENU);
 					delete_welding_data(command.welding_point_num, END_POINT);
 					
@@ -1395,7 +1398,17 @@ int main(void)
 		
 		// Check Run Command
 		else if(command.type == RUN){
-			if(command.running_mode == CONTROL_MODE){
+			if(command.running_mode == SETTING_MODE){
+				if(command.running_state == RUNNING_STOP){
+					for(int i=0; i<JOINT_NUM; i++){
+						step_start_cal[i] = false;
+					}
+					robot_stop = true;
+					calibration_step = COUNT_JOINT;
+				}
+			}
+			
+			else if(command.running_mode == CONTROL_MODE){
 				if(command.running_state == RUNNING_STOP){
 					robot_stop = true;
 				}
@@ -1435,7 +1448,7 @@ int main(void)
 		}
 		
 		// Check None Command
-		else if(command.type == NONE){
+		else if(command.type == NO_COMMAND){
 			for(int i=0; i<JOINT_NUM; i++){
 				step_start[i] = false;
 				rx_move_position[i] = 0.0;
@@ -3182,7 +3195,7 @@ bool joint_calibrate(Cal_Mode_t mode, bool j1_cal, bool j2_cal, bool j3_cal, boo
 	}
 	
 	else if(calibration_step == J1_J3_HOME){
-		double offset_angle[3] = {90, 45, -50};
+		double offset_angle[3] = {90, 45, -45};
 		
 		for(int i=0; i<2; i++){
 			if(enc_joint_angle[i] < offset_angle[i]){
@@ -3206,6 +3219,10 @@ bool joint_calibrate(Cal_Mode_t mode, bool j1_cal, bool j2_cal, bool j3_cal, boo
 		
 		group1_calibrated = calibrated_joint[0] + calibrated_joint[1] + calibrated_joint[2];
 		if(group1_calibrated == 0){
+			HAL_Delay(500);
+			reset_enc = true;
+			HAL_Delay(500);
+			reset_enc = false;
 			calibration_step = CALIBRATION_OK;
 		}
 	}
@@ -3251,11 +3268,17 @@ void encoder_stop(void){
 
 /* --- ENCODER COUNTER RESET FUNCTION --- */
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void encoder_reset(void){
-	for(int i=0; i<JOINT_NUM; i++){
-		cal_value[i] = enc_angle[i];
-		enc_counter[i] = 0;
-		enc_joint_angle[i] = 0.0;
+void encoder_reset(bool state, Zeroing_Select_t sel_joint, uint8_t current_tim){
+	if(state == false) return;
+	else if(state == true && sel_joint == 0){
+		cal_value[current_tim] = enc_angle[current_tim];
+		enc_counter[current_tim] = 0;
+		enc_joint_angle[current_tim] = 0.0;
+	}
+	else if(state == true && sel_joint > 0){
+		cal_value[sel_joint-1] = enc_angle[sel_joint-1];
+		enc_counter[sel_joint-1] = 0;
+		enc_joint_angle[sel_joint-1] = 0.0;
 	}
 }
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -3316,13 +3339,13 @@ void send_mapped_data(void){
 /* --- CUSTON RS232 TRANSMIT FUNCTION ---*/
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void send_ang_pos_data(void){
-	tx_pos[0] = 12.3;
-	tx_pos[1] = 12.3;
-	tx_pos[2] = 12.3;
-	
-	tx_rot[0] = 11.1;
-	tx_rot[1] = 11.1;
-	tx_rot[2] = 11.1;
+//	tx_pos[0] = 12.3;
+//	tx_pos[1] = 12.3;
+//	tx_pos[2] = 12.3;
+//	
+//	tx_rot[0] = 11.1;
+//	tx_rot[1] = 11.1;
+//	tx_rot[2] = 11.1;
 	
 //	tx_angle[0] = 90.5;
 //	tx_angle[1] = 90.5;
@@ -3331,13 +3354,13 @@ void send_ang_pos_data(void){
 //	tx_angle[4] = 90.5;
 //	tx_angle[5] = 90.5;
 	
-//	tx_pos[0] = (float)kinematics.axis_pos_out[0];
-//	tx_pos[1] = (float)kinematics.axis_pos_out[1];
-//	tx_pos[2] = (float)kinematics.axis_pos_out[2];
+	tx_pos[0] = (float)kinematics.axis_pos_out[0];
+	tx_pos[1] = (float)kinematics.axis_pos_out[1];
+	tx_pos[2] = (float)kinematics.axis_pos_out[2];
 	
-//	tx_rot[0] = (float)kinematics.axis_rot_out[0];
-//	tx_rot[1] = (float)kinematics.axis_rot_out[1];
-//	tx_rot[2] = (float)kinematics.axis_rot_out[2];
+	tx_rot[0] = (float)kinematics.axis_rot_out[0];
+	tx_rot[1] = (float)kinematics.axis_rot_out[1];
+	tx_rot[2] = (float)kinematics.axis_rot_out[2];
 	
 	tx_angle[0] = (float)enc_joint_angle[0];
 	tx_angle[1] = (float)enc_joint_angle[1];
@@ -3367,7 +3390,7 @@ void receive_data(void){
 	}
 	
 	if(HAL_GetTick() - prev_time_get > 300 && command.msg_get == false){
-		command.type = NONE;
+		Reset_command(&command);
 		prev_time_get = HAL_GetTick();
 	}
 }
@@ -3409,8 +3432,8 @@ void show_menu(Oled_Menu_t sel_menu){
 		
 		SSD1306_GotoXY(0,37);
 		SSD1306_Puts("GETCOM:", &Font_7x10, SSD1306_COLOR_WHITE);
-		SSD1306_GotoXY(50,37);
-		if(command.type == CALIBRATION) SSD1306_Puts("Calibrate   ", &Font_7x10, SSD1306_COLOR_WHITE);
+		SSD1306_GotoXY(50,37);                   
+		if(command.type == SETTING) SSD1306_Puts("Setting     ", &Font_7x10, SSD1306_COLOR_WHITE);
 		else if(command.type == MAPPING) SSD1306_Puts("Mapping     ", &Font_7x10, SSD1306_COLOR_WHITE);
 		else if(command.type == MOVE) SSD1306_Puts("Move        ", &Font_7x10, SSD1306_COLOR_WHITE);
 		else if(command.type == RUN) SSD1306_Puts("Run         ", &Font_7x10, SSD1306_COLOR_WHITE);
