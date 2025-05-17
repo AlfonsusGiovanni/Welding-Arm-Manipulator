@@ -18,8 +18,8 @@ void RS232_Init(UART_HandleTypeDef* huart_handler){
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 /*SEND SETTING COMMAND*/
-void Send_setting_data(Data_Get_t* get, Setting_Mode_t set_mode,  Cal_Mode_t cal_mode, Zeroing_Select_t sel_joint){
-	uint8_t tx_buff[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, SETTING_CMD, set_mode, cal_mode, sel_joint};	
+void Send_setting_data(Data_Get_t* get, Setting_Mode_t set_mode,  Cal_Mode_t cal_mode, Zeroing_Select_t sel_joint, Speed_t set_speed){
+	uint8_t tx_buff[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, SETTING_CMD, set_mode, cal_mode, sel_joint, set_speed};	
 	HAL_UART_Transmit_IT(huart, tx_buff, sizeof(tx_buff));
 }
 
@@ -151,6 +151,7 @@ void Get_command(Data_Get_t* get){
 				get->setting_mode = (Setting_Mode_t) rx_buff[i+4];
 				get->calibration_mode = (Cal_Mode_t) rx_buff[i+5];
 				get->joint_zeroing = (Zeroing_Select_t) rx_buff[i+6];
+				get->running_speed = (Speed_t) rx_buff[i+7];
 			}
 			
 			//CHECK MAPPING MODE COMMAND
@@ -266,6 +267,7 @@ void Reset_command(Data_Get_t* get){
 	get->running_speed = NO_SPEED;
 	get->feedback = NO_FEEDBACK;
 }
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 /*TRANSMIT RECIEVE MONITOR*/

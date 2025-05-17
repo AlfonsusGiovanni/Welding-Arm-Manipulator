@@ -243,12 +243,12 @@ typedef enum{
 #define MICROSTEP_VALUE5			3200
 #define MICROSTEP_VALUE6 			6400  
 
-#define STEPPER1_RATIO				162
-#define	STEPPER2_RATIO				144
-#define	STEPPER3_RATIO				36
-#define	STEPPER4_RATIO				20
+#define STEPPER1_RATIO				162.0f
+#define	STEPPER2_RATIO				144.0f
+#define	STEPPER3_RATIO				36.0f
+#define	STEPPER4_RATIO				20.0f 
 #define	STEPPER5_RATIO				22.5f
-#define	STEPPER6_RATIO				5
+#define	STEPPER6_RATIO				5.0f
 
 #define STEPPER1_MAXSPD				420
 #define STEPPER2_MAXSPD				315
@@ -334,6 +334,9 @@ UART_HandleTypeDef huart4;
 /* USER CODE BEGIN PV */
 
 // PARAMETER VARIABLE
+Speed_t
+global_speed;
+
 const double
 joint_positive_axisLim[JOINT_NUM] = {
 	JOINT1_MAX_ANGLE,
@@ -421,6 +424,9 @@ joint_alpha[JOINT_NUM] = {
 	-90.0, 0.0, 90.0,
 	-90.0, 90.0, 0.0,
 };
+
+float
+global_feedrate;
 
 uint8_t
 joint_zero_sel,
@@ -581,7 +587,7 @@ step_period[JOINT_NUM],
 step_accel_period[JOINT_NUM],
 stepper_stepfactor[JOINT_NUM];
 
-const uint16_t
+const float
 stepper_gpio_pin[12] = {
 	PUL1_Pin,
 	PUL2_Pin,
@@ -638,8 +644,7 @@ tx_angle[6],
 tx_welding_point,
 tx_welding_pattern,
 
-rx_move_position[3],
-rx_move_rotation[3],
+rx_move_position[6],
 rx_move_angle[6];
 
 const uint8_t
@@ -761,6 +766,7 @@ max_joint_angle[JOINT_NUM] = {
 	JOINT5_MAX_ANGLE,
 	JOINT6_MAX_ANGLE
 },
+
 min_joint_angle[JOINT_NUM] = {
 	JOINT1_MIN_ANGLE,
 	JOINT2_MIN_ANGLE,
@@ -768,6 +774,11 @@ min_joint_angle[JOINT_NUM] = {
 	JOINT4_MIN_ANGLE,
 	JOINT5_MIN_ANGLE,
 	JOINT6_MIN_ANGLE,
+},
+
+enc_tollerance[JOINT_NUM] = {
+	0.0, 0.0, 0.0,
+	0.0, 0.0, 0.0,
 };
 
 
@@ -881,11 +892,11 @@ bool joint_calibrate(Cal_Mode_t mode, bool j1_cal, bool j2_cal, bool j3_cal, boo
 //------------------------------------------------------------------------------------------------------------------
 
 
-// Encoder Function ---------------------------------------------------
+// Encoder Function ------------------------------------------------------------
 uint8_t encoder_init(void);
 void encoder_stop(void);
 void encoder_reset(bool state, Zeroing_Select_t sel_joint, uint8_t current_tim);
-//---------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 
 // Safety Function ------------
@@ -963,7 +974,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 
 
 /* INPUT CAPTURE CALLBACK */
-//--------------------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------------------------
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 	for(int i=0; i<JOINT_NUM; i++){
 		if(htim->Instance != enc_tim_instance[i]) continue;
@@ -992,11 +1003,12 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 			
 			prev_cal_enc_angle[i] = cal_enc_angle[i];
 			
-			enc_joint_angle[i] = reduced_cal_enc_angle[i] + (enc_counter[i] * (360.0f / stepper_ratio[i]));
+			enc_joint_angle[i] = reduced_cal_enc_angle[i] + (enc_counter[i] * (360.0f / stepper_ratio[i])) + enc_tollerance[i];
+			
 		}
 	}
 }
-//---------------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------------------------
 
 
 /* EXTI BUTTON CALLBACK */
@@ -1118,6 +1130,8 @@ int main(void)
 	}
 	command.msg_sent = true;
 	command.msg_get = true;
+	
+	global_speed = LOW;
 	#endif
 	
 	
@@ -1141,8 +1155,6 @@ int main(void)
 	tollframe_init(&kinematics, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
 	forward_transform_matrix(&kinematics);
 	calculate_all_link(&kinematics);
-	
-	run_forward_kinematic(&kinematics, enc_joint_angle);
 	#endif
 	
 	
@@ -1159,7 +1171,7 @@ int main(void)
 		else if(stepper_microstep[i] == MICROSTEP_VALUE6) stepper_stepfactor[i] = MICROSTEP_FACTOR6;
 		
 		joint_max_traveldist[i] = joint_positive_axisLim[i] + joint_negative_axisLim[i];
-		joint_ang_per_step[i] = 360.0 / (stepper_microstep[i] * stepper_ratio[i]);
+		joint_ang_per_step[i] = 360.0f / (stepper_microstep[i] * stepper_ratio[i]);
 		
 		step_state[i] = STOPPING;
 	}
@@ -1263,6 +1275,12 @@ int main(void)
 		for(int i=0; i<JOINT_NUM; i++) switch_pressed[i] = HAL_GPIO_ReadPin(switch_gpio_port[i], switch_gpio_pin[i]);
 		#endif
 		
+		#ifdef TEST_KINEMATICS
+		double dummy_pos[] = {598.5, 0.0, 776.0, 180.0, 0.0, 180.0};
+		kinematics.j5_enc_angle = 90.0;
+		run_inverse_kinematic(&kinematics, dummy_pos[0], dummy_pos[1], dummy_pos[2], dummy_pos[3], dummy_pos[4], dummy_pos[5]);
+		#endif
+		
 		#ifdef MAIN_PROGRAM	
 		// Check Miss Step
 		#ifdef USE_MISS_STEP_CHECK
@@ -1282,7 +1300,7 @@ int main(void)
 		// Receive RS-232 Data
 		receive_data();
 		
-		// Check Auto Home Command
+		// Check Setting Command
 		if(command.type == SETTING){
 			if(command.setting_mode == JOINT_CALIBRATION){
 				if(joint_calibrate(command.calibration_mode, true, true, true, false, false, false)){
@@ -1306,6 +1324,15 @@ int main(void)
 				
 				for(int i=0; i<50; i++){
 					Send_feedback(&command, ZEROING_DONE, 0x00);
+					HAL_Delay(10);
+				}
+			}
+			else if(command.setting_mode == JOINT_SPEED){
+				global_speed = command.running_speed;
+				HAL_Delay(500);
+				
+				for(int i=0; i<50; i++){
+					Send_feedback(&command, SPEED_CHANGE_DONE, 0x00);
 					HAL_Delay(10);
 				}
 			}
@@ -1349,19 +1376,24 @@ int main(void)
 			
 			if(command.control_mode == WORLD_CTRL){			
 				for(int i=0; i<AXIS_NUM; i++){
-					if(command.move_variable == robot_axis[i]){
-						step_limit[i] = true;
-						step_start[i] = false;
-						
+					step_limit[i] = true;
+					step_start[i] = false;
+					
+					if(command.move_variable == robot_axis[i]){			
 						if(command.move_mode == CONTINUOUS){
-//							move_world(command.move_variable, rx_move_position[i], LOW);
+							if(command.move_sign == UNSIGNED_VAR){
+								rx_move_position[i] += 1;
+							}
+							else if(command.move_sign == SIGNED_VAR){
+								rx_move_position[i] -= 1;
+							}
+							move_world(command.move_variable, rx_move_position[i], global_speed);
 						}
 						else if(command.move_mode == DISTANCE){
 							rx_move_position[i] = command.move_value;
-//							move_world(command.move_variable, rx_move_position[i], LOW);
+							move_world(command.move_variable, rx_move_position[i], global_speed);
 						}
 					}
-					else rx_move_position[i] = 0.0;
 				}
 			}
 			
@@ -1380,15 +1412,15 @@ int main(void)
 						}
 						
 						if(positive_limit[i] && command.move_sign == SIGNED_VAR){
-							move_joint(robot_joint[i], rx_move_angle[i], LOW);
+							move_joint(robot_joint[i], rx_move_angle[i], global_speed);
 						}
 						
 						else if(negative_limit[i] && command.move_sign == UNSIGNED_VAR){
-							move_joint(robot_joint[i], rx_move_angle[i], LOW);
+							move_joint(robot_joint[i], rx_move_angle[i], global_speed);
 						}
 						
 						else if(!positive_limit[i] && !negative_limit[i]){
-							move_joint(robot_joint[i], rx_move_angle[i], LOW);
+							move_joint(robot_joint[i], rx_move_angle[i], global_speed);
 						}
 					}
 					else rx_move_angle[i] = 0.0;
@@ -1404,6 +1436,7 @@ int main(void)
 						step_start_cal[i] = false;
 					}
 					robot_stop = true;
+					calibrating = false;
 					calibration_step = COUNT_JOINT;
 				}
 			}
@@ -2858,7 +2891,7 @@ void move_joint(uint8_t select_joint, double input_angle, Speed_t set_speed){
 	
 	for(int i=0; i<JOINT_NUM; i++){
 		if(select_joint != robot_joint[i]) continue;
-		else{			
+		else{						
 			// Step or Distance Move			
 			if(input_angle > 0){
 				move_stepper(robot_joint[i], calc_stepper_step(i, input_angle), POSITIVE_DIR, calc_stepper_freq(i, stepper_joint_rpm));
@@ -2880,13 +2913,22 @@ void move_joint(uint8_t select_joint, double input_angle, Speed_t set_speed){
 
 /* --- WORLD BASE MOVE FUNCTION --- */
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void move_world(uint8_t select_axis, double move_pos, Speed_t set_speed){
+void move_world(uint8_t select_axis, double move_pos, Speed_t set_speed){	
+	float delta_angle[JOINT_NUM];
+	float max_delta;
+	float sync_joint_rpm[JOINT_NUM];
+	
+	// Set Minimum Joint Speed
+	if(set_speed == LOW) stepper_joint_rpm = 0.5f;
+	else if(set_speed == MED) stepper_joint_rpm = 1.0f;
+	else if(set_speed == HIGH) stepper_joint_rpm = 4.0f;
+	
 	// Check Target Position
 	for(int i=0; i<AXIS_NUM; i++){
-		if(step_state[i] == STOPPING && select_axis == robot_axis[i]){
-			if(move_pos == 0.0) target_position[i] = current_position[i] + 1.0;
-			else target_position[i] = current_position[i] + move_pos;
+		if(select_axis == robot_axis[i]){
+			target_position[i] = current_position[i] + move_pos;
 		}
+		else target_position[i] = current_position[i];
 	}
 	
 	// Calculate Inverse Kinematics
@@ -2896,7 +2938,25 @@ void move_world(uint8_t select_axis, double move_pos, Speed_t set_speed){
 	// Move Joint
 	for(int i=0; i<JOINT_NUM; i++){
 		delta_move_ang[i] = kinematics.joint_ang_out[i] - enc_joint_angle[i];
-		move_joint(robot_joint[i], delta_move_ang[i], set_speed);
+		delta_angle[i] = fabs(delta_move_ang[i]);
+		if(delta_angle[i] > max_delta){
+			max_delta = delta_angle[i];
+		}
+	}
+	
+	// Calculate Each Joint Speed & Run Stepper
+	for(int i=0; i<JOINT_NUM; i++){
+		if(delta_angle[i] > 0){
+			sync_joint_rpm[i] = stepper_joint_rpm * (delta_angle[i]/max_delta);
+		}
+		else sync_joint_rpm[i] = 0;
+		
+		if(delta_move_ang[i] > 0){
+			move_stepper(robot_joint[i], calc_stepper_step(i, delta_move_ang[i]), POSITIVE_DIR, calc_stepper_freq(i, sync_joint_rpm[i]));
+		}
+		else if(delta_move_ang[i] < 0){
+			move_stepper(robot_joint[i], calc_stepper_step(i, delta_move_ang[i]), NEGATIVE_DIR, calc_stepper_freq(i, sync_joint_rpm[i]));
+		}
 	}
 }
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -3015,11 +3075,14 @@ void welding_start(void){
 /* --- UPDATE JOINT ANGLE AND POSITION VALUE FUNCTION ---*/
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void update_value(void){
-	run_forward_kinematic(&kinematics, enc_joint_angle);
+	if(!calibrating){
+		run_forward_kinematic(&kinematics, enc_joint_angle);
+		kinematics.j5_enc_angle = enc_joint_angle[4];
+	}
 	
 	for(int i=0; i<JOINT_NUM; i++){
 		if(i<3) current_position[i] = kinematics.axis_pos_out[i];
-		else current_position[i] = kinematics.axis_rot_out[i];
+		else current_position[i] = kinematics.axis_rot_out[i-3];
 		
 		#ifdef USE_ENCODER
 		current_angle[i] = enc_joint_angle[i];
@@ -3078,13 +3141,16 @@ void check_limit(Limit_t check_mode){
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 bool joint_calibrate(Cal_Mode_t mode, bool j1_cal, bool j2_cal, bool j3_cal, bool j4_cal, bool j5_cal, bool j6_cal){
 	bool 
-	filtered_pres[6],
 	selected_group1[3] = {j1_cal, j2_cal, j3_cal},
 	selected_group2[3] = {j4_cal, j5_cal, j6_cal};
+
 	calibrating = true;
 	
 	// Count Calibrated Joint In Group 1 And 2
 	if(calibration_step == COUNT_JOINT){
+		group1_count = 0;
+		group2_count = 0;
+		
 		for(int i=0; i<3; i++){
 			if(selected_group1[i]){
 				calibrated_joint[i] = switch_pressed[i];
@@ -3096,7 +3162,9 @@ bool joint_calibrate(Cal_Mode_t mode, bool j1_cal, bool j2_cal, bool j3_cal, boo
 				group2_count++;
 			}
 		}
-		calibration_step = J1_J3_CAL;
+		
+		if(group1_count > 0) calibration_step = J1_J3_CAL;
+		else calibration_step = J4_J6_CAL;
 	}
 	
 	// Move First 3 Joints Until Each Limit Switch Pressed
@@ -3104,11 +3172,7 @@ bool joint_calibrate(Cal_Mode_t mode, bool j1_cal, bool j2_cal, bool j3_cal, boo
 		for(int i=0; i<3; i++){
 			if(!selected_group1[i]) continue;
 			
-			if(!calibrated_joint[i]){
-				for(int j=0; j<25; j++){
-					filtered_pres[i] &= filtered_pres[i];
-				}
-				
+			if(!calibrated_joint[i]){				
 				if(!switch_pressed[i]){
 					step_start_cal[i] = true;
 					move_stepper(robot_joint[i], 0, calibration_dir[i], calc_stepper_freq(i, 0.5f));
@@ -3164,11 +3228,7 @@ bool joint_calibrate(Cal_Mode_t mode, bool j1_cal, bool j2_cal, bool j3_cal, boo
 		for(int i=0; i<3; i++){
 			if(!selected_group1[i]) continue;
 			
-			if(!calibrated_joint[i]){			
-				for(int j=0; j<25; j++){
-					filtered_pres[i] &= filtered_pres[i];
-				}
-				
+			if(!calibrated_joint[i]){							
 				if(!switch_pressed[i]){
 					step_start_cal[i] = true;
 					move_stepper(robot_joint[i], 0, calibration_dir[i], calc_stepper_freq(i, 0.25f));
@@ -3186,7 +3246,7 @@ bool joint_calibrate(Cal_Mode_t mode, bool j1_cal, bool j2_cal, bool j3_cal, boo
 			HAL_Delay(500);
 			reset_enc = false;
 			if(mode == CALIBRATE_ONLY){
-				calibration_step = CALIBRATION_OK;
+				calibration_step = J4_J6_CAL;
 			}
 			else if(mode == CALIBRATE_HOMING){
 				calibration_step = J1_J3_HOME;
@@ -3194,6 +3254,33 @@ bool joint_calibrate(Cal_Mode_t mode, bool j1_cal, bool j2_cal, bool j3_cal, boo
 		}
 	}
 	
+	// Move Last 3 Joint Until Each Limit Switch Pressed
+	else if(calibration_step == J4_J6_CAL){
+		for(int i=3; i<5; i++){
+			if(!selected_group2[i]) continue;
+			
+			if(!calibrated_joint[i]){				
+				if(!switch_pressed[i]){
+					step_start_cal[i] = true;
+					move_stepper(robot_joint[i], 0, calibration_dir[i], calc_stepper_freq(i, 0.5f));
+				}
+				else{
+					step_start_cal[i] = false;
+					calibrated_joint[i] = true;
+				}
+			}
+		}
+		group2_calibrated = calibrated_joint[3] + calibrated_joint[4] + calibrated_joint[5];
+		if(group2_calibrated == group2_count){
+			HAL_Delay(500);
+			reset_enc = true;
+			HAL_Delay(500);
+			reset_enc = false;
+			calibration_step = CALIBRATION_OK;
+		}
+	}
+	
+	// Move First 3 Joints To Home Position
 	else if(calibration_step == J1_J3_HOME){
 		double offset_angle[3] = {90, 45, -45};
 		
@@ -3379,7 +3466,7 @@ void send_ang_pos_data(void){
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-/* --- CUSTON RS232 RECEIVE FUNCTION ---*/
+/* --- CUSTOM RS232 RECEIVE FUNCTION ---*/
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void receive_data(void){
 	Start_get_command(&command);

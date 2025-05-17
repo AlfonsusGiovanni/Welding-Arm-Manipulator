@@ -61,6 +61,7 @@ typedef enum{
 	NO_SETTING,
 	JOINT_CALIBRATION,
 	JOINT_ZEROING,
+	JOINT_SPEED,
 }Setting_Mode_t;
 ////////////////////////////////
 
@@ -244,6 +245,7 @@ typedef enum{
 	NO_FEEDBACK,
 	CALIBRATION_DONE,
 	ZEROING_DONE,
+	SPEED_CHANGE_DONE,
 	SAVE_DONE,
 	DISTANCE_MOVE_DONE,
 	CURRENT_POINT_DONE,
@@ -331,7 +333,7 @@ void RS232_Init(UART_HandleTypeDef* huart_handler);
 
 /*TRANSMITING COMMAND*/
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void Send_setting_data(Data_Get_t* get, Setting_Mode_t set_mode,  Cal_Mode_t cal_mode, Zeroing_Select_t sel_joint);
+void Send_setting_data(Data_Get_t* get, Setting_Mode_t set_mode,  Cal_Mode_t cal_mode, Zeroing_Select_t sel_joint, Speed_t set_speed);
 void Send_mapping(Data_Get_t* get, uint8_t point_num, Data_Point_t point_type, Welding_Pattern_t pattern_type, Speed_t welding_speed, Mapping_State_t map_state);
 
 void Send_move(Data_Get_t* get, Ctrl_Mode_t control_mode, Move_Mode_t move_mode, Move_Var_t var_type, Move_Sign_t move_sign, float value);

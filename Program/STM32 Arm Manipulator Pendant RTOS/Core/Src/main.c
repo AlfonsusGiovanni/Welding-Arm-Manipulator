@@ -44,6 +44,7 @@ typedef enum{
 	CAL1_MENU,
 	CAL2_MENU,
 	ZEROING_MENU,
+	CHANGE_SPEED_MENU,
 	HOME_MENU,
 	PREP_MENU,
 	MAPPING_MENU,
@@ -162,7 +163,7 @@ const osThreadAttr_t receiveTask_attributes = {
 };
 /* Definitions for lcdTask */
 osThreadId_t lcdTaskHandle;
-uint32_t lcdTaskBuffer[ 256 ];
+uint32_t lcdTaskBuffer[ 128 ];
 osStaticThreadDef_t lcdTaskControlBlock;
 const osThreadAttr_t lcdTask_attributes = {
   .name = "lcdTask",
@@ -180,10 +181,21 @@ const osEventFlagsAttr_t lcdUpdate_attributes = {
   .cb_mem = &lcdUpdateControlBlock,
   .cb_size = sizeof(lcdUpdateControlBlock),
 };
+/* Definitions for getData */
+osEventFlagsId_t getDataHandle;
+osStaticEventGroupDef_t getDataControlBlock;
+const osEventFlagsAttr_t getData_attributes = {
+  .name = "getData",
+  .cb_mem = &getDataControlBlock,
+  .cb_size = sizeof(getDataControlBlock),
+};
 /* USER CODE BEGIN PV */
 
 /*PENDANT GLOBAL VARIABLE*/
 //////////////////////////////
+uint16_t
+prev_getdata;
+
 bool 
 saved_dist    		= true,
 saved_prev				= true,
@@ -260,6 +272,7 @@ welding_mode[] 			= "(WELDING)",
 preview_mode[] 			= "(PREVIEW)",
 cal_mode[]					= "(CALIBRATE)",
 zero_mode[]					= "(ZEROING)",
+speed_mode[]				= "(SPEED)",
 
 low_speed[] 				= "LOW",
 med_speed[] 				= "MED",
@@ -280,7 +293,7 @@ ctrl_mode_counter,			// Counter Mode Kontrol - (World, Joint)
 move_mode_counter,			// Counter Mode Gerak - (Continuous, Distance, Step)
 move_var_counter,				// Counter Variabel Gerak - (X, Y, Z, Rx, Ry, Rz, J1-J6)
 run_mode_counter,				// Counter Mode Running - (Welding, Preview)
-speed_mode_counter,			// Counter Mode Kecepatan - (LOW, MED, HIGH)
+speed_mode_counter,			// Counter Mode Kecepatan Pada Welding Point - (LOW, MED, HIGH)
 mapping_menu_counter,		// Counter Menu Mapping - (Menu 1, Menu 2, Menu 3)
 mapped_point_counter,		// Counter Titik Mapping
 start_point_counter,		// Counter Titik Start Pengelasan
@@ -290,6 +303,7 @@ welding_menu_counter,		// Counter Menu Welding
 cal_mode_counter, 			// Counter Mode Kalibrasi
 setting_menu_counter,		// Counter Menu Setting
 joint_sel_counter,			// Counter Pemilihan Joint Yang Akan Dilakukan Zeroing
+global_speed_counter,		// Counter Mode Kecepatan Global - (LOW, MED, HIGH)
 add_col;
 
 char num_keys[10] = {
@@ -370,15 +384,11 @@ char key[num_rows][num_cols] = {
 
 /*RS232 CONFIGURATION*/
 //------------------------------------------------------
-uint32_t RS232_state, RS232_err_status;
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	if(huart->Instance == USART1){
-		Get_command(&command);
+		osEventFlagsSet(getDataHandle, 0x01);
+		prev_getdata = HAL_GetTick();
 	}
-}
-
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
-	command.msg_sent = true;
 }
 //------------------------------------------------------
 
@@ -556,6 +566,9 @@ int main(void)
   /* Create the event(s) */
   /* creation of lcdUpdate */
   lcdUpdateHandle = osEventFlagsNew(&lcdUpdate_attributes);
+
+  /* creation of getData */
+  getDataHandle = osEventFlagsNew(&getData_attributes);
 
   /* USER CODE BEGIN RTOS_EVENTS */
   /* add events, ... */
@@ -900,9 +913,10 @@ void ui_handler(void){
 		// CHANGE SETTING MENU  ********************************
 		if(keys == 'W' && prev_keys != keys){
 			setting_menu_counter++;
-			if(setting_menu_counter > 1) setting_menu_counter = 0;
+			if(setting_menu_counter > 2) setting_menu_counter = 0;
 			cal_mode_counter = 0;
 			joint_sel_counter = 0;
+			global_speed_counter = 0;
 		}
 		
 		// MOVE TO HOME MENU *********************
@@ -934,21 +948,36 @@ void ui_handler(void){
 				if(joint_sel_counter > 5) joint_sel_counter = 0;
 			}
 			
-			// SEND ZEROING JOINT --------------------------------------------------------------------------------
+			// SEND ZEROING JOINT --------------------
 			else if(keys == '#' && prev_keys != keys){
 				command.feedback = NO_FEEDBACK;
 				change_menu(ZEROING_MENU);
 			}
 		}
+		
+		// SETTING MENU 3 *****************************************
+		else if(setting_menu_counter == 2){
+			// SPEED SELECT ----------------------------------------
+			if(keys == 'R' && prev_keys != keys){
+				global_speed_counter++;
+				if(global_speed_counter > 2) global_speed_counter = 0;
+			}
+			
+			// SEND GLOBAL SPEED ---------------------
+			else if(keys == '#' && prev_keys != keys){
+				command.feedback = NO_FEEDBACK;
+				change_menu(CHANGE_SPEED_MENU);
+			}
+		}
 	}
 	
-	/* CALIBRATION MODE 1 MENU HANDLER *////////////////////////////////////////////////
+	/* CALIBRATION MODE 1 MENU HANDLER *//////////////////////////////////////////////////////////
 	else if(select_menu == CAL1_MENU){
 		if(command.feedback == CALIBRATION_DONE){
 			command.feedback = NO_FEEDBACK;
 			change_menu(HOME_MENU);
 		}
-		else Send_setting_data(&command, JOINT_CALIBRATION, CALIBRATE_ONLY, NO_SELECTION);
+		else Send_setting_data(&command, JOINT_CALIBRATION, CALIBRATE_ONLY, NO_SELECTION, NO_SPEED);
 		
 		if(keys == '.' && prev_keys != keys){
 			for(int j=0; j<100; j++){
@@ -959,13 +988,13 @@ void ui_handler(void){
 		}
 	}
 	
-	/* CALIBRATION MODE 2 MENU HANDLER *//////////////////////////////////////////////////
+	/* CALIBRATION MODE 2 MENU HANDLER *////////////////////////////////////////////////////////////
 	else if(select_menu == CAL2_MENU){
 		if(command.feedback == CALIBRATION_DONE){
 			command.feedback = NO_FEEDBACK;
 			change_menu(HOME_MENU);
 		}
-		else Send_setting_data(&command, JOINT_CALIBRATION, CALIBRATE_HOMING, NO_SELECTION);
+		else Send_setting_data(&command, JOINT_CALIBRATION, CALIBRATE_HOMING, NO_SELECTION, NO_SPEED);
 		
 		if(keys == '.' && prev_keys != keys){
 			for(int j=0; j<100; j++){
@@ -976,13 +1005,23 @@ void ui_handler(void){
 		}
 	}
 	
-	/* ZEROING MANU HANDLER *//////////////////////////////////////////////////////////////////////////////////
+	/* ZEROING MANU HANDLER *////////////////////////////////////////////////////////////////////////////////////////////
 	else if(select_menu == ZEROING_MENU){
 		if(command.feedback == ZEROING_DONE || (keys == '.' && prev_keys != keys)){
 			command.feedback = NO_FEEDBACK;
 			change_menu(HOME_MENU);
 		}
-		else Send_setting_data(&command, JOINT_ZEROING, NO_CALIBRATION, (Zeroing_Select_t)(joint_sel_counter+1));
+		else Send_setting_data(&command, JOINT_ZEROING, NO_CALIBRATION, (Zeroing_Select_t)(joint_sel_counter+1), NO_SPEED);
+	}
+	
+	
+	/* CHANGE SPEED MENU HANDLER *///////////////////////////////////////////////////////////////////////////////////
+	else if(select_menu == CHANGE_SPEED_MENU){
+		if(command.feedback == SPEED_CHANGE_DONE || (keys == '.' && prev_keys != keys)){
+			command.feedback = NO_FEEDBACK;
+			change_menu(HOME_MENU);
+		}
+		else Send_setting_data(&command, JOINT_SPEED, NO_CALIBRATION, NO_SELECTION, (Speed_t)(global_speed_counter+1));
 	}
 	
 	
@@ -1772,7 +1811,7 @@ void show_menu(LCD_Menu_t menu){
 	
 	/* SETTING MENU *////////////////////
 	else if(menu == SETTING_MENU){
-		// SETTING MENU 1 ************
+		// SETTING MENU 1 ******************
 		if(setting_menu_counter == 0){
 			lcd_set_cursor(0, 0);
 			lcd_printstr("Select Mode: ");
@@ -1782,8 +1821,10 @@ void show_menu(LCD_Menu_t menu){
 			lcd_set_cursor(0, 3);
 			lcd_printstr(cal_mode);
 		}
+		// *********************************
 		
-		// SETTING MENU 2 *****************
+		
+		// SETTING MENU 2 ******************
 		else if(setting_menu_counter == 1){
 			lcd_set_cursor(0, 0);
 			lcd_printstr("Select Joint: J");
@@ -1793,6 +1834,23 @@ void show_menu(LCD_Menu_t menu){
 			lcd_set_cursor(0, 3);
 			lcd_printstr(zero_mode);
 		}
+		// *********************************
+		
+		
+		// SETTING MENU 3 ********************************************
+		else if(setting_menu_counter == 2){
+			lcd_set_cursor(0, 0);
+			lcd_printstr("Select Speed: ");
+			lcd_set_cursor(14, 0);			
+			if(global_speed_counter == 0) lcd_printstr(low_speed);
+			else if(global_speed_counter == 1) lcd_printstr(med_speed);
+			else if(global_speed_counter == 2) lcd_printstr(high_speed);
+			
+			lcd_set_cursor(0, 3);
+			lcd_printstr(speed_mode);
+		}
+		// ***********************************************************
+		
 		
 		// SHOW CURRENT MENU **
 		lcd_set_cursor(15, 3);
@@ -1828,14 +1886,23 @@ void show_menu(LCD_Menu_t menu){
 	/////////////////////////////////////////////////
 	
 	
-	/* ZEROING MENU */////////////////
+	/* ZEROING MENU *////////////////
 	else if(menu == ZEROING_MENU){
 		lcd_set_cursor(3, 1);
 		lcd_printstr("JOINT  ZEROING");
 		lcd_set_cursor(4, 2);
 		lcd_printstr("PLEASE  WAIT");
 	}
-	//////////////////////////////////
+	/////////////////////////////////
+	
+	
+	/* CHANGE SPEED MENU */////////////
+	else if(menu == CHANGE_SPEED_MENU){
+		lcd_set_cursor(3, 1);
+		lcd_printstr("UPDATING SPEED");
+		lcd_set_cursor(4, 2);
+		lcd_printstr("PLEASE  WAIT");
+	}
 	
 	
 	/* HOME MENU *//////////////////////////////////////////////
@@ -2661,7 +2728,14 @@ void StartReceiveTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
+		uint32_t flags = osEventFlagsWait(getDataHandle, 0x01, osFlagsWaitAny, 0);
 		Start_get_command(&command);
+		
+		if(flags & 0x01){
+			Get_command(&command);
+			osDelay(5);
+			osEventFlagsClear(getDataHandle, 0x01);
+		} 
 		
 		if(command.type == FEEDBACK){
 			if(command.feedback == JOINT_MISS_STEP){
@@ -2681,7 +2755,7 @@ void StartReceiveTask(void *argument)
 			}
 		}
 		
-		if(command.type == SEND_REQ){
+		else if(command.type == SEND_REQ){
 			for(int i=0; i<6; i++){
 				if(i<3){
 					pos_value[i] = command.World_pos_req[i];
@@ -2691,7 +2765,12 @@ void StartReceiveTask(void *argument)
 			}
 		}
 		
-    osDelay(1);
+		if(HAL_GetTick() - prev_getdata > 250){
+			Reset_command(&command);
+			prev_getdata = HAL_GetTick();
+		}
+		
+    osDelay(5);
   }
   /* USER CODE END StartReceiveTask */
 }

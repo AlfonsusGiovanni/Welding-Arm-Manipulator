@@ -20,8 +20,8 @@ void RS232_Init(UART_HandleTypeDef* huart_handler){
 /*TRANSMITING COMMAND*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 /*SEND SETTING COMMAND*/
-void Send_setting_data(Data_Get_t* get, Setting_Mode_t set_mode,  Cal_Mode_t cal_mode, Zeroing_Select_t sel_joint){
-	uint8_t tx_buff[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, SETTING_CMD, set_mode, cal_mode, sel_joint};	
+void Send_setting_data(Data_Get_t* get, Setting_Mode_t set_mode,  Cal_Mode_t cal_mode, Zeroing_Select_t sel_joint, Speed_t set_speed){
+	uint8_t tx_buff[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, SETTING_CMD, set_mode, cal_mode, sel_joint, set_speed};	
 	HAL_UART_Transmit_IT(huart, tx_buff, sizeof(tx_buff));
 }
 
@@ -141,6 +141,7 @@ void Get_command(Data_Get_t* get){
 			get->setting_mode = (Setting_Mode_t) rx_buff[4];
 			get->calibration_mode = (Cal_Mode_t) rx_buff[5];
 			get->joint_zeroing = (Zeroing_Select_t) rx_buff[6];
+			get->running_speed = (Speed_t) rx_buff[7];
 		}
 		
 		//CHECK MAPPING MODE COMMAND
@@ -228,9 +229,33 @@ void Get_command(Data_Get_t* get){
 		}
 		memcpy(&get->data_buff, rx_buff, sizeof(rx_buff));
 	}
-	memset(rx_buff, 0x00, BUFF_SIZE);
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/*RESET COMMAND*/
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void Reset_command(Data_Get_t* get){
+	get->type = NO_COMMAND;
+	get->setting_mode = NO_SETTING;
+	get->joint_zeroing = NO_SELECTION;
+	get->calibration_mode = NO_CALIBRATION;
+	get->control_mode = NO_CTRL;
+	get->move_mode = NO_MOVE;
+	get->move_variable = NO_VAR;
+	get->move_sign = NO_SIGN;
+	get->running_mode = NO_RUN_MODE;
+	get->running_state = NO_RUN_STATE;
+	get->pattern_type = NO_PATTERN;
+	get->data_type = NO_DATA_TYPE;
+	get->mapping_state = NO_MAP_STATE;
+	get->requested_data = NO_REQ;
+	get->motor_state = NO_MOTOR_STATE;
+	get->welder_state = NO_WELDER_STATE;
+	get->running_speed = NO_SPEED;
+	get->feedback = NO_FEEDBACK;
+}
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 /*TRANSMIT RECIEVE MONITOR*/

@@ -153,52 +153,77 @@
         <Ww>
           <count>0</count>
           <WinNumber>1</WinNumber>
-          <ItemText>enc_angle</ItemText>
+          <ItemText>calibration_step</ItemText>
         </Ww>
         <Ww>
           <count>1</count>
           <WinNumber>1</WinNumber>
-          <ItemText>cal_value</ItemText>
+          <ItemText>calibrated_joint</ItemText>
         </Ww>
         <Ww>
           <count>2</count>
           <WinNumber>1</WinNumber>
-          <ItemText>cal_enc_angle</ItemText>
+          <ItemText>switch_pressed</ItemText>
         </Ww>
         <Ww>
           <count>3</count>
           <WinNumber>1</WinNumber>
-          <ItemText>reduced_cal_enc_angle</ItemText>
+          <ItemText>current_position</ItemText>
         </Ww>
         <Ww>
           <count>4</count>
           <WinNumber>1</WinNumber>
-          <ItemText>enc_counter,0x0A</ItemText>
+          <ItemText>target_position</ItemText>
         </Ww>
         <Ww>
           <count>5</count>
           <WinNumber>1</WinNumber>
-          <ItemText>enc_joint_angle</ItemText>
+          <ItemText>kinematics.joint_ang_out</ItemText>
         </Ww>
         <Ww>
           <count>6</count>
           <WinNumber>1</WinNumber>
-          <ItemText>step_start_cal</ItemText>
+          <ItemText>kinematics.axis_pos_out</ItemText>
         </Ww>
         <Ww>
           <count>7</count>
           <WinNumber>1</WinNumber>
-          <ItemText>calibrated_joint</ItemText>
+          <ItemText>kinematics.axis_rot_out</ItemText>
         </Ww>
         <Ww>
           <count>8</count>
           <WinNumber>1</WinNumber>
-          <ItemText>switch_pressed</ItemText>
+          <ItemText>enc_joint_angle</ItemText>
         </Ww>
         <Ww>
           <count>9</count>
           <WinNumber>1</WinNumber>
+          <ItemText>delta_move_ang</ItemText>
+        </Ww>
+        <Ww>
+          <count>10</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>target_step,0x0A</ItemText>
+        </Ww>
+        <Ww>
+          <count>11</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>target_angle</ItemText>
+        </Ww>
+        <Ww>
+          <count>12</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>step_limit,0x0A</ItemText>
+        </Ww>
+        <Ww>
+          <count>13</count>
+          <WinNumber>1</WinNumber>
           <ItemText>step_start</ItemText>
+        </Ww>
+        <Ww>
+          <count>14</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>step_freq,0x0A</ItemText>
         </Ww>
       </WatchWindow1>
       <WatchWindow2>
