@@ -44,8 +44,8 @@ Kinematics_t kinematics;
 //#define TEST_STEPPER
 //#define TEST_ENCODER
 //#define TEST_COM
-//#define TEST_KINEMATICS
-#define TEST_MOTION
+#define TEST_KINEMATICS
+//#define TEST_MOTION
 
 typedef enum{
 	LINEAR_INTERPOLATION = 0x01,
@@ -343,8 +343,9 @@ int main(void)
 	tollframe_init(&kinematics, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
 	forward_transform_matrix(&kinematics);
 	calculate_all_link(&kinematics);
+	#endif
 	
-	#elseif TEST_MOTION
+	#ifdef TEST_MOTION
 	DHparam_init(&kinematics, joint_d, joint_a, joint_alpha);
 	tollframe_init(&kinematics, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
 	
@@ -380,12 +381,12 @@ int main(void)
 		#endif
 		
 		#ifdef TEST_KINEMATICS
-		fk_angle_input[0] = 0;
-		fk_angle_input[1] = 0;
-		fk_angle_input[2] = 0;
-		fk_angle_input[3] = 0;
-		fk_angle_input[4] = 0;
-		fk_angle_input[5] = 0;
+		fk_angle_input[0] = 0.0;
+		fk_angle_input[1] = 19.9;
+		fk_angle_input[2] = 20.3;
+		fk_angle_input[3] = -0.2;
+		fk_angle_input[4] = -40.0;
+		fk_angle_input[5] = -0.3;
 		  
 		kinematics.j5_enc_angle = fk_angle_input[4];
 		

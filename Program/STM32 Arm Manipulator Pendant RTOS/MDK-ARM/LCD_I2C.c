@@ -87,6 +87,23 @@ void lcd_printint(int input){
 	lcd_printstr(strbuffer);
 }
 
+// LCD PRINT HEX VARIABLE
+void lcd_printhex(int input, uint8_t bit_num){
+	char strbuffer[50];
+	
+	switch(bit_num){
+		case HEX_8BIT:
+			snprintf(strbuffer, sizeof(strbuffer), "0x%02X", input & 0xFF);
+			break;
+		
+		case HEX_16BIT:
+			snprintf(strbuffer, sizeof(strbuffer), "0x%04X", input & 0xFFFF);
+			break;
+	}
+	
+	lcd_printstr(strbuffer);
+}
+
 // LCD PRINT FLOAT VARIABLE
 void lcd_printfloat(float input, uint8_t precision){
 	char strbuffer[20];

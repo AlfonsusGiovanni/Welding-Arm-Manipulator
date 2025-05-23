@@ -105,7 +105,7 @@ typedef enum{
 /*  LIMIT TYPE TYPEDEF */
 // ----------------------
 typedef enum{
-	ALL_LIMIT_CHECK,	// Sotf and hard limit check
+	NO_CHECK,
 	SOFT_LIMIT_CHECK,	// Software only check
 	HARD_LIMIT_CHECK,	// Hardware only check
 }Limit_t;
@@ -151,12 +151,12 @@ typedef enum{
 	J1_J3_CAL,					// J1 to J3 first calibration
 	J1_J3_OFFSET_MOVE,	// Move J1 to J3 to angle offset
 	J1_J3_RECAL,				// J1 to J3 re-calibration
-	J1_J3_HOME,					// Move J1-J3 to home position
 	
 	J4_J6_CAL,					// J4 to J6 first calibration
 	J4_J6_OFFSET_MOVE,	// Move J4 to J6 to angle offset
-	J4_J6_REAL,					// J4 to J6 re-calibration
-	J4_J6_HOME,					// Move J4-J6 to home position
+	J4_J6_RECAL,				// J4 to J6 re-calibration
+	
+	ALL_JOINT_HOME,
 	
 	CALIBRATION_OK,			// Calibration Done
 }Cal_Step_t;
@@ -198,6 +198,7 @@ typedef enum{
 //#define TEST_ENCODER
 //#define TEST_LIMIT_SWITCH
 //#define TEST_KINEMATICS
+//#define TEST_MOTION
 
 #define MAIN_PROGRAM
 //----------------------
@@ -296,12 +297,22 @@ typedef enum{
 #define JOINT4_CAL_ANGLE 	0.0
 #define JOINT5_CAL_ANGLE 	-90.0
 #define JOINT6_CAL_ANGLE 	0.0
+
+#define JOINT1_BIT_VAL		0x01
+#define JOINT2_BIT_VAL		0x02
+#define JOINT3_BIT_VAL		0x04
+#define JOINT4_BIT_VAL		0x08
+#define JOINT5_BIT_VAL		0x10
+#define JOINT6_BIT_VAL		0x20
+
+#define FILTER_FACTOR			0.5f
 //-------------------------------
 
 
 /*INTERPOLATION SET*/
-//-------------------
+//--------------------------
 #define MAX_UPDATE_STEP		50
+//--------------------------
 
 /* USER CODE END PD */
 
@@ -370,6 +381,12 @@ joint_max_traveldist[JOINT_NUM],
 joint_ang_per_step[JOINT_NUM],
 joint_miss_step_angle[JOINT_NUM];
 
+float
+joint_rpm = 0.0f,
+global_feedrate = 0.0f,
+delta_angle[JOINT_NUM],
+sync_joint_rpm[JOINT_NUM];
+
 bool
 calibrating = false,
 clear_to_update = false,
@@ -425,10 +442,17 @@ joint_alpha[JOINT_NUM] = {
 	-90.0, 90.0, 0.0,
 };
 
-float
-global_feedrate;
-
 uint8_t
+limit_bit_sum,
+joint_limit_bit[6] = {
+	JOINT1_BIT_VAL,
+	JOINT2_BIT_VAL,
+	JOINT3_BIT_VAL,
+	JOINT4_BIT_VAL,
+	JOINT5_BIT_VAL,
+	JOINT6_BIT_VAL,
+},
+
 joint_zero_sel,
 invalid_welding_point;
 
@@ -567,8 +591,8 @@ step_timer,
 rpm_timer;
 
 bool
-step_start[JOINT_NUM],
-step_start_cal[JOINT_NUM],
+step_cont_run[JOINT_NUM],
+step_cal_run[JOINT_NUM],
 step_limit[JOINT_NUM],
 step_positive_dir[JOINT_NUM];
 
@@ -626,10 +650,6 @@ uint32_t
 timer_counter[JOINT_NUM],
 step_counter[JOINT_NUM],
 current_step[JOINT_NUM];
-
-float
-angular_rate,
-stepper_joint_rpm;
 
 
 // RS232 VARIABLE
@@ -755,8 +775,9 @@ cal_value[JOINT_NUM],
 cal_enc_angle[JOINT_NUM],
 prev_cal_enc_angle[JOINT_NUM],
 reduced_cal_enc_angle[JOINT_NUM],
-enc_joint_angle[JOINT_NUM],
-prev_enc_joint_angle[JOINT_NUM],
+raw_joint_angle[JOINT_NUM],
+filtered_joint_angle[JOINT_NUM],
+prev_filtered_joint_angle[JOINT_NUM],
 
 max_joint_angle[JOINT_NUM] = {
 	JOINT1_MAX_ANGLE,
@@ -961,7 +982,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		}
 		
 		// Stop Timer
-		if(((step_counter[i] >= target_step[i]) && step_limit[i]) || (!step_limit[i] && !step_start[i] && !step_start_cal[i]) || joint_limit || robot_stop){
+		if(((step_counter[i] >= target_step[i]) && step_limit[i]) || (!step_limit[i] && !step_cont_run[i] && !step_cal_run[i]) || joint_limit || robot_stop){
 			port->BSRR = (uint32_t)pin << 16;
 			HAL_TIM_Base_Stop_IT(stepper_tim_handler[i]);
 			timer_counter[i] = 0;
@@ -1003,8 +1024,8 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 			
 			prev_cal_enc_angle[i] = cal_enc_angle[i];
 			
-			enc_joint_angle[i] = reduced_cal_enc_angle[i] + (enc_counter[i] * (360.0f / stepper_ratio[i])) + enc_tollerance[i];
-			
+			raw_joint_angle[i] = reduced_cal_enc_angle[i] + (enc_counter[i] * (360.0f / stepper_ratio[i])) + enc_tollerance[i];
+			filtered_joint_angle[i] = FILTER_FACTOR*raw_joint_angle[i] + (1-FILTER_FACTOR) * filtered_joint_angle[i];
 		}
 	}
 }
@@ -1120,14 +1141,14 @@ int main(void)
 	#ifdef USE_RS232
 	RS232_Init(&huart4);
 	show_menu(COM_INIT_MENU);
-	while(1){
-		receive_data();
-		Send_feedback(&command, MAIN_ONLINE, 0x00);
-		if(command.type == FEEDBACK && command.feedback == PENDANT_ONLINE){
-			SSD1306_Clear();
-			break;
-		}
-	}
+//	while(1){
+//		receive_data();
+//		Send_feedback(&command, MAIN_ONLINE, 0x00);
+//		if(command.type == FEEDBACK && command.feedback == PENDANT_ONLINE){
+//			SSD1306_Clear();
+//			break;
+//		}
+//	}
 	command.msg_sent = true;
 	command.msg_get = true;
 	
@@ -1276,9 +1297,36 @@ int main(void)
 		#endif
 		
 		#ifdef TEST_KINEMATICS
-		double dummy_pos[] = {598.5, 0.0, 776.0, 180.0, 0.0, 180.0};
-		kinematics.j5_enc_angle = 90.0;
-		run_inverse_kinematic(&kinematics, dummy_pos[0], dummy_pos[1], dummy_pos[2], dummy_pos[3], dummy_pos[4], dummy_pos[5]);
+//		double dummy_pos[] = {598.5, 0.0, 776.0, 180.0, 0.0, 180.0};
+//		kinematics.j5_enc_angle = 90.0;
+//		run_inverse_kinematic(&kinematics, dummy_pos[0], dummy_pos[1], dummy_pos[2], dummy_pos[3], dummy_pos[4], dummy_pos[5]);
+		
+//		double dummy_ang[] = {0.0, 19.9, 20.3, -0.2, -40.0, -0.3};
+//		kinematics.j5_enc_angle = dummy_ang[4];
+//		run_forward_kinematic(&kinematics, dummy_ang);
+//		
+//		find_jacobian_variable(&kinematics);
+//		check_singularity(&kinematics);
+		#endif
+		
+		#ifdef TEST_MOTION
+		joint_rpm = 0.5;
+		double dummy_move_ang[6] = {0, 4.412, -4.604, 0, 0.192, 0};
+		
+		for(int i=0; i<JOINT_NUM; i++){
+			delta_move_ang[i] = dummy_move_ang[i];
+			
+			delta_angle[i] = fabs(delta_move_ang[i]);
+			if(delta_angle[i] > max_delta){
+				max_delta = delta_angle[i];
+			}
+		}
+		
+		if(max_delta > 0.001f){
+			for(int i=0; i<JOINT_NUM; i++){
+				sync_joint_rpm[i] = joint_rpm * (delta_angle[i]/max_delta);
+			}
+		}
 		#endif
 		
 		#ifdef MAIN_PROGRAM	
@@ -1291,6 +1339,7 @@ int main(void)
 		#ifdef USE_LIMIT_CHECK
 		if(!calibrating){
 			check_limit(HARD_LIMIT_CHECK);
+			check_limit(SOFT_LIMIT_CHECK);
 		}
 		#endif
 		
@@ -1303,7 +1352,7 @@ int main(void)
 		// Check Setting Command
 		if(command.type == SETTING){
 			if(command.setting_mode == JOINT_CALIBRATION){
-				if(joint_calibrate(command.calibration_mode, true, true, true, false, false, false)){
+				if(joint_calibrate(command.calibration_mode, true, true, true, true, true, false)){
 					for(int i=0; i<50; i++){
 						Send_feedback(&command, CALIBRATION_DONE, 0x00);
 						HAL_Delay(10);
@@ -1375,21 +1424,16 @@ int main(void)
 			robot_stop = false;
 			
 			if(command.control_mode == WORLD_CTRL){			
-				for(int i=0; i<AXIS_NUM; i++){
-					step_limit[i] = true;
-					step_start[i] = false;
-					
+				for(int i=0; i<AXIS_NUM; i++){	
 					if(command.move_variable == robot_axis[i]){			
 						if(command.move_mode == CONTINUOUS){
-							if(command.move_sign == UNSIGNED_VAR){
-								rx_move_position[i] += 1;
-							}
-							else if(command.move_sign == SIGNED_VAR){
-								rx_move_position[i] -= 1;
-							}
-							move_world(command.move_variable, rx_move_position[i], global_speed);
+							
 						}
 						else if(command.move_mode == DISTANCE){
+							for(int i=0; i<JOINT_NUM; i++){
+								step_limit[i] = true;
+								step_cont_run[i] = false;
+							}
 							rx_move_position[i] = command.move_value;
 							move_world(command.move_variable, rx_move_position[i], global_speed);
 						}
@@ -1402,12 +1446,12 @@ int main(void)
 					if(command.move_variable == robot_joint[i]){
 						if(command.move_mode == CONTINUOUS){
 							step_limit[i] = false;
-							step_start[i] = true;
+							step_cont_run[i] = true;
 							rx_move_angle[i] = 0.0;
 						}
 						else if(command.move_mode == DISTANCE || command.move_mode == STEP){
 							step_limit[i] = true;
-							step_start[i] = false;
+							step_cont_run[i] = false;
 							rx_move_angle[i] = command.move_value;
 						}
 						
@@ -1433,7 +1477,7 @@ int main(void)
 			if(command.running_mode == SETTING_MODE){
 				if(command.running_state == RUNNING_STOP){
 					for(int i=0; i<JOINT_NUM; i++){
-						step_start_cal[i] = false;
+						step_cal_run[i] = false;
 					}
 					robot_stop = true;
 					calibrating = false;
@@ -1483,7 +1527,7 @@ int main(void)
 		// Check None Command
 		else if(command.type == NO_COMMAND){
 			for(int i=0; i<JOINT_NUM; i++){
-				step_start[i] = false;
+				step_cont_run[i] = false;
 				rx_move_position[i] = 0.0;
 				rx_move_angle[i] = 0.0;
 			}
@@ -2108,7 +2152,7 @@ static void MX_TIM12_Init(void)
   htim12.Instance = TIM12;
   htim12.Init.Prescaler = 0;
   htim12.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim12.Init.Period = 9999;
+  htim12.Init.Period = 999;
   htim12.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim12.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim12) != HAL_OK)
@@ -2150,7 +2194,7 @@ static void MX_TIM13_Init(void)
   htim13.Instance = TIM13;
   htim13.Init.Prescaler = 0;
   htim13.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim13.Init.Period = 9999;
+  htim13.Init.Period = 999;
   htim13.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim13.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim13) != HAL_OK)
@@ -2181,7 +2225,7 @@ static void MX_TIM14_Init(void)
   htim14.Instance = TIM14;
   htim14.Init.Prescaler = 0;
   htim14.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim14.Init.Period = 9999;
+  htim14.Init.Period = 999;
   htim14.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim14.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim14) != HAL_OK)
@@ -2215,7 +2259,7 @@ static void MX_TIM15_Init(void)
   htim15.Instance = TIM15;
   htim15.Init.Prescaler = 0;
   htim15.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim15.Init.Period = 9999;
+  htim15.Init.Period = 999;
   htim15.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim15.Init.RepetitionCounter = 0;
   htim15.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -2258,7 +2302,7 @@ static void MX_TIM16_Init(void)
   htim16.Instance = TIM16;
   htim16.Init.Prescaler = 0;
   htim16.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim16.Init.Period = 9999;
+  htim16.Init.Period = 999;
   htim16.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim16.Init.RepetitionCounter = 0;
   htim16.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -2290,7 +2334,7 @@ static void MX_TIM17_Init(void)
   htim17.Instance = TIM17;
   htim17.Init.Prescaler = 0;
   htim17.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim17.Init.Period = 9999;
+  htim17.Init.Period = 999;
   htim17.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim17.Init.RepetitionCounter = 0;
   htim17.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -2794,7 +2838,7 @@ void move_stepper(uint8_t select_joint, uint16_t step, Joint_Dir_t dir, uint16_t
 			
 			// Duty Cycle Calculation
 			step_freq[i] = input_freq;
-			step_period[i] = 10000/step_freq[i];
+			step_period[i] = 100000/step_freq[i];
 			
 			// Set Stepper Direction
 			if(dir == POSITIVE_DIR){
@@ -2808,7 +2852,7 @@ void move_stepper(uint8_t select_joint, uint16_t step, Joint_Dir_t dir, uint16_t
 			
 			// Pulse Start
 			target_step[i] = step;
-			if((target_step[i] > 0 && step_counter[i] == 0) || (step_start[i]) || (step_start_cal[i]) || !joint_limit){
+			if((target_step[i] > 0 && step_counter[i] == 0) || (step_cont_run[i]) || (step_cal_run[i]) || !joint_limit){
 				t_on[i] = step_period[i] * SET_DUTY_CYCLE;
 				t_off[i] = step_period[i] - t_on[i];
 				
@@ -2881,12 +2925,12 @@ void calc_linear_parametric(double start_pos[6], double end_pos[6], uint8_t inpu
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void move_joint(uint8_t select_joint, double input_angle, Speed_t set_speed){
 	// Joint RPM Set
-	if(set_speed == LOW) stepper_joint_rpm = 0.5f;
-	else if(set_speed == MED) stepper_joint_rpm = 1.0f;
-	else if(set_speed == HIGH) stepper_joint_rpm = 4.0f;
+	if(set_speed == LOW) joint_rpm = 0.5f;
+	else if(set_speed == MED) joint_rpm = 1.0f;
+	else if(set_speed == HIGH) joint_rpm = 2.0f;
 	
 	if((input_angle > 0 && input_angle < 1) || (input_angle > -1 && input_angle < 0)){
-		stepper_joint_rpm = 0.25f;
+		joint_rpm = 0.25f;
 	}
 	
 	for(int i=0; i<JOINT_NUM; i++){
@@ -2894,16 +2938,16 @@ void move_joint(uint8_t select_joint, double input_angle, Speed_t set_speed){
 		else{						
 			// Step or Distance Move			
 			if(input_angle > 0){
-				move_stepper(robot_joint[i], calc_stepper_step(i, input_angle), POSITIVE_DIR, calc_stepper_freq(i, stepper_joint_rpm));
+				move_stepper(robot_joint[i], calc_stepper_step(i, input_angle), POSITIVE_DIR, calc_stepper_freq(i, joint_rpm));
 			}
 			else if(input_angle < 0){
-				move_stepper(robot_joint[i], calc_stepper_step(i, input_angle), NEGATIVE_DIR, calc_stepper_freq(i, stepper_joint_rpm));
+				move_stepper(robot_joint[i], calc_stepper_step(i, input_angle), NEGATIVE_DIR, calc_stepper_freq(i, joint_rpm));
 			}
 			
 			// Continuous Move
-			if(step_start[i] == true){
-				if(command.move_sign == UNSIGNED_VAR) move_stepper(robot_joint[i], 0, POSITIVE_DIR, calc_stepper_freq(i, stepper_joint_rpm));
-				else move_stepper(robot_joint[i], 0, NEGATIVE_DIR, calc_stepper_freq(i, stepper_joint_rpm));
+			if(step_cont_run[i] == true){
+				if(command.move_sign == UNSIGNED_VAR) move_stepper(robot_joint[i], 0, POSITIVE_DIR, calc_stepper_freq(i, joint_rpm));
+				else move_stepper(robot_joint[i], 0, NEGATIVE_DIR, calc_stepper_freq(i, joint_rpm));
 			}
 		}
 	}
@@ -2914,30 +2958,30 @@ void move_joint(uint8_t select_joint, double input_angle, Speed_t set_speed){
 /* --- WORLD BASE MOVE FUNCTION --- */
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void move_world(uint8_t select_axis, double move_pos, Speed_t set_speed){	
-	float delta_angle[JOINT_NUM];
-	float max_delta;
-	float sync_joint_rpm[JOINT_NUM];
+	float max_delta = 0.0f;
 	
 	// Set Minimum Joint Speed
-	if(set_speed == LOW) stepper_joint_rpm = 0.5f;
-	else if(set_speed == MED) stepper_joint_rpm = 1.0f;
-	else if(set_speed == HIGH) stepper_joint_rpm = 4.0f;
+	if(set_speed == LOW) joint_rpm = 0.5f;
+	else if(set_speed == MED) joint_rpm = 1.0f;
+	else if(set_speed == HIGH) joint_rpm = 2.0f;
 	
 	// Check Target Position
 	for(int i=0; i<AXIS_NUM; i++){
-		if(select_axis == robot_axis[i]){
-			target_position[i] = current_position[i] + move_pos;
+		if(step_state[i] == STOPPING){
+			if(select_axis == robot_axis[i]){
+				target_position[i] = current_position[i] + move_pos;
+			}
+			else target_position[i] = current_position[i];
 		}
-		else target_position[i] = current_position[i];
 	}
 	
 	// Calculate Inverse Kinematics
-	run_inverse_kinematic(&kinematics, target_position[0], target_position[1], target_position[2],
-	target_position[3], target_position[4], target_position[5]);
+	run_inverse_kinematic(&kinematics, target_position[0], target_position[1], target_position[2], target_position[3], target_position[4], target_position[5]);
 	
-	// Move Joint
+	// Calulate Max Delta Angle
 	for(int i=0; i<JOINT_NUM; i++){
-		delta_move_ang[i] = kinematics.joint_ang_out[i] - enc_joint_angle[i];
+		delta_move_ang[i] = kinematics.joint_ang_out[i] - filtered_joint_angle[i];
+		
 		delta_angle[i] = fabs(delta_move_ang[i]);
 		if(delta_angle[i] > max_delta){
 			max_delta = delta_angle[i];
@@ -2945,17 +2989,17 @@ void move_world(uint8_t select_axis, double move_pos, Speed_t set_speed){
 	}
 	
 	// Calculate Each Joint Speed & Run Stepper
-	for(int i=0; i<JOINT_NUM; i++){
-		if(delta_angle[i] > 0){
-			sync_joint_rpm[i] = stepper_joint_rpm * (delta_angle[i]/max_delta);
-		}
-		else sync_joint_rpm[i] = 0;
-		
-		if(delta_move_ang[i] > 0){
-			move_stepper(robot_joint[i], calc_stepper_step(i, delta_move_ang[i]), POSITIVE_DIR, calc_stepper_freq(i, sync_joint_rpm[i]));
-		}
-		else if(delta_move_ang[i] < 0){
-			move_stepper(robot_joint[i], calc_stepper_step(i, delta_move_ang[i]), NEGATIVE_DIR, calc_stepper_freq(i, sync_joint_rpm[i]));
+	if(max_delta > 0.001f){
+		for(int i=0; i<JOINT_NUM; i++){
+			if(delta_move_ang[i] > 0.1f){
+				sync_joint_rpm[i] = joint_rpm * (delta_angle[i]/max_delta);
+				move_stepper(robot_joint[i], calc_stepper_step(i, delta_move_ang[i]), POSITIVE_DIR, calc_stepper_freq(i, sync_joint_rpm[i]));
+			}
+			else if(delta_move_ang[i] < -0.1f){
+				sync_joint_rpm[i] = joint_rpm * (delta_angle[i]/max_delta);
+				move_stepper(robot_joint[i], calc_stepper_step(i, delta_move_ang[i]), NEGATIVE_DIR, calc_stepper_freq(i, sync_joint_rpm[i]));
+			}
+			else sync_joint_rpm[i] = 0.0f;
 		}
 	}
 }
@@ -3076,8 +3120,8 @@ void welding_start(void){
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void update_value(void){
 	if(!calibrating){
-		run_forward_kinematic(&kinematics, enc_joint_angle);
-		kinematics.j5_enc_angle = enc_joint_angle[4];
+		run_forward_kinematic(&kinematics, filtered_joint_angle);
+		kinematics.j5_enc_angle = filtered_joint_angle[4];
 	}
 	
 	for(int i=0; i<JOINT_NUM; i++){
@@ -3085,7 +3129,7 @@ void update_value(void){
 		else current_position[i] = kinematics.axis_rot_out[i-3];
 		
 		#ifdef USE_ENCODER
-		current_angle[i] = enc_joint_angle[i];
+		current_angle[i] = filtered_joint_angle[i];
 		#endif
 	}
 }
@@ -3095,37 +3139,38 @@ void update_value(void){
 /* --- LIMIT SWITCH STATE CHECK FUNCTION ---*/
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void check_limit(Limit_t check_mode){
-	if(check_mode == ALL_LIMIT_CHECK){
-		
-	}
-	
 	// Software Limit
-	else if(check_mode == SOFT_LIMIT_CHECK){
-		
+	if(check_mode == SOFT_LIMIT_CHECK){
+		find_jacobian_variable(&kinematics);
+		check_singularity(&kinematics);
 	}
 	
 	// Hardware Limit
 	else if(check_mode == HARD_LIMIT_CHECK){
+		limit_bit_sum = 0;
+		
 		for(int i=0; i<JOINT_NUM; i++){
-			if(enc_joint_angle[i] > joint_negative_axisLim[i] && enc_joint_angle[i] < joint_positive_axisLim[i]){
+			if(filtered_joint_angle[i] > joint_negative_axisLim[i] && filtered_joint_angle[i] < joint_positive_axisLim[i]){
 				hard_limit[i] = false;
 			}
 			else{
 				if(joint_error_bypass == false){
 					hard_limit[i] = true;
+					limit_bit_sum += joint_limit_bit[i];
+					
 					for(int i=0; i<10; i++){
-						Send_feedback(&command, ANGLE_HARD_LIMIT, (uint16_t)i);
+						Send_feedback(&command, ANGLE_HARD_LIMIT, limit_bit_sum);
 					}
-					if(enc_joint_angle[i] <= joint_negative_axisLim[i]) negative_limit[i] = true;
-					else if(enc_joint_angle[i] >= joint_positive_axisLim[i]) positive_limit[i] = true;
+					if(filtered_joint_angle[i] <= joint_negative_axisLim[i]) negative_limit[i] = true;
+					else if(filtered_joint_angle[i] >= joint_positive_axisLim[i]) positive_limit[i] = true;
 				}
 			}
 			
-			if(negative_limit[i] == true && enc_joint_angle[i] > joint_negative_axisLim[i]){
+			if(negative_limit[i] == true && filtered_joint_angle[i] > joint_negative_axisLim[i]){
 				negative_limit[i] = false;
 				joint_error_bypass = false;
 			}
-			else if(positive_limit[i] == true && enc_joint_angle[i] < joint_positive_axisLim[i]){
+			else if(positive_limit[i] == true && filtered_joint_angle[i] < joint_positive_axisLim[i]){
 				positive_limit[i] = false;
 				joint_error_bypass = false;
 			}
@@ -3174,11 +3219,11 @@ bool joint_calibrate(Cal_Mode_t mode, bool j1_cal, bool j2_cal, bool j3_cal, boo
 			
 			if(!calibrated_joint[i]){				
 				if(!switch_pressed[i]){
-					step_start_cal[i] = true;
+					step_cal_run[i] = true;
 					move_stepper(robot_joint[i], 0, calibration_dir[i], calc_stepper_freq(i, 0.5f));
 				}
 				else{
-					step_start_cal[i] = false;
+					step_cal_run[i] = false;
 					calibrated_joint[i] = true;
 				}
 			}
@@ -3198,22 +3243,22 @@ bool joint_calibrate(Cal_Mode_t mode, bool j1_cal, bool j2_cal, bool j3_cal, boo
 		double offset_angle[3] = {10.0, 10.0, -10.0};
 		
 		for(int i=0; i<2; i++){
-			if(enc_joint_angle[i] < offset_angle[i]){
-				step_start_cal[i] = true;
+			if(filtered_joint_angle[i] < offset_angle[i]){
+				step_cal_run[i] = true;
 				move_stepper(robot_joint[i], 0, home_dir[i], calc_stepper_freq(i, 0.5f));
 			}
 			else{
 				calibrated_joint[i] = false;
-				step_start_cal[i] = false;
+				step_cal_run[i] = false;
 			}
 		}
 		
-		if(enc_joint_angle[2] > offset_angle[2]){
-			step_start_cal[2] = true;
+		if(filtered_joint_angle[2] > offset_angle[2]){
+			step_cal_run[2] = true;
 			move_stepper(robot_joint[2], 0, home_dir[2], calc_stepper_freq(2, 0.5f));
 		}
 		else{
-			step_start_cal[2] = false;
+			step_cal_run[2] = false;
 			calibrated_joint[2] = false;
 		}
 		
@@ -3230,11 +3275,11 @@ bool joint_calibrate(Cal_Mode_t mode, bool j1_cal, bool j2_cal, bool j3_cal, boo
 			
 			if(!calibrated_joint[i]){							
 				if(!switch_pressed[i]){
-					step_start_cal[i] = true;
+					step_cal_run[i] = true;
 					move_stepper(robot_joint[i], 0, calibration_dir[i], calc_stepper_freq(i, 0.25f));
 				}
 				else{
-					step_start_cal[i] = false;
+					step_cal_run[i] = false;
 					calibrated_joint[i] = true;
 				}
 			}
@@ -3245,12 +3290,7 @@ bool joint_calibrate(Cal_Mode_t mode, bool j1_cal, bool j2_cal, bool j3_cal, boo
 			reset_enc = true;
 			HAL_Delay(500);
 			reset_enc = false;
-			if(mode == CALIBRATE_ONLY){
-				calibration_step = J4_J6_CAL;
-			}
-			else if(mode == CALIBRATE_HOMING){
-				calibration_step = J1_J3_HOME;
-			}
+			calibration_step = J4_J6_CAL;
 		}
 	}
 	
@@ -3261,11 +3301,11 @@ bool joint_calibrate(Cal_Mode_t mode, bool j1_cal, bool j2_cal, bool j3_cal, boo
 			
 			if(!calibrated_joint[i]){				
 				if(!switch_pressed[i]){
-					step_start_cal[i] = true;
+					step_cal_run[i] = true;
 					move_stepper(robot_joint[i], 0, calibration_dir[i], calc_stepper_freq(i, 0.5f));
 				}
 				else{
-					step_start_cal[i] = false;
+					step_cal_run[i] = false;
 					calibrated_joint[i] = true;
 				}
 			}
@@ -3276,36 +3316,94 @@ bool joint_calibrate(Cal_Mode_t mode, bool j1_cal, bool j2_cal, bool j3_cal, boo
 			reset_enc = true;
 			HAL_Delay(500);
 			reset_enc = false;
-			calibration_step = CALIBRATION_OK;
+			calibration_step = J4_J6_OFFSET_MOVE;
 		}
 	}
 	
-	// Move First 3 Joints To Home Position
-	else if(calibration_step == J1_J3_HOME){
-		double offset_angle[3] = {90, 45, -45};
+	// Move Last 3 Joints To Offset Angle
+	else if(calibration_step == J4_J6_OFFSET_MOVE){
+		double offset_angle[2] = {10.0, 10.0};
 		
-		for(int i=0; i<2; i++){
-			if(enc_joint_angle[i] < offset_angle[i]){
-				step_start_cal[i] = true;
+		for(int i=3; i<5; i++){
+			if(filtered_joint_angle[i] < offset_angle[i-3]){
+				step_cal_run[i] = true;
 				move_stepper(robot_joint[i], 0, home_dir[i], calc_stepper_freq(i, 0.5f));
 			}
 			else{
 				calibrated_joint[i] = false;
-				step_start_cal[i] = false;
+				step_cal_run[i] = false;
 			}
 		}
 		
-		if(enc_joint_angle[2] > offset_angle[2]){
-			step_start_cal[2] = true;
-			move_stepper(robot_joint[2], 0, home_dir[2], calc_stepper_freq(2, 0.5f));
+		group2_calibrated = calibrated_joint[3] + calibrated_joint[4];
+		if(group2_calibrated == 0){
+			calibration_step = J4_J6_RECAL;
 		}
-		else{
-			step_start_cal[2] = false;
-			calibrated_joint[2] = false;
+	}
+	
+	// Move Last 3 Joints Until Each Limit Switch Pressed
+	if(calibration_step == J4_J6_RECAL){
+		for(int i=3; i<5; i++){
+			if(!selected_group2[i]) continue;
+			
+			if(!calibrated_joint[i]){				
+				if(!switch_pressed[i]){
+					step_cal_run[i] = true;
+					move_stepper(robot_joint[i], 0, calibration_dir[i], calc_stepper_freq(i, 0.5f));
+				}
+				else{
+					step_cal_run[i] = false;
+					calibrated_joint[i] = true;
+				}
+			}
+		}
+		group2_calibrated = calibrated_joint[3] + calibrated_joint[4] + calibrated_joint[5];
+		if(group2_calibrated == group2_count){
+			HAL_Delay(500);
+			reset_enc = true;
+			HAL_Delay(500);
+			reset_enc = false;
+			
+			if(mode == CALIBRATE_ONLY){
+				calibration_step = CALIBRATION_OK;
+			}
+			else if(mode == CALIBRATE_HOMING){
+				calibration_step = ALL_JOINT_HOME;
+			}
+		}
+	}
+	
+	// Move First 3 Joints To Home Position
+	else if(calibration_step == ALL_JOINT_HOME){
+		double offset_angle[6] = {90, 45, -45, 90, 90, 0};
+		
+		for(int i=0; i<JOINT_NUM-1; i++){
+			if(offset_angle[i] < 0){
+				if(filtered_joint_angle[i] > offset_angle[i]){
+					step_cal_run[i] = true;
+					move_stepper(robot_joint[i], 0, home_dir[i], calc_stepper_freq(i, 0.5f));
+				}
+				else{
+					calibrated_joint[i] = false;
+					step_cal_run[i] = false;
+				}
+			}
+			else if(offset_angle[i] > 0){
+				if(filtered_joint_angle[i] < offset_angle[i]){
+					step_cal_run[i] = true;
+					move_stepper(robot_joint[i], 0, home_dir[i], calc_stepper_freq(i, 0.5f));
+				}
+				else{
+					calibrated_joint[i] = false;
+					step_cal_run[i] = false;
+				}
+			}
 		}
 		
 		group1_calibrated = calibrated_joint[0] + calibrated_joint[1] + calibrated_joint[2];
-		if(group1_calibrated == 0){
+		group2_calibrated = calibrated_joint[3] + calibrated_joint[4] + calibrated_joint[5];
+		
+		if(group1_calibrated == 0 && group2_calibrated == 0){
 			HAL_Delay(500);
 			reset_enc = true;
 			HAL_Delay(500);
@@ -3360,12 +3458,12 @@ void encoder_reset(bool state, Zeroing_Select_t sel_joint, uint8_t current_tim){
 	else if(state == true && sel_joint == 0){
 		cal_value[current_tim] = enc_angle[current_tim];
 		enc_counter[current_tim] = 0;
-		enc_joint_angle[current_tim] = 0.0;
+		filtered_joint_angle[current_tim] = 0.0;
 	}
 	else if(state == true && sel_joint > 0){
 		cal_value[sel_joint-1] = enc_angle[sel_joint-1];
 		enc_counter[sel_joint-1] = 0;
-		enc_joint_angle[sel_joint-1] = 0.0;
+		filtered_joint_angle[sel_joint-1] = 0.0;
 	}
 }
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -3375,7 +3473,7 @@ void encoder_reset(bool state, Zeroing_Select_t sel_joint, uint8_t current_tim){
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void check_miss_step(void){
 	for(int i=0; i<JOINT_NUM; i++){	
-		int32_t delta_joint_angle = enc_joint_angle[i] - prev_enc_joint_angle[i];
+		int32_t delta_joint_angle = filtered_joint_angle[i] - prev_filtered_joint_angle[i];
 		
 		if(abs(delta_joint_angle) > MISS_STEP_TOLLERANCE){
 			if(joint_error_bypass == false){
@@ -3387,21 +3485,21 @@ void check_miss_step(void){
 				if(joint_current_dir[i] == NEGATIVE_DIR) negative_miss[i] = true;
 				else if(joint_current_dir[i] == POSITIVE_DIR) positive_miss[i] = true;
 				
-				joint_miss_step_angle[i] = enc_joint_angle[i];
+				joint_miss_step_angle[i] = filtered_joint_angle[i];
 			}
 		}
 		else miss_step[i] = false;
 	
-		if(negative_miss[i] == true && enc_joint_angle[i] > joint_miss_step_angle[i] + MISS_STEP_SAFE_ANGLE){
+		if(negative_miss[i] == true && filtered_joint_angle[i] > joint_miss_step_angle[i] + MISS_STEP_SAFE_ANGLE){
 			negative_miss[i] = false;
 			joint_error_bypass = false;
 		}
-		else if(positive_miss[i] == true && enc_joint_angle[i] < joint_miss_step_angle[i] - MISS_STEP_SAFE_ANGLE){
+		else if(positive_miss[i] == true && filtered_joint_angle[i] < joint_miss_step_angle[i] - MISS_STEP_SAFE_ANGLE){
 			positive_miss[i] = false;
 			joint_error_bypass = false;
 		}
 		
-		prev_enc_joint_angle[i] = enc_joint_angle[i];
+		prev_filtered_joint_angle[i] = filtered_joint_angle[i];
 		joint_miss_step |= miss_step[i];
 	}
 }
@@ -3449,12 +3547,12 @@ void send_ang_pos_data(void){
 	tx_rot[1] = (float)kinematics.axis_rot_out[1];
 	tx_rot[2] = (float)kinematics.axis_rot_out[2];
 	
-	tx_angle[0] = (float)enc_joint_angle[0];
-	tx_angle[1] = (float)enc_joint_angle[1];
-	tx_angle[2] = (float)enc_joint_angle[2];
-	tx_angle[3] = (float)enc_joint_angle[3];
-	tx_angle[4] = (float)enc_joint_angle[4];
-	tx_angle[5] = (float)enc_joint_angle[5];
+	tx_angle[0] = (float)filtered_joint_angle[0];
+	tx_angle[1] = (float)filtered_joint_angle[1];
+	tx_angle[2] = (float)filtered_joint_angle[2];
+	tx_angle[3] = (float)filtered_joint_angle[3];
+	tx_angle[4] = (float)filtered_joint_angle[4];
+	tx_angle[5] = (float)filtered_joint_angle[5];
 	
 	if(HAL_GetTick() - prev_time_send > send_data_interval){
 		for(int i=0; i<25; i++){

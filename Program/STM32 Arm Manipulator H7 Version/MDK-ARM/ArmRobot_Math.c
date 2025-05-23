@@ -6,11 +6,6 @@
 
 #include "ArmRobot_Math.h"
 
-double 
-U[6][6],
-L[6][6],
-det = 1.0;
-
 /* MATRIX MULTIPLY ---------------------------------------------------------------------------------------------------------------------------------*/
 
 /* Multiply Matrix 4x4 */
@@ -38,6 +33,11 @@ void multiply_3x3(double a[3][3], double b[3][3], double c[3][3]){
 }
 
 double determinant_6x6(double A[6][6]){
+	double 
+	U[6][6],
+	L[6][6],
+	det = 1.0;
+	
 	// Initialize L as identity and copy A to U
 	for(int i=0; i<6; i++){
 		for(int j=0; j<6; j++){
@@ -127,151 +127,151 @@ void forward_transform_matrix(Kinematics_t *param){
 	param->bs_mat_trans[3][3] = 1;
 	
 	// Joint 1 Transformation Matrix 
-	param->j1_mat_trans[0][0] = cos(param->dh_theta[0]);												
-	param->j1_mat_trans[0][1] = -sin(param->dh_theta[0])*cos(param->dh_alpha[0]);	
-	param->j1_mat_trans[0][2] = sin(param->dh_theta[0])*sin(param->dh_alpha[0]);
-	param->j1_mat_trans[0][3] = param->dh_a[0]*cos(param->dh_theta[0]);
+	param->j1_mat_trans[0][0] = sanitize_zero(cos(param->dh_theta[0]));												
+	param->j1_mat_trans[0][1] = sanitize_zero(-sin(param->dh_theta[0])*cos(param->dh_alpha[0]));	
+	param->j1_mat_trans[0][2] = sanitize_zero(sin(param->dh_theta[0])*sin(param->dh_alpha[0]));
+	param->j1_mat_trans[0][3] = sanitize_zero(param->dh_a[0]*cos(param->dh_theta[0]));
 	
-	param->j1_mat_trans[1][0] = sin(param->dh_theta[0]);												
-	param->j1_mat_trans[1][1] = cos(param->dh_theta[0])*cos(param->dh_alpha[0]);	
-	param->j1_mat_trans[1][2] = -cos(param->dh_theta[0])*sin(param->dh_alpha[0]);
-	param->j1_mat_trans[1][3] = param->dh_a[0]*sin(param->dh_theta[0]);
+	param->j1_mat_trans[1][0] = sanitize_zero(sin(param->dh_theta[0]));												
+	param->j1_mat_trans[1][1] = sanitize_zero(cos(param->dh_theta[0])*cos(param->dh_alpha[0]));	
+	param->j1_mat_trans[1][2] = sanitize_zero(-cos(param->dh_theta[0])*sin(param->dh_alpha[0]));
+	param->j1_mat_trans[1][3] = sanitize_zero(param->dh_a[0]*sin(param->dh_theta[0]));
 	
-	param->j1_mat_trans[2][0] = 0; 																																				
-	param->j1_mat_trans[2][1] = sin(param->dh_alpha[0]);
-	param->j1_mat_trans[2][2] = cos(param->dh_alpha[0]);
-	param->j1_mat_trans[2][3] = param->dh_d[0];
+	param->j1_mat_trans[2][0] = 0.0; 																																				
+	param->j1_mat_trans[2][1] = sanitize_zero(sin(param->dh_alpha[0]));
+	param->j1_mat_trans[2][2] = sanitize_zero(cos(param->dh_alpha[0]));
+	param->j1_mat_trans[2][3] = sanitize_zero(param->dh_d[0]);
 	
-	param->j1_mat_trans[3][0] = 0; 																																													
-	param->j1_mat_trans[3][1] = 0;			
-	param->j1_mat_trans[3][2] = 0;
-	param->j1_mat_trans[3][3] = 1;	
+	param->j1_mat_trans[3][0] = 0.0; 																																													
+	param->j1_mat_trans[3][1] = 0.0;			
+	param->j1_mat_trans[3][2] = 0.0;
+	param->j1_mat_trans[3][3] = 1.0;	
 
 	// Joint 2 Transformation Matrix 
-	param->j2_mat_trans[0][0] = cos(param->dh_theta[1]);												
-	param->j2_mat_trans[0][1] = -sin(param->dh_theta[1])*cos(param->dh_alpha[1]);	
-	param->j2_mat_trans[0][2] = sin(param->dh_theta[1])*sin(param->dh_alpha[1]);
-	param->j2_mat_trans[0][3] = param->dh_a[1]*cos(param->dh_theta[1]);
+	param->j2_mat_trans[0][0] = sanitize_zero(cos(param->dh_theta[1]));												
+	param->j2_mat_trans[0][1] = sanitize_zero(-sin(param->dh_theta[1])*cos(param->dh_alpha[1]));	
+	param->j2_mat_trans[0][2] = sanitize_zero(sin(param->dh_theta[1])*sin(param->dh_alpha[1]));
+	param->j2_mat_trans[0][3] = sanitize_zero(param->dh_a[1]*cos(param->dh_theta[1]));
 	
-	param->j2_mat_trans[1][0] = sin(param->dh_theta[1]);												
-	param->j2_mat_trans[1][1] = cos(param->dh_theta[1])*cos(param->dh_alpha[1]);	
-	param->j2_mat_trans[1][2] = -cos(param->dh_theta[1])*sin(param->dh_alpha[1]);
-	param->j2_mat_trans[1][3] = param->dh_a[1]*sin(param->dh_theta[1]);
+	param->j2_mat_trans[1][0] = sanitize_zero(sin(param->dh_theta[1]));												
+	param->j2_mat_trans[1][1] = sanitize_zero(cos(param->dh_theta[1])*cos(param->dh_alpha[1]));	
+	param->j2_mat_trans[1][2] = sanitize_zero(-cos(param->dh_theta[1])*sin(param->dh_alpha[1]));
+	param->j2_mat_trans[1][3] = sanitize_zero(param->dh_a[1]*sin(param->dh_theta[1]));
 
-	param->j2_mat_trans[2][0] = 0; 																																				
-	param->j2_mat_trans[2][1] = sin(param->dh_alpha[1]);
-	param->j2_mat_trans[2][2] = cos(param->dh_alpha[1]);
-	param->j2_mat_trans[2][3] = param->dh_d[1];
+	param->j2_mat_trans[2][0] = 0.0; 																																				
+	param->j2_mat_trans[2][1] = sanitize_zero(sin(param->dh_alpha[1]));
+	param->j2_mat_trans[2][2] = sanitize_zero(cos(param->dh_alpha[1]));
+	param->j2_mat_trans[2][3] = sanitize_zero(param->dh_d[1]);
 	
-	param->j2_mat_trans[3][0] = 0; 																																													
-	param->j2_mat_trans[3][1] = 0;			
-	param->j2_mat_trans[3][2] = 0;
-	param->j2_mat_trans[3][3] = 1;	
+	param->j2_mat_trans[3][0] = 0.0; 																																													
+	param->j2_mat_trans[3][1] = 0.0;			
+	param->j2_mat_trans[3][2] = 0.0;
+	param->j2_mat_trans[3][3] = 1.0;	
 	
 	// Joint 3 Transformation Matrix 
-	param->j3_mat_trans[0][0] = cos(param->dh_theta[2]);												
-	param->j3_mat_trans[0][1] = -sin(param->dh_theta[2])*cos(param->dh_alpha[2]);	
-	param->j3_mat_trans[0][2] = sin(param->dh_theta[2])*sin(param->dh_alpha[2]);
-	param->j3_mat_trans[0][3] = param->dh_a[2]*cos(param->dh_theta[2]);
+	param->j3_mat_trans[0][0] = sanitize_zero(cos(param->dh_theta[2]));												
+	param->j3_mat_trans[0][1] = sanitize_zero(-sin(param->dh_theta[2])*cos(param->dh_alpha[2]));	
+	param->j3_mat_trans[0][2] = sanitize_zero(sin(param->dh_theta[2])*sin(param->dh_alpha[2]));
+	param->j3_mat_trans[0][3] = sanitize_zero(param->dh_a[2]*cos(param->dh_theta[2]));
 	
-	param->j3_mat_trans[1][0] = sin(param->dh_theta[2]);												
-	param->j3_mat_trans[1][1] = cos(param->dh_theta[2])*cos(param->dh_alpha[2]);	
-	param->j3_mat_trans[1][2] = -cos(param->dh_theta[2])*sin(param->dh_alpha[2]);
-	param->j3_mat_trans[1][3] = param->dh_a[2]*sin(param->dh_theta[2]);
+	param->j3_mat_trans[1][0] = sanitize_zero(sin(param->dh_theta[2]));												
+	param->j3_mat_trans[1][1] = sanitize_zero(cos(param->dh_theta[2])*cos(param->dh_alpha[2]));	
+	param->j3_mat_trans[1][2] = sanitize_zero(-cos(param->dh_theta[2])*sin(param->dh_alpha[2]));
+	param->j3_mat_trans[1][3] = sanitize_zero(param->dh_a[2]*sin(param->dh_theta[2]));
 
-	param->j3_mat_trans[2][0] = 0; 																																				
-	param->j3_mat_trans[2][1] = sin(param->dh_alpha[2]);
-	param->j3_mat_trans[2][2] = cos(param->dh_alpha[2]);
-	param->j3_mat_trans[2][3] = param->dh_d[2];
+	param->j3_mat_trans[2][0] = 0.0; 																																				
+	param->j3_mat_trans[2][1] = sanitize_zero(sin(param->dh_alpha[2]));
+	param->j3_mat_trans[2][2] = sanitize_zero(cos(param->dh_alpha[2]));
+	param->j3_mat_trans[2][3] = sanitize_zero(param->dh_d[2]);
 	
-	param->j3_mat_trans[3][0] = 0; 																																													
-	param->j3_mat_trans[3][1] = 0;			
-	param->j3_mat_trans[3][2] = 0;
-	param->j3_mat_trans[3][3] = 1;
+	param->j3_mat_trans[3][0] = 0.0; 																																													
+	param->j3_mat_trans[3][1] = 0.0;			
+	param->j3_mat_trans[3][2] = 0.0;
+	param->j3_mat_trans[3][3] = 1.0;
 
 	// Joint 4 Transformation Matrix 
-	param->j4_mat_trans[0][0] = cos(param->dh_theta[3]);												
-	param->j4_mat_trans[0][1] = -sin(param->dh_theta[3])*cos(param->dh_alpha[3]);	
-	param->j4_mat_trans[0][2] = sin(param->dh_theta[3])*sin(param->dh_alpha[3]);
-	param->j4_mat_trans[0][3] = param->dh_a[3]*cos(param->dh_theta[3]);
+	param->j4_mat_trans[0][0] = sanitize_zero(cos(param->dh_theta[3]));												
+	param->j4_mat_trans[0][1] = sanitize_zero(-sin(param->dh_theta[3])*cos(param->dh_alpha[3]));	
+	param->j4_mat_trans[0][2] = sanitize_zero(sin(param->dh_theta[3])*sin(param->dh_alpha[3]));
+	param->j4_mat_trans[0][3] = sanitize_zero(param->dh_a[3]*cos(param->dh_theta[3]));
 
-	param->j4_mat_trans[1][0] = sin(param->dh_theta[3]);												
-	param->j4_mat_trans[1][1] = cos(param->dh_theta[3])*cos(param->dh_alpha[3]);	
-	param->j4_mat_trans[1][2] = -cos(param->dh_theta[3])*sin(param->dh_alpha[3]);
-	param->j4_mat_trans[1][3] = param->dh_a[3]*sin(param->dh_theta[3]);
+	param->j4_mat_trans[1][0] = sanitize_zero(sin(param->dh_theta[3]));												
+	param->j4_mat_trans[1][1] = sanitize_zero(cos(param->dh_theta[3])*cos(param->dh_alpha[3]));	
+	param->j4_mat_trans[1][2] = sanitize_zero(-cos(param->dh_theta[3])*sin(param->dh_alpha[3]));
+	param->j4_mat_trans[1][3] = sanitize_zero(param->dh_a[3]*sin(param->dh_theta[3]));
 
-	param->j4_mat_trans[2][0] = 0; 																																				
-	param->j4_mat_trans[2][1] = sin(param->dh_alpha[3]);
-	param->j4_mat_trans[2][2] = cos(param->dh_alpha[3]);
-	param->j4_mat_trans[2][3] = param->dh_d[3];
+	param->j4_mat_trans[2][0] = 0.0; 																																				
+	param->j4_mat_trans[2][1] = sanitize_zero(sin(param->dh_alpha[3]));
+	param->j4_mat_trans[2][2] = sanitize_zero(cos(param->dh_alpha[3]));
+	param->j4_mat_trans[2][3] = sanitize_zero(param->dh_d[3]);
 	
-	param->j4_mat_trans[3][0] = 0; 																																													
-	param->j4_mat_trans[3][1] = 0;			
-	param->j4_mat_trans[3][2] = 0;
-	param->j4_mat_trans[3][3] = 1;
+	param->j4_mat_trans[3][0] = 0.0; 																																													
+	param->j4_mat_trans[3][1] = 0.0;		
+	param->j4_mat_trans[3][2] = 0.0;
+	param->j4_mat_trans[3][3] = 1,0;
 	
 	// Joint 5 Transformation Matrix 
-	param->j5_mat_trans[0][0] = cos(param->dh_theta[4]);												
-	param->j5_mat_trans[0][1] = -sin(param->dh_theta[4])*cos(param->dh_alpha[4]);	
-	param->j5_mat_trans[0][2] = sin(param->dh_theta[4])*sin(param->dh_alpha[4]);
-	param->j5_mat_trans[0][3] = param->dh_a[4]*cos(param->dh_theta[4]);
+	param->j5_mat_trans[0][0] = sanitize_zero(cos(param->dh_theta[4]));												
+	param->j5_mat_trans[0][1] = sanitize_zero(-sin(param->dh_theta[4])*cos(param->dh_alpha[4]));	
+	param->j5_mat_trans[0][2] = sanitize_zero(sin(param->dh_theta[4])*sin(param->dh_alpha[4]));
+	param->j5_mat_trans[0][3] = sanitize_zero(param->dh_a[4]*cos(param->dh_theta[4]));
 
-	param->j5_mat_trans[1][0] = sin(param->dh_theta[4]);												
-	param->j5_mat_trans[1][1] = cos(param->dh_theta[4])*cos(param->dh_alpha[4]);	
-	param->j5_mat_trans[1][2] = -cos(param->dh_theta[4])*sin(param->dh_alpha[4]);
-	param->j5_mat_trans[1][3] = param->dh_a[4]*sin(param->dh_theta[4]);
+	param->j5_mat_trans[1][0] = sanitize_zero(sin(param->dh_theta[4]));												
+	param->j5_mat_trans[1][1] = sanitize_zero(cos(param->dh_theta[4])*cos(param->dh_alpha[4]));	
+	param->j5_mat_trans[1][2] = sanitize_zero(-cos(param->dh_theta[4])*sin(param->dh_alpha[4]));
+	param->j5_mat_trans[1][3] = sanitize_zero(param->dh_a[4]*sin(param->dh_theta[4]));
 
-	param->j5_mat_trans[2][0] = 0; 																																				
-	param->j5_mat_trans[2][1] = sin(param->dh_alpha[4]);
-	param->j5_mat_trans[2][2] = cos(param->dh_alpha[4]);
-	param->j5_mat_trans[2][3] = param->dh_d[4];
+	param->j5_mat_trans[2][0] = 0.0; 																																				
+	param->j5_mat_trans[2][1] = sanitize_zero(sin(param->dh_alpha[4]));
+	param->j5_mat_trans[2][2] = sanitize_zero(cos(param->dh_alpha[4]));
+	param->j5_mat_trans[2][3] = sanitize_zero(param->dh_d[4]);
 	
-	param->j5_mat_trans[3][0] = 0; 																																													
-	param->j5_mat_trans[3][1] = 0;			
-	param->j5_mat_trans[3][2] = 0;
-	param->j5_mat_trans[3][3] = 1;
+	param->j5_mat_trans[3][0] = 0.0; 																																													
+	param->j5_mat_trans[3][1] = 0.0;			
+	param->j5_mat_trans[3][2] = 0.0;
+	param->j5_mat_trans[3][3] = 1.0;
 	
 	// Joint 6 Transformation Matrix 
-	param->j6_mat_trans[0][0] = cos(param->dh_theta[5]);												
-	param->j6_mat_trans[0][1] = -sin(param->dh_theta[5])*cos(param->dh_alpha[5]);	
-	param->j6_mat_trans[0][2] = sin(param->dh_theta[5])*sin(param->dh_alpha[5]);
-	param->j6_mat_trans[0][3] = param->dh_a[5]*cos(param->dh_theta[5]);
+	param->j6_mat_trans[0][0] = sanitize_zero(cos(param->dh_theta[5]));												
+	param->j6_mat_trans[0][1] = sanitize_zero(-sin(param->dh_theta[5])*cos(param->dh_alpha[5]));	
+	param->j6_mat_trans[0][2] = sanitize_zero(sin(param->dh_theta[5])*sin(param->dh_alpha[5]));
+	param->j6_mat_trans[0][3] = sanitize_zero(param->dh_a[5]*cos(param->dh_theta[5]));
 
-	param->j6_mat_trans[1][0] = sin(param->dh_theta[5]);												
-	param->j6_mat_trans[1][1] = cos(param->dh_theta[5])*cos(param->dh_alpha[5]);	
-	param->j6_mat_trans[1][2] = -cos(param->dh_theta[5])*sin(param->dh_alpha[5]);
-	param->j6_mat_trans[1][3] = param->dh_a[5]*sin(param->dh_theta[5]);
+	param->j6_mat_trans[1][0] = sanitize_zero(sin(param->dh_theta[5]));												
+	param->j6_mat_trans[1][1] = sanitize_zero(cos(param->dh_theta[5])*cos(param->dh_alpha[5]));	
+	param->j6_mat_trans[1][2] = sanitize_zero(-cos(param->dh_theta[5])*sin(param->dh_alpha[5]));
+	param->j6_mat_trans[1][3] = sanitize_zero(param->dh_a[5]*sin(param->dh_theta[5]));
 
-	param->j6_mat_trans[2][0] = 0; 																																				
-	param->j6_mat_trans[2][1] = sin(param->dh_alpha[5]);
-	param->j6_mat_trans[2][2] = cos(param->dh_alpha[5]);
-	param->j6_mat_trans[2][3] = param->dh_d[5];
+	param->j6_mat_trans[2][0] = 0.0; 																																				
+	param->j6_mat_trans[2][1] = sanitize_zero(sin(param->dh_alpha[5]));
+	param->j6_mat_trans[2][2] = sanitize_zero(cos(param->dh_alpha[5]));
+	param->j6_mat_trans[2][3] = sanitize_zero(param->dh_d[5]);
 	
-	param->j6_mat_trans[3][0] = 0; 																																													
-	param->j6_mat_trans[3][1] = 0;			
-	param->j6_mat_trans[3][2] = 0;
-	param->j6_mat_trans[3][3] = 1;
+	param->j6_mat_trans[3][0] = 0.0; 																																													
+	param->j6_mat_trans[3][1] = 0.0;			
+	param->j6_mat_trans[3][2] = 0.0;
+	param->j6_mat_trans[3][3] = 1.0;
 	
 	// Toolframe Transformation Matrix
-	param->tf_mat_trans[0][0] = cos(param->tool_rz)*cos(param->tool_ry);
-	param->tf_mat_trans[0][1] = cos(param->tool_rz)*sin(param->tool_ry)*sin(param->tool_rx) - sin(param->tool_rz)*cos(param->tool_rx);
-	param->tf_mat_trans[0][2] = cos(param->tool_rz)*sin(param->tool_ry)*cos(param->tool_rx) + sin(param->tool_rz)*sin(param->tool_rx);
-	param->tf_mat_trans[0][3] = param->tool_x;
+	param->tf_mat_trans[0][0] = sanitize_zero(cos(param->tool_rz)*cos(param->tool_ry));
+	param->tf_mat_trans[0][1] = sanitize_zero(cos(param->tool_rz)*sin(param->tool_ry)*sin(param->tool_rx) - sin(param->tool_rz)*cos(param->tool_rx));
+	param->tf_mat_trans[0][2] = sanitize_zero(cos(param->tool_rz)*sin(param->tool_ry)*cos(param->tool_rx) + sin(param->tool_rz)*sin(param->tool_rx));
+	param->tf_mat_trans[0][3] = sanitize_zero(param->tool_x);
 	
-	param->tf_mat_trans[1][0] = sin(param->tool_rz)*cos(param->tool_ry);
-	param->tf_mat_trans[1][1] = sin(param->tool_rz)*sin(param->tool_ry)*sin(param->tool_rx) + cos(param->tool_rz)*cos(param->tool_rx);
-	param->tf_mat_trans[1][2] = sin(param->tool_rz)*sin(param->tool_ry)*cos(param->tool_rx) - cos(param->tool_rz)*sin(param->tool_rx);
-	param->tf_mat_trans[1][3] = param->tool_y;
+	param->tf_mat_trans[1][0] = sanitize_zero(sin(param->tool_rz)*cos(param->tool_ry));
+	param->tf_mat_trans[1][1] = sanitize_zero(sin(param->tool_rz)*sin(param->tool_ry)*sin(param->tool_rx) + cos(param->tool_rz)*cos(param->tool_rx));
+	param->tf_mat_trans[1][2] = sanitize_zero(sin(param->tool_rz)*sin(param->tool_ry)*cos(param->tool_rx) - cos(param->tool_rz)*sin(param->tool_rx));
+	param->tf_mat_trans[1][3] = sanitize_zero(param->tool_y);
 	
-	param->tf_mat_trans[2][0] = -sin(param->tool_ry);
-	param->tf_mat_trans[2][1] = cos(param->tool_ry)*sin(param->tool_rx);
-	param->tf_mat_trans[2][2] = cos(param->tool_ry)*cos(param->tool_rx);
-	param->tf_mat_trans[2][3] = param->tool_z;
+	param->tf_mat_trans[2][0] = sanitize_zero(-sin(param->tool_ry));
+	param->tf_mat_trans[2][1] = sanitize_zero(cos(param->tool_ry)*sin(param->tool_rx));
+	param->tf_mat_trans[2][2] = sanitize_zero(cos(param->tool_ry)*cos(param->tool_rx));
+	param->tf_mat_trans[2][3] = sanitize_zero(param->tool_z);
 	
-	param->tf_mat_trans[3][0] = 0;
-	param->tf_mat_trans[3][1] = 0;
-	param->tf_mat_trans[3][2] = 0;
-	param->tf_mat_trans[3][3] = 1;
+	param->tf_mat_trans[3][0] = 0.0;
+	param->tf_mat_trans[3][1] = 0.0;
+	param->tf_mat_trans[3][2] = 0.0;
+	param->tf_mat_trans[3][3] = 1.0;
 }
 
 /* Calculate All Link Transformation*/
@@ -303,9 +303,13 @@ void calculate_all_link(Kinematics_t *param){
 	param->axis_pos_out[2] = param->trans_mat_0_t[2][3];	// Z axis
 	
 	// Get Toolframe Axis Rotation
-	param->axis_rot_out[1] = (atan2(-param->trans_mat_0_t[2][0], sqrt(pow(param->trans_mat_0_t[2][1], 2) + pow(param->trans_mat_0_t[2][2], 2))))/DEG2RAD; 		// Y axis
-	param->axis_rot_out[0] = (atan2(param->trans_mat_0_t[2][1]/cos(param->axis_rot_out[1]), param->trans_mat_0_t[2][2]/cos(param->axis_rot_out[1])))/DEG2RAD;	// X axis
-	param->axis_rot_out[2] = (atan2(param->trans_mat_0_t[1][0]/cos(param->axis_rot_out[1]), param->trans_mat_0_t[0][0]/cos(param->axis_rot_out[1])))/DEG2RAD;	// Z axis
+	param->axis_rot_rad[1] = atan2(-param->trans_mat_0_t[2][0], sqrt(pow(param->trans_mat_0_t[2][1], 2) + pow(param->trans_mat_0_t[2][2], 2))); 			// Y axis
+	param->axis_rot_rad[0] = atan2(param->trans_mat_0_t[2][1]/cos(param->axis_rot_rad[1]), param->trans_mat_0_t[2][2]/cos(param->axis_rot_rad[1]));		// X axis
+	param->axis_rot_rad[2] = atan2(param->trans_mat_0_t[1][0]/cos(param->axis_rot_rad[1]), param->trans_mat_0_t[0][0]/cos(param->axis_rot_rad[1]));		// Z axis
+	
+	param->axis_rot_out[0] = param->axis_rot_rad[0] / DEG2RAD;
+	param->axis_rot_out[1] = param->axis_rot_rad[1] / DEG2RAD;
+	param->axis_rot_out[2] = param->axis_rot_rad[2] / DEG2RAD;
 }
 
 /* Forward Kinematics Calculation */
@@ -658,10 +662,19 @@ void find_jacobian_variable(Kinematics_t *param){
 
 // Check Sinuglarity
 void check_singularity(Kinematics_t *param){
-	if(determinant_6x6(param->jacobian_matrix) == 0){
+	param->jacobian_det = determinant_6x6(param->jacobian_matrix);
+	
+	if(param->jacobian_det == 0.00000000000000){
 		param->singularity = true;
 	}
 	else param->singularity =  false;
 }
 
+/* --------------------------------------------------------------------------------------------------------------------------------------------------*/
+
+
+/* MINUS ZERO PREVENTION ----------------------------------------------------------------------------------------------------------------------------*/
+double sanitize_zero(double value){
+	return (value == 0.0) ? 0.0 : value;
+}
 /* --------------------------------------------------------------------------------------------------------------------------------------------------*/

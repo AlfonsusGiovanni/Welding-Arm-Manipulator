@@ -55,13 +55,13 @@ typedef enum{
 	HOLD_MENU,
 	MAPPING_ERR_MENU,
 	PREVIEW_ERR_MENU,
+	WELDING_ERR_MENU,
 	MAPPING_SAVE_MENU,
 	POINT_SET_MENU,
 	POINT_UNSET_MENU,
 	EEPROM_ERR_MENU,
 	RS232_ERR_MENU,
 	KEYPAD_ERR_MENU,
-	ANGLE_LIMIT_MENU,
 }LCD_Menu_t;
 LCD_Menu_t select_menu;
 
@@ -97,13 +97,6 @@ Data_Get_t command;
 #define EEPROM1_ADDRESS					0xA0
 #define DATA_BYTE_SHIFT					0x02
 #define DATA_PAGE_SHIFT					0x01
-
-
-/*ERROR WARNING SET*/
-//----------------------------
-#define MISS_STEP_ERR			0xA0
-#define SOFT_LIMIT_ERR		0xB0
-#define HARD_LIMIT_ERR		0xC0
 
 
 /*FUNCTION CONFIG SET*/
@@ -228,7 +221,7 @@ rot_value[3], move_rot_value[3],
 A1, A2, A3, A4, A5, A6,
 moveX, moveY, moveZ,
 distance_val,
-max_axis_distance = 100,
+max_axis_distance = 200,
 max_joint_distance = 90;
 
 
@@ -292,7 +285,7 @@ int16_t
 ctrl_mode_counter,			// Counter Mode Kontrol - (World, Joint)
 move_mode_counter,			// Counter Mode Gerak - (Continuous, Distance, Step)
 move_var_counter,				// Counter Variabel Gerak - (X, Y, Z, Rx, Ry, Rz, J1-J6)
-run_mode_counter,				// Counter Mode Running - (Welding, Preview)
+run_mode_counter,				// Counter Mode Running - (Mapping, Preview, Welding)
 speed_mode_counter,			// Counter Mode Kecepatan Pada Welding Point - (LOW, MED, HIGH)
 mapping_menu_counter,		// Counter Menu Mapping - (Menu 1, Menu 2, Menu 3)
 mapped_point_counter,		// Counter Titik Mapping
@@ -882,11 +875,12 @@ void blink_led(uint8_t delay_time, uint8_t count){
 /*--- USER INTERFACE HANDLER ---*/
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void ui_handler(void){
-	// Read Keypad ***********************
+	/* READ KEYPAD *//////////////////////
 	keys = Keypad_Read(&keypad);
 	if(keys != prev_keys && keys != 0x00){
 		lcd_update();
 	}
+	
 	
 	/* EMERGENCY MENU HANDLER *//////////////////////////////////////////////////////////////////////////////////
 	if(select_menu == EMERGENCY_MENU1){
@@ -906,7 +900,7 @@ void ui_handler(void){
 	}
 	
 	
-	/* SETTING MENU HANDLER *//////////////////////////
+	/* SETTING MENU HANDLER */////////////////////////////////////
 	else if(select_menu == SETTING_MENU){
 		keys = Keypad_Read(&keypad);
 		
@@ -1290,7 +1284,7 @@ void ui_handler(void){
 	/* MAPPING MENU UI HANDLER */////////////////////////////////////////////////////////////////////////////////
 	else if(select_menu == MAPPING_MENU){
 		// BACK TO PREPARATION MENU **************************************
-		if(keys == '.' && prev_keys != keys && mapping_menu_counter == 0){
+		if(keys == '#' && prev_keys != keys && mapping_menu_counter == 0){
 			change_menu(PREP_MENU);
 		}
 		
@@ -1598,10 +1592,7 @@ void ui_handler(void){
 		if((preview_point & mapped_points[preview_point-1]) == preview_point && preview_point != 0 && preview_speed != 0){
 			while(1){
 				keys = Keypad_Read(&keypad);
-				
-				if(keys != prev_keys && keys != 0x00){
-					lcd_update();
-				}
+
 				
 				if(command.feedback == CURRENT_POINT_DONE){
 					move_mode_counter = 0;
@@ -1649,7 +1640,7 @@ void ui_handler(void){
 		// **********************************
 		
 
-		// CHANGE WELDING MENU *********************************
+		// CHANGE WELDING MOVE VALUE ***************************
 		else if(keys == 'W' && prev_keys != keys){
 			ctrl_mode_counter++;
 			if(ctrl_mode_counter > 1) ctrl_mode_counter = 0;
@@ -1719,10 +1710,10 @@ void ui_handler(void){
 		// WAIT FOR AUTO HOMING DONE ************
 		while(1){
 			if(current_running_mode == WELDING_MODE){
-				Send_running(&command, RUNNING_PAUSE, WELDING_MODE, 0);
+				Send_running(&command, RUNNING_STOP, WELDING_MODE, 0);
 			}
 			else if(current_running_mode == PREVIEW_MODE){
-				Send_running(&command, RUNNING_PAUSE, PREVIEW_MODE, preview_point);
+				Send_running(&command, RUNNING_STOP, PREVIEW_MODE, preview_point);
 			}
 			
 			if(command.feedback == CALIBRATION_DONE){
@@ -1764,24 +1755,24 @@ void show_menu(LCD_Menu_t menu){
 	if(menu == EMERGENCY_MENU2){
 		lcd_set_cursor(1, 0);
 		lcd_printstr("<JOINT MISS STEPS>");
-		lcd_set_cursor(3, 1);
+		lcd_set_cursor(2, 1);
 		lcd_printstr("Error Code: ");
-		lcd_printint(MISS_STEP_ERR | command.feedback_num); 
+		lcd_printhex(command.feedback_num, HEX_8BIT); 
 		lcd_set_cursor(0, 3);
-		lcd_printstr("PRESS ESC TO RESET!");
+		lcd_printstr("PRESS ESC TO RESET!!");
 	}
 	//////////////////////////////////////////////////////
 	
 	
 	/* EMERGENCY MENU 3 */////////////////////////////////
 	if(menu == EMERGENCY_MENU3){
-		lcd_set_cursor(1, 1);
+		lcd_set_cursor(1, 0);
 		lcd_printstr("<ANGLE SOFT LIMIT>");
-		lcd_set_cursor(3, 1);
+		lcd_set_cursor(2, 1);
 		lcd_printstr("Error Code: ");
-		lcd_printint(SOFT_LIMIT_ERR | command.feedback_num); 
+		lcd_printhex(command.feedback_num, HEX_8BIT); 
 		lcd_set_cursor(0, 2);
-		lcd_printstr("PRESS ESC TO RESET!");
+		lcd_printstr("PRESS ESC TO RESET!!");
 	}
 	//////////////////////////////////////////////////////
 	
@@ -1790,11 +1781,11 @@ void show_menu(LCD_Menu_t menu){
 	if(menu == EMERGENCY_MENU4){
 		lcd_set_cursor(1, 0);
 		lcd_printstr("<ANGLE HARD LIMIT>");
-		lcd_set_cursor(3, 1);
+		lcd_set_cursor(2, 1);
 		lcd_printstr("Error Code: ");
-		lcd_printint(HARD_LIMIT_ERR | command.feedback_num); 
+		lcd_printhex(command.feedback_num, HEX_8BIT); 
 		lcd_set_cursor(0, 3);
-		lcd_printstr("PRESS ESC TO RESET!");
+		lcd_printstr("PRESS ESC TO RESET!!");
 	}
 	//////////////////////////////////////////////////////
 	
@@ -2506,6 +2497,19 @@ void show_menu(LCD_Menu_t menu){
 	/////////////////////////////////////
 	
 	
+	/* WELDING ERROR MENU *//////////////
+	else if(menu == WELDING_ERR_MENU){
+		lcd_set_cursor(1, 0);
+		lcd_printstr("<POINT  CORRUPTED>");
+		lcd_set_cursor(1, 1);
+		lcd_printstr("Error Code: ");
+		lcd_printstr("0xFFFF"); 
+		lcd_set_cursor(2, 3);
+		lcd_printstr("PLEASE DO RE-MAP");
+	}
+	/////////////////////////////////////
+	
+	
 	/* POINT SET MENU*///////////////
 	else if(menu == POINT_SET_MENU){
 		lcd_set_cursor(4, 1);
@@ -2536,7 +2540,7 @@ void show_menu(LCD_Menu_t menu){
 	///////////////////////////////////
 	
 	
-	/* STOP MENU */////////////////////
+	/* STOP MENU *///////////////////////
 	else if(menu == STOP_MENU){
 		if(run_mode_counter == 1){
 			lcd_set_cursor(2, 0);
@@ -2556,7 +2560,37 @@ void show_menu(LCD_Menu_t menu){
 			lcd_printstr("ROBOT HOMING");
 		}
 	}
-	///////////////////////////////////
+	/////////////////////////////////////
+	
+	
+	/* EEPROM ERROR MENU *///////////////
+	else if(menu == EEPROM_ERR_MENU){
+		lcd_set_cursor(1, 1);
+		lcd_printstr("EEPROM INIT ERROR!");
+		lcd_set_cursor(3, 2);
+		lcd_printstr("PLEASE RESTART");
+	}
+	/////////////////////////////////////
+
+
+	/* RS232 ERROR MENU *////////////////
+	else if(menu == RS232_ERR_MENU){
+		lcd_set_cursor(1, 1);
+		lcd_printstr("RS-232 INIT ERROR!");
+		lcd_set_cursor(3, 2);
+		lcd_printstr("PLEASE RESTART");
+	}
+	/////////////////////////////////////
+	
+	
+	/* KEYPAD ERROR MENU *///////////////
+	else if(menu == KEYPAD_ERR_MENU){
+		lcd_set_cursor(1, 1);
+		lcd_printstr("KEYPAD INIT ERROR!");
+		lcd_set_cursor(3, 2);
+		lcd_printstr("PLEASE RESTART");
+	}
+	/////////////////////////////////////
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 

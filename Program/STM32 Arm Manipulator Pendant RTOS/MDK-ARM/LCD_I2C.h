@@ -76,6 +76,11 @@ Date		: 22 October 2023
 #define BACKLIGHT_OFF		0x00
 
 
+/*---HEX BIT SELECT---*/
+#define HEX_8BIT				0x01
+#define HEX_16BIT				0x02
+
+
 /*---LCD STATUS TYPEDEF---*/
 typedef enum{
 	LCD_OK = 0x01U,
@@ -99,6 +104,9 @@ void lcd_printstr(char *string);
 
 // LCD PRINT INTEGER VARIABLE
 void lcd_printint(int input);
+
+// LCD PRINT HEX VARIABLE
+void lcd_printhex(int input, uint8_t bit_num);
 
 // LCD PRINT FLOAT VARIABLE
 void lcd_printfloat(float input, uint8_t precision);

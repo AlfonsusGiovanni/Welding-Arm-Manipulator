@@ -64,6 +64,7 @@ typedef struct{
 	trans_mat_0_t[4][4],	// Matriks transformasi base frame ke toolframe
 	
 	axis_pos_out[3],	// Output posisi pada setiap sumbu
+	axis_rot_rad[3],	// Output rotasi pada setiap sumbu
 	axis_rot_out[3];	// Output rotasi pada setiap sumbu
 	
 	double
@@ -166,6 +167,11 @@ void find_jacobian_variable(Kinematics_t *param);
 // Check Sinuglarity
 void check_singularity(Kinematics_t *param);
 
+/* ------------------------------------------------------------------------------------------------------------------------------------------------*/
+
+
+/* MINUS ZERO PREVENTION --------------------------------------------------------------------------------------------------------------------------*/
+double sanitize_zero(double value);
 /* ------------------------------------------------------------------------------------------------------------------------------------------------*/
 
 #endif

@@ -64,6 +64,7 @@ typedef struct{
 	trans_mat_0_t[4][4],	// Matriks transformasi base frame ke toolframe
 	
 	axis_pos_out[3],	// Output posisi pada setiap sumbu
+	axis_rot_rad[3],	// Output rotasi pada setiap sumbu
 	axis_rot_out[3];	// Output rotasi pada setiap sumbu
 	
 	double
@@ -122,6 +123,7 @@ typedef struct{
 }Kinematics_t;
 
 /* MATRIX FUNCTION ---------------------------------------------------------------------------------------------------------------------------------*/
+
 /* Multiply Matrix 4x4 */
 void multiply_4x4(double a[4][4], double b[4][4], double c[4][4]);
 /* Multiply Matrix 3x3 */
@@ -129,8 +131,11 @@ void multiply_3x3(double a[3][3], double b[3][3], double c[3][3]);
 /* Matrix 6x6 Determinant*/
 double determinant_6x6(double A[6][6]);
 
+/* -------------------------------------------------------------------------------------------------------------------------------------------------*/
+
 
 /* FORWARD KINEMATICS ------------------------------------------------------------------------------------------------------------------------------*/
+
 /* DH Parameter Variable Init */
 void DHparam_init(Kinematics_t *param, double input_link_offset[6], double input_link_length[6], double input_link_twist[6]);
 /* Toolframe Variable Init */
@@ -142,19 +147,31 @@ void calculate_all_link(Kinematics_t *param);
 /* Forward Kinematics Calculation */
 void run_forward_kinematic(Kinematics_t *param, double joint_angle[6]);
 
+/* -------------------------------------------------------------------------------------------------------------------------------------------------*/
+
 
 /* INVERSE KINEMATICS ------------------------------------------------------------------------------------------------------------------------------*/
+
 /* Invert Toolframe Axis Rotation Calculation */
 double calculate_tf_rot_axis(Kinematics_t *param, uint8_t sel_axis);
 /* Inverse Kinematic Parameter Variable Init */
 void run_inverse_kinematic(Kinematics_t *param, double input_x, double input_y, double input_z, double input_rx, double input_ry, double input_rz);
 
+/* ------------------------------------------------------------------------------------------------------------------------------------------------*/
+
 
 /* JACOBIAN MATRIX --------------------------------------------------------------------------------------------------------------------------------*/
+
 // Find Jacobian Matrix Variables
 void find_jacobian_variable(Kinematics_t *param);
 // Check Sinuglarity
 void check_singularity(Kinematics_t *param);
 
+/* ------------------------------------------------------------------------------------------------------------------------------------------------*/
+
+
+/* MINUS ZERO PREVENTION --------------------------------------------------------------------------------------------------------------------------*/
+double sanitize_zero(double value);
+/* ------------------------------------------------------------------------------------------------------------------------------------------------*/
 
 #endif
