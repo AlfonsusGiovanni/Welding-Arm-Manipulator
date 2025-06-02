@@ -10,14 +10,20 @@ LINEAR_PATTERN = 0x02
 ZIGZAG_PATTERN = 0x03
 WAVE_PATTERN = 0x04
 
+AXIS_X_OFFSET = 0x01
+AXIS_Y_OFFSET = 0x02
+AXIS_Z_OFFSET = 0x03
+
 class Motion:
     def __init__(self, input_step):
         self.step = input_step
         self.iteration = 1/input_step
 
-        self.output_x = [0] * MAX_STEP
-        self.output_y = [0] * MAX_STEP
-        self.output_z = [0] * MAX_STEP
+        self.output_x = [0] * input_step
+        self.output_y = [0] * input_step
+        self.output_z = [0] * input_step
+
+        self.mid_val = [0] * 3
 
     def linear_interpolation(self, start_point, end_point, steps):
         x0, y0, z0 = start_point
@@ -26,6 +32,10 @@ class Motion:
         dx = (xf - x0) / steps
         dy = (yf - y0) / steps
         dz = (zf - z0) / steps
+
+        self.output_x = [0] * (steps + 1)
+        self.output_y = [0] * (steps + 1)
+        self.output_z = [0] * (steps + 1)
 
         for i in range(steps+1):
             x = x0 + i * dx
@@ -93,17 +103,57 @@ class Motion:
             self.output_y[i] = self.cubic_spline(t, ys, ti)
             self.output_z[i] = self.cubic_spline(t, zs, ti)
 
-    def generate_dot_pattern(self):
-        pass
+    def generate_spline_middle_point(self, end_point_1, start_point_2, axis_select, offset_val):
+        delta_value = [0, 0, 0]
 
-    def generate_linear_pattern(self):
-        pass
+        for i in range(3):
+            delta_value[i] = start_point_2[i] - end_point_1[i]
+            self.mid_val[i] = (delta_value[i] / 2) + end_point_1[i]
+        
+        if axis_select == 1:
+            self.mid_val[0] += offset_val
 
-    def generate_zigzag_patter(self):
-        pass
+        elif axis_select == 2:
+            self.mid_val[1] += offset_val
+
+        elif axis_select == 3:
+           self.mid_val[2] += offset_val
+
+        return self.mid_val
+
+    def generate_zigzag_pattern(self, start_point, end_point, steps, axis_select, offset_val):
+        x0, y0, z0 = start_point
+        xf, yf, zf = end_point
+
+        dx = (xf - x0) / steps
+        dy = (yf - y0) / steps
+        dz = (zf - z0) / steps
+
+        self.output_x = [0] * (steps + 1)
+        self.output_y = [0] * (steps + 1)
+        self.output_z = [0] * (steps + 1)
+
+        for i in range(steps+1):
+            x = x0 + i * dx
+            y = y0 + i * dy
+            z = z0 + i * dz
+
+            if axis_select == AXIS_X_OFFSET:
+                x = x + offset_val if i % 2 == 0 else x - offset_val
+
+            if axis_select == AXIS_Y_OFFSET:
+                y = y + offset_val if i % 2 == 0 else y - offset_val
+
+            if axis_select == AXIS_Z_OFFSET:
+                z = z + offset_val if i % 2 == 0 else z - offset_val
+
+            self.output_x[i] = x
+            self.output_y[i] = y
+            self.output_z[i] = z
 
     def generate_wave_pattern(self):
         pass
 
-linear = Motion(MAX_STEP)
 spline = Motion(MAX_STEP)
+linear = Motion(MAX_STEP)
+zigzag = Motion(MAX_STEP)

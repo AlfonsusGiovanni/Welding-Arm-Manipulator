@@ -20,7 +20,7 @@
 #define HEADER3 0xFF
 
 /*RS232 COM BUFFER SIZE*/
-#define BUFF_SIZE 60
+#define BUFF_SIZE 100 
 
 /*RS232 COM TIMEOUT*/
 #define RS232_TIMEOUT 10
@@ -85,6 +85,7 @@ typedef enum{
 typedef enum{
 	NO_CALIBRATION,
 	CALIBRATE_ONLY,
+	HOMING_ONLY,
 	CALIBRATE_HOMING,
 }Cal_Mode_t;
 ////////////////////////////////////
@@ -175,6 +176,17 @@ typedef enum{
 	WAVE,
 }Welding_Pattern_t;
 ////////////////////////////////
+
+
+//--- AXIS OFFSET TYPEDEF ---//
+///////////////////////////////
+typedef enum{
+	NO_AXIS_OFFSET,
+	OFFSET_ON_X_AXIS,
+	OFFSET_ON_Y_AXIS,
+	OFFSET_ON_Z_AXIS,
+}Axis_Offset_t;
+///////////////////////////////
 
 
 //--- POINT COORDINATE TYPDEF ---//
@@ -289,9 +301,9 @@ typedef struct ALIGNED_8{
 	
 	uint8_t data_buff[BUFF_SIZE];
 	uint8_t check_data_buff[BUFF_SIZE];
-	uint8_t preview_point_num;
-	uint8_t welding_point_num;
 	
+	uint16_t preview_point_num;
+	uint16_t welding_point_num;
 	uint16_t feedback_num;
 	
 	float move_value;
@@ -313,6 +325,7 @@ typedef struct ALIGNED_8{
 	Run_Mode_t running_mode;
 	Run_State_t running_state;
 	Welding_Pattern_t pattern_type;
+	Axis_Offset_t axis_offset;
 	Data_Point_t data_type;
 	Mapping_State_t mapping_state;
 	Req_t requested_data;
@@ -334,7 +347,7 @@ void RS232_Init(UART_HandleTypeDef* huart_handler);
 /*TRANSMITING COMMAND*/
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void Send_setting_data(Data_Get_t* get, Setting_Mode_t set_mode,  Cal_Mode_t cal_mode, Zeroing_Select_t sel_joint, Speed_t set_speed);
-void Send_mapping(Data_Get_t* get, uint8_t point_num, Data_Point_t point_type, Welding_Pattern_t pattern_type, Speed_t welding_speed, Mapping_State_t map_state);
+void Send_mapping(Data_Get_t* get, uint16_t pt_num, Data_Point_t pt_type, Welding_Pattern_t pattern, Speed_t speed, Axis_Offset_t axis, Mapping_State_t map_state);
 
 void Send_move(Data_Get_t* get, Ctrl_Mode_t control_mode, Move_Mode_t move_mode, Move_Var_t var_type, Move_Sign_t move_sign, float value);
 void Send_running(Data_Get_t* get, Run_State_t state, Run_Mode_t mode, uint16_t point_num);

@@ -283,7 +283,7 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
     HAL_GPIO_Init(ENC4A_GPIO_Port, &GPIO_InitStruct);
 
     /* TIM1 interrupt Init */
-    HAL_NVIC_SetPriority(TIM1_CC_IRQn, 2, 0);
+    HAL_NVIC_SetPriority(TIM1_CC_IRQn, 4, 0);
     HAL_NVIC_EnableIRQ(TIM1_CC_IRQn);
   /* USER CODE BEGIN TIM1_MspInit 1 */
 
@@ -309,7 +309,7 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
     HAL_GPIO_Init(ENC3A_GPIO_Port, &GPIO_InitStruct);
 
     /* TIM2 interrupt Init */
-    HAL_NVIC_SetPriority(TIM2_IRQn, 2, 0);
+    HAL_NVIC_SetPriority(TIM2_IRQn, 3, 0);
     HAL_NVIC_EnableIRQ(TIM2_IRQn);
   /* USER CODE BEGIN TIM2_MspInit 1 */
 
@@ -335,7 +335,7 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
     HAL_GPIO_Init(ENC5A_GPIO_Port, &GPIO_InitStruct);
 
     /* TIM3 interrupt Init */
-    HAL_NVIC_SetPriority(TIM3_IRQn, 3, 0);
+    HAL_NVIC_SetPriority(TIM3_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(TIM3_IRQn);
   /* USER CODE BEGIN TIM3_MspInit 1 */
 
@@ -387,7 +387,7 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
     HAL_GPIO_Init(ENC6A_GPIO_Port, &GPIO_InitStruct);
 
     /* TIM5 interrupt Init */
-    HAL_NVIC_SetPriority(TIM5_IRQn, 3, 0);
+    HAL_NVIC_SetPriority(TIM5_IRQn, 6, 0);
     HAL_NVIC_EnableIRQ(TIM5_IRQn);
   /* USER CODE BEGIN TIM5_MspInit 1 */
 
@@ -419,7 +419,7 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
     HAL_NVIC_EnableIRQ(TIM8_UP_TIM13_IRQn);
     HAL_NVIC_SetPriority(TIM8_TRG_COM_TIM14_IRQn, 7, 0);
     HAL_NVIC_EnableIRQ(TIM8_TRG_COM_TIM14_IRQn);
-    HAL_NVIC_SetPriority(TIM8_CC_IRQn, 1, 0);
+    HAL_NVIC_SetPriority(TIM8_CC_IRQn, 2, 0);
     HAL_NVIC_EnableIRQ(TIM8_CC_IRQn);
   /* USER CODE BEGIN TIM8_MspInit 1 */
 

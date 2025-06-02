@@ -248,12 +248,32 @@
         <Ww>
           <count>19</count>
           <WinNumber>1</WinNumber>
-          <ItemText>max_delta</ItemText>
+          <ItemText>switch_pressed</ItemText>
         </Ww>
         <Ww>
           <count>20</count>
           <WinNumber>1</WinNumber>
-          <ItemText>joint_rpm</ItemText>
+          <ItemText>home</ItemText>
+        </Ww>
+        <Ww>
+          <count>21</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>group1_calibrated</ItemText>
+        </Ww>
+        <Ww>
+          <count>22</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>group1_count</ItemText>
+        </Ww>
+        <Ww>
+          <count>23</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>group2_calibrated</ItemText>
+        </Ww>
+        <Ww>
+          <count>24</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>group2_count</ItemText>
         </Ww>
       </WatchWindow1>
       <WatchWindow2>
@@ -341,6 +361,71 @@
           <count>16</count>
           <WinNumber>2</WinNumber>
           <ItemText>command.feedback</ItemText>
+        </Ww>
+        <Ww>
+          <count>17</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>command.data_buff</ItemText>
+        </Ww>
+        <Ww>
+          <count>18</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>command.welding_point_num</ItemText>
+        </Ww>
+        <Ww>
+          <count>19</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>array_pos_start</ItemText>
+        </Ww>
+        <Ww>
+          <count>20</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>array_pos_end</ItemText>
+        </Ww>
+        <Ww>
+          <count>21</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>array_ang_start</ItemText>
+        </Ww>
+        <Ww>
+          <count>22</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>array_ang_end</ItemText>
+        </Ww>
+        <Ww>
+          <count>23</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>welding_pattern</ItemText>
+        </Ww>
+        <Ww>
+          <count>24</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>welding_speed</ItemText>
+        </Ww>
+        <Ww>
+          <count>25</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>welding_axis_offset</ItemText>
+        </Ww>
+        <Ww>
+          <count>26</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>chcksum_sp</ItemText>
+        </Ww>
+        <Ww>
+          <count>27</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>chcksum_sp_validation</ItemText>
+        </Ww>
+        <Ww>
+          <count>28</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>chcksum_ep</ItemText>
+        </Ww>
+        <Ww>
+          <count>29</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>chcksum_ep_validation</ItemText>
         </Ww>
       </WatchWindow2>
       <Tracepoint>

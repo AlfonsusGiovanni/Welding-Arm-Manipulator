@@ -3,7 +3,7 @@
 <title>Static Call Graph - [STM32 Arm Manipulator Pendant RTOS\STM32 Arm Manipulator Pendant RTOS.axf]</title></head>
 <body><HR>
 <H1>Static Call Graph for image STM32 Arm Manipulator Pendant RTOS\STM32 Arm Manipulator Pendant RTOS.axf</H1><HR>
-<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060960: Last Updated: Wed May 21 13:43:26 2025
+<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060960: Last Updated: Mon May 26 16:40:58 2025
 <BR><P>
 <H3>Maximum Stack Usage =        556 bytes + Unknown(Functions without stacksize, Cycles, Untraceable Function Pointers)</H3><H3>
 Call chain for Maximum Stack Depth:</H3>
@@ -549,6 +549,19 @@ Global Symbols
 
 <P><STRONG><a name="[1c1]"></a>_memcpy_lastbytes</STRONG> (Thumb, 0 bytes, Stack size unknown bytes, rt_memcpy_v6.o(.text), UNUSED)
 
+<P><STRONG><a name="[7f]"></a>__aeabi_memcpy4</STRONG> (Thumb, 0 bytes, Stack size 8 bytes, rt_memcpy_w.o(.text))
+<BR><BR>[Stack]<UL><LI>Max Depth = 8<LI>Call Chain = __aeabi_memcpy4
+</UL>
+<BR>[Called By]<UL><LI><a href="#[110]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;ui_handler
+<LI><a href="#[7e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__rt_memcpy
+</UL>
+
+<P><STRONG><a name="[1c2]"></a>__aeabi_memcpy8</STRONG> (Thumb, 0 bytes, Stack size 8 bytes, rt_memcpy_w.o(.text), UNUSED)
+
+<P><STRONG><a name="[1c3]"></a>__rt_memcpy_w</STRONG> (Thumb, 100 bytes, Stack size 8 bytes, rt_memcpy_w.o(.text), UNUSED)
+
+<P><STRONG><a name="[1c4]"></a>_memcpy_lastbytes_aligned</STRONG> (Thumb, 0 bytes, Stack size unknown bytes, rt_memcpy_w.o(.text), UNUSED)
+
 <P><STRONG><a name="[80]"></a>__aeabi_memset</STRONG> (Thumb, 16 bytes, Stack size 0 bytes, aeabi_memset.o(.text))
 <BR><BR>[Calls]<UL><LI><a href="#[81]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_memset
 </UL>
@@ -578,15 +591,15 @@ Global Symbols
 <LI><a href="#[11b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;SystemClock_Config
 </UL>
 
-<P><STRONG><a name="[1c2]"></a>__aeabi_memclr8</STRONG> (Thumb, 0 bytes, Stack size 4 bytes, rt_memclr_w.o(.text), UNUSED)
+<P><STRONG><a name="[1c5]"></a>__aeabi_memclr8</STRONG> (Thumb, 0 bytes, Stack size 4 bytes, rt_memclr_w.o(.text), UNUSED)
 
-<P><STRONG><a name="[1c3]"></a>__rt_memclr_w</STRONG> (Thumb, 78 bytes, Stack size 4 bytes, rt_memclr_w.o(.text), UNUSED)
+<P><STRONG><a name="[1c6]"></a>__rt_memclr_w</STRONG> (Thumb, 78 bytes, Stack size 4 bytes, rt_memclr_w.o(.text), UNUSED)
 
 <P><STRONG><a name="[83]"></a>_memset_w</STRONG> (Thumb, 0 bytes, Stack size unknown bytes, rt_memclr_w.o(.text), UNUSED)
 <BR><BR>[Called By]<UL><LI><a href="#[82]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__rt_memclr
 </UL>
 
-<P><STRONG><a name="[1c4]"></a>__use_two_region_memory</STRONG> (Thumb, 2 bytes, Stack size 0 bytes, heapauxi.o(.text), UNUSED)
+<P><STRONG><a name="[1c7]"></a>__use_two_region_memory</STRONG> (Thumb, 2 bytes, Stack size 0 bytes, heapauxi.o(.text), UNUSED)
 
 <P><STRONG><a name="[1]"></a>__rt_heap_escrow</STRONG> (Thumb, 2 bytes, Stack size 0 bytes, heapauxi.o(.text), UNUSED)
 
@@ -607,13 +620,13 @@ Global Symbols
 <LI><a href="#[93]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_fp_value
 </UL>
 
-<P><STRONG><a name="[1c5]"></a>__errno$intlibspace</STRONG> (Thumb, 0 bytes, Stack size 0 bytes, rt_errno_addr_intlibspace.o(.text), UNUSED)
+<P><STRONG><a name="[1c8]"></a>__errno$intlibspace</STRONG> (Thumb, 0 bytes, Stack size 0 bytes, rt_errno_addr_intlibspace.o(.text), UNUSED)
 
-<P><STRONG><a name="[1c6]"></a>__rt_errno_addr$intlibspace</STRONG> (Thumb, 0 bytes, Stack size 0 bytes, rt_errno_addr_intlibspace.o(.text), UNUSED)
+<P><STRONG><a name="[1c9]"></a>__rt_errno_addr$intlibspace</STRONG> (Thumb, 0 bytes, Stack size 0 bytes, rt_errno_addr_intlibspace.o(.text), UNUSED)
 
-<P><STRONG><a name="[1c7]"></a>__use_no_heap</STRONG> (Thumb, 2 bytes, Stack size 0 bytes, hguard.o(.text), UNUSED)
+<P><STRONG><a name="[1ca]"></a>__use_no_heap</STRONG> (Thumb, 2 bytes, Stack size 0 bytes, hguard.o(.text), UNUSED)
 
-<P><STRONG><a name="[1c8]"></a>__heap$guard</STRONG> (Thumb, 2 bytes, Stack size 0 bytes, hguard.o(.text), UNUSED)
+<P><STRONG><a name="[1cb]"></a>__heap$guard</STRONG> (Thumb, 2 bytes, Stack size 0 bytes, hguard.o(.text), UNUSED)
 
 <P><STRONG><a name="[7]"></a>_terminate_user_alloc</STRONG> (Thumb, 2 bytes, Stack size 0 bytes, init_alloc.o(.text), UNUSED)
 
@@ -658,7 +671,7 @@ Global Symbols
 <LI><a href="#[58]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_int_dec
 </UL>
 
-<P><STRONG><a name="[1c9]"></a>__lib_sel_fp_printf</STRONG> (Thumb, 2 bytes, Stack size 0 bytes, _printf_fp_dec.o(.text), UNUSED)
+<P><STRONG><a name="[1cc]"></a>__lib_sel_fp_printf</STRONG> (Thumb, 2 bytes, Stack size 0 bytes, _printf_fp_dec.o(.text), UNUSED)
 
 <P><STRONG><a name="[90]"></a>_printf_fp_dec_real</STRONG> (Thumb, 620 bytes, Stack size 104 bytes, _printf_fp_dec.o(.text))
 <BR><BR>[Stack]<UL><LI>Max Depth = 324<LI>Call Chain = _printf_fp_dec_real &rArr; _fp_digits &rArr; _btod_etento &rArr; _btod_emul &rArr; _e2e
@@ -728,16 +741,6 @@ Global Symbols
 </UL>
 <BR>[Called By]<UL><LI><a href="#[7b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;atoi
 </UL>
-
-<P><STRONG><a name="[7f]"></a>__aeabi_memcpy4</STRONG> (Thumb, 0 bytes, Stack size 8 bytes, rt_memcpy_w.o(.text), UNUSED)
-<BR><BR>[Called By]<UL><LI><a href="#[7e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__rt_memcpy
-</UL>
-
-<P><STRONG><a name="[1ca]"></a>__aeabi_memcpy8</STRONG> (Thumb, 0 bytes, Stack size 8 bytes, rt_memcpy_w.o(.text), UNUSED)
-
-<P><STRONG><a name="[1cb]"></a>__rt_memcpy_w</STRONG> (Thumb, 100 bytes, Stack size 8 bytes, rt_memcpy_w.o(.text), UNUSED)
-
-<P><STRONG><a name="[1cc]"></a>_memcpy_lastbytes_aligned</STRONG> (Thumb, 0 bytes, Stack size unknown bytes, rt_memcpy_w.o(.text), UNUSED)
 
 <P><STRONG><a name="[1cd]"></a>__user_libspace</STRONG> (Thumb, 8 bytes, Stack size 0 bytes, libspace.o(.text), UNUSED)
 
@@ -1084,7 +1087,7 @@ Global Symbols
 </UL>
 <BR>[Address Reference Count : 1]<UL><LI> startup_stm32f103xb.o(RESET)
 </UL>
-<P><STRONG><a name="[ba]"></a>Get_command</STRONG> (Thumb, 360 bytes, Stack size 16 bytes, rs232_driver.o(i.Get_command))
+<P><STRONG><a name="[ba]"></a>Get_command</STRONG> (Thumb, 376 bytes, Stack size 16 bytes, rs232_driver.o(i.Get_command))
 <BR><BR>[Stack]<UL><LI>Max Depth = 16<LI>Call Chain = Get_command
 </UL>
 <BR>[Calls]<UL><LI><a href="#[bb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_memcpy
@@ -1569,7 +1572,7 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[11d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Update_Data
 </UL>
 
-<P><STRONG><a name="[119]"></a>Reset_command</STRONG> (Thumb, 42 bytes, Stack size 0 bytes, rs232_driver.o(i.Reset_command))
+<P><STRONG><a name="[119]"></a>Reset_command</STRONG> (Thumb, 80 bytes, Stack size 0 bytes, rs232_driver.o(i.Reset_command))
 <BR><BR>[Called By]<UL><LI><a href="#[4a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;StartReceiveTask
 </UL>
 
@@ -1581,8 +1584,8 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[110]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;ui_handler
 </UL>
 
-<P><STRONG><a name="[108]"></a>Send_feedback</STRONG> (Thumb, 58 bytes, Stack size 72 bytes, rs232_driver.o(i.Send_feedback))
-<BR><BR>[Stack]<UL><LI>Max Depth = 128<LI>Call Chain = Send_feedback &rArr; HAL_UART_Transmit &rArr; UART_WaitOnFlagUntilTimeout
+<P><STRONG><a name="[108]"></a>Send_feedback</STRONG> (Thumb, 58 bytes, Stack size 112 bytes, rs232_driver.o(i.Send_feedback))
+<BR><BR>[Stack]<UL><LI>Max Depth = 168<LI>Call Chain = Send_feedback &rArr; HAL_UART_Transmit &rArr; UART_WaitOnFlagUntilTimeout
 </UL>
 <BR>[Calls]<UL><LI><a href="#[fc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_UART_Transmit
 <LI><a href="#[109]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_memclr4
@@ -1590,8 +1593,8 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[67]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
-<P><STRONG><a name="[10a]"></a>Send_mapping</STRONG> (Thumb, 70 bytes, Stack size 88 bytes, rs232_driver.o(i.Send_mapping))
-<BR><BR>[Stack]<UL><LI>Max Depth = 92<LI>Call Chain = Send_mapping &rArr; __aeabi_memclr4
+<P><STRONG><a name="[10a]"></a>Send_mapping</STRONG> (Thumb, 82 bytes, Stack size 128 bytes, rs232_driver.o(i.Send_mapping))
+<BR><BR>[Stack]<UL><LI>Max Depth = 132<LI>Call Chain = Send_mapping &rArr; __aeabi_memclr4
 </UL>
 <BR>[Calls]<UL><LI><a href="#[10b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_UART_Transmit_IT
 <LI><a href="#[109]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_memclr4
@@ -1599,16 +1602,16 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[110]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;ui_handler
 </UL>
 
-<P><STRONG><a name="[10c]"></a>Send_move</STRONG> (Thumb, 64 bytes, Stack size 80 bytes, rs232_driver.o(i.Send_move))
-<BR><BR>[Stack]<UL><LI>Max Depth = 80<LI>Call Chain = Send_move
+<P><STRONG><a name="[10c]"></a>Send_move</STRONG> (Thumb, 64 bytes, Stack size 120 bytes, rs232_driver.o(i.Send_move))
+<BR><BR>[Stack]<UL><LI>Max Depth = 120<LI>Call Chain = Send_move
 </UL>
 <BR>[Calls]<UL><LI><a href="#[10b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_UART_Transmit_IT
 </UL>
 <BR>[Called By]<UL><LI><a href="#[110]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;ui_handler
 </UL>
 
-<P><STRONG><a name="[10d]"></a>Send_running</STRONG> (Thumb, 64 bytes, Stack size 80 bytes, rs232_driver.o(i.Send_running))
-<BR><BR>[Stack]<UL><LI>Max Depth = 136<LI>Call Chain = Send_running &rArr; HAL_UART_Transmit &rArr; UART_WaitOnFlagUntilTimeout
+<P><STRONG><a name="[10d]"></a>Send_running</STRONG> (Thumb, 64 bytes, Stack size 120 bytes, rs232_driver.o(i.Send_running))
+<BR><BR>[Stack]<UL><LI>Max Depth = 176<LI>Call Chain = Send_running &rArr; HAL_UART_Transmit &rArr; UART_WaitOnFlagUntilTimeout
 </UL>
 <BR>[Calls]<UL><LI><a href="#[fc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_UART_Transmit
 <LI><a href="#[109]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_memclr4
@@ -1616,8 +1619,8 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[110]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;ui_handler
 </UL>
 
-<P><STRONG><a name="[10e]"></a>Send_setting_data</STRONG> (Thumb, 62 bytes, Stack size 80 bytes, rs232_driver.o(i.Send_setting_data))
-<BR><BR>[Stack]<UL><LI>Max Depth = 84<LI>Call Chain = Send_setting_data &rArr; __aeabi_memclr4
+<P><STRONG><a name="[10e]"></a>Send_setting_data</STRONG> (Thumb, 62 bytes, Stack size 120 bytes, rs232_driver.o(i.Send_setting_data))
+<BR><BR>[Stack]<UL><LI>Max Depth = 124<LI>Call Chain = Send_setting_data &rArr; __aeabi_memclr4
 </UL>
 <BR>[Calls]<UL><LI><a href="#[10b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_UART_Transmit_IT
 <LI><a href="#[109]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_memclr4
@@ -1625,8 +1628,8 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[110]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;ui_handler
 </UL>
 
-<P><STRONG><a name="[10f]"></a>Send_state_reset</STRONG> (Thumb, 36 bytes, Stack size 64 bytes, rs232_driver.o(i.Send_state_reset))
-<BR><BR>[Stack]<UL><LI>Max Depth = 120<LI>Call Chain = Send_state_reset &rArr; HAL_UART_Transmit &rArr; UART_WaitOnFlagUntilTimeout
+<P><STRONG><a name="[10f]"></a>Send_state_reset</STRONG> (Thumb, 36 bytes, Stack size 104 bytes, rs232_driver.o(i.Send_state_reset))
+<BR><BR>[Stack]<UL><LI>Max Depth = 160<LI>Call Chain = Send_state_reset &rArr; HAL_UART_Transmit &rArr; UART_WaitOnFlagUntilTimeout
 </UL>
 <BR>[Calls]<UL><LI><a href="#[fc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_UART_Transmit
 <LI><a href="#[109]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_memclr4
@@ -1744,7 +1747,7 @@ Global Symbols
 </UL>
 <BR>[Address Reference Count : 1]<UL><LI> startup_stm32f103xb.o(RESET)
 </UL>
-<P><STRONG><a name="[11d]"></a>Update_Data</STRONG> (Thumb, 204 bytes, Stack size 32 bytes, main.o(i.Update_Data))
+<P><STRONG><a name="[11d]"></a>Update_Data</STRONG> (Thumb, 200 bytes, Stack size 32 bytes, main.o(i.Update_Data))
 <BR><BR>[Stack]<UL><LI>Max Depth = 200<LI>Call Chain = Update_Data &rArr; Read_WeldingData &rArr; EEPROM_PageRead &rArr; HAL_I2C_Mem_Read &rArr; I2C_RequestMemoryRead &rArr; I2C_WaitOnMasterAddressFlagUntilTimeout
 </UL>
 <BR>[Calls]<UL><LI><a href="#[111]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osDelay
@@ -1936,7 +1939,7 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[a7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__support_ldexp
 </UL>
 
-<P><STRONG><a name="[67]"></a>main</STRONG> (Thumb, 530 bytes, Stack size 8 bytes, main.o(i.main))
+<P><STRONG><a name="[67]"></a>main</STRONG> (Thumb, 528 bytes, Stack size 8 bytes, main.o(i.main))
 <BR><BR>[Stack]<UL><LI>Max Depth = 224 + Unknown Stack Size
 <LI>Call Chain = main &rArr; show_menu &rArr; lcd_printint &rArr; __2snprintf &rArr; _printf_char_common &rArr; __printf
 </UL>
@@ -2069,7 +2072,7 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[159]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;prvInitialiseNewTask
 </UL>
 
-<P><STRONG><a name="[129]"></a>reset_counter</STRONG> (Thumb, 66 bytes, Stack size 0 bytes, main.o(i.reset_counter))
+<P><STRONG><a name="[129]"></a>reset_counter</STRONG> (Thumb, 74 bytes, Stack size 0 bytes, main.o(i.reset_counter))
 <BR><BR>[Called By]<UL><LI><a href="#[128]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;change_menu
 </UL>
 
@@ -2091,7 +2094,7 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[12f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;lcd_printstr
 </UL>
 
-<P><STRONG><a name="[115]"></a>show_menu</STRONG> (Thumb, 3996 bytes, Stack size 24 bytes, main.o(i.show_menu))
+<P><STRONG><a name="[115]"></a>show_menu</STRONG> (Thumb, 4096 bytes, Stack size 24 bytes, main.o(i.show_menu))
 <BR><BR>[Stack]<UL><LI>Max Depth = 216 + Unknown Stack Size
 <LI>Call Chain = show_menu &rArr; lcd_printint &rArr; __2snprintf &rArr; _printf_char_common &rArr; __printf
 </UL>
@@ -2105,7 +2108,7 @@ Global Symbols
 <LI><a href="#[4b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;StartLCDTask
 </UL>
 
-<P><STRONG><a name="[110]"></a>ui_handler</STRONG> (Thumb, 3738 bytes, Stack size 48 bytes, main.o(i.ui_handler))
+<P><STRONG><a name="[110]"></a>ui_handler</STRONG> (Thumb, 3816 bytes, Stack size 48 bytes, main.o(i.ui_handler))
 <BR><BR>[Stack]<UL><LI>Max Depth = 556<LI>Call Chain = ui_handler &rArr; __0sscanf &rArr; __vfscanf_char &rArr; __vfscanf &rArr; _scanf_real &rArr; _scanf_really_real &rArr; _fp_value &rArr; _btod_etento &rArr; _btod_emul &rArr; _e2e
 </UL>
 <BR>[Calls]<UL><LI><a href="#[111]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osDelay
@@ -2124,6 +2127,7 @@ Global Symbols
 <LI><a href="#[107]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Save_WeldingData
 <LI><a href="#[b1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Delete_WeldingData
 <LI><a href="#[16e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_cfrcmple
+<LI><a href="#[7f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_memcpy4
 <LI><a href="#[7b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;atoi
 <LI><a href="#[79]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__0sscanf
 </UL>

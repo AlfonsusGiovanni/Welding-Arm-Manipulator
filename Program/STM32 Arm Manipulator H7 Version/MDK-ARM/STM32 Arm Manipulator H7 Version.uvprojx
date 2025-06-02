@@ -1418,4 +1418,13 @@
     <files/>
   </RTE>
 
+  <LayerInfo>
+    <Layers>
+      <Layer>
+        <LayName>STM32 Arm Manipulator H7 Version</LayName>
+        <LayPrjMark>1</LayPrjMark>
+      </Layer>
+    </Layers>
+  </LayerInfo>
+
 </Project>

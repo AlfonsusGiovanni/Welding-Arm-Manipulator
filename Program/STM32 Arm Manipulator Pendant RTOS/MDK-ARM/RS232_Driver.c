@@ -26,8 +26,8 @@ void Send_setting_data(Data_Get_t* get, Setting_Mode_t set_mode,  Cal_Mode_t cal
 }
 
 /*SEND MAPPING MODE DATA COMMAND*/
-void Send_mapping(Data_Get_t* get, uint8_t point_num, Data_Point_t point_type, Welding_Pattern_t pattern_type, Speed_t welding_speed, Mapping_State_t map_state){
-	uint8_t mapping_data[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, MAPPING_CMD, point_num, point_type, pattern_type, welding_speed, map_state};	
+void Send_mapping(Data_Get_t* get, uint16_t pt_num, Data_Point_t pt_type, Welding_Pattern_t pattern, Speed_t speed, Axis_Offset_t axis, Mapping_State_t map_state){
+	uint8_t mapping_data[BUFF_SIZE] = {HEADER1, HEADER2, HEADER3, MAPPING_CMD, ((pt_num >> 8) & 0xFF), pt_num & 0xFF, pt_type, pattern, speed, axis, map_state};	
 	HAL_UART_Transmit_IT(huart, mapping_data, sizeof(mapping_data));
 }
 
@@ -146,14 +146,15 @@ void Get_command(Data_Get_t* get){
 		
 		//CHECK MAPPING MODE COMMAND
 		else if(rx_buff[3] == MAPPING_CMD){
-			get->type = MAPPING;
-			
-			get->welding_point_num = rx_buff[4];
-			get->data_type = (Data_Point_t) rx_buff[5];
-			get->pattern_type = (Welding_Pattern_t) rx_buff[6];
-			get->running_speed = (Speed_t) rx_buff[7];
-			get->mapping_state = (Mapping_State_t) rx_buff[8];
-		}
+				get->type = MAPPING;
+				
+				get->welding_point_num = (uint16_t)(rx_buff[4] << 8 | rx_buff[5]);
+				get->data_type = (Data_Point_t) rx_buff[6];
+				get->pattern_type = (Welding_Pattern_t) rx_buff[7];
+				get->running_speed = (Speed_t) rx_buff[8];
+				get->axis_offset = (Axis_Offset_t) rx_buff[9];
+				get->mapping_state = (Mapping_State_t) rx_buff[10];
+			}
 		
 		//CHECK MOVE COMMAND
 		else if(rx_buff[3] == MOVE_POSITION_CMD){
@@ -249,6 +250,7 @@ void Reset_command(Data_Get_t* get){
 	get->pattern_type = NO_PATTERN;
 	get->data_type = NO_DATA_TYPE;
 	get->mapping_state = NO_MAP_STATE;
+	get->axis_offset = NO_AXIS_OFFSET;
 	get->requested_data = NO_REQ;
 	get->motor_state = NO_MOTOR_STATE;
 	get->welder_state = NO_WELDER_STATE;

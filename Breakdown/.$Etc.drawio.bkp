@@ -1,0 +1,82 @@
+<mxfile host="Electron" modified="2025-03-11T12:55:44.677Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.5.3 Chrome/124.0.6367.207 Electron/30.0.6 Safari/537.36" etag="3ZHBYcXO-bBlHO6rQc9A" version="24.5.3" type="device">
+  <diagram name="Page-1" id="zytj2DbKgGDdTs_RqHKi">
+    <mxGraphModel dx="913" dy="540" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2400" pageHeight="600" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-1" value="1 Byte" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="80" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-2" value="2 Bytes" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="140" y="100" width="160" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-3" value="Welding&lt;div&gt;Number&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="140" y="160" width="160" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-4" value="Welding Pattern" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="320" y="160" width="80" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-6" value="Start Data&lt;br&gt;Identifier" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="160" width="80" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-9" value="4 Bytes" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="520" y="100" width="320" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-13" value="Welding&lt;br&gt;X Position Start" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="520" y="160" width="320" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-15" value="1 Byte" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="320" y="100" width="80" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-19" value="4 Bytes" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="860" y="100" width="320" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-20" value="4 Bytes" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="240" width="320" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-21" value="Welding&lt;br&gt;Y Position Start" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="860" y="160" width="320" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-22" value="Welding&lt;br&gt;Z Position Start" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="300" width="320" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-23" value="4 Bytes" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="240" width="320" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-24" value="Welding&lt;br&gt;X Position End" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="300" width="320" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-25" value="4 Bytes" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="720" y="240" width="320" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-26" value="4 Bytes" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="240" width="320" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-27" value="Welding&lt;br&gt;Y Position End" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="720" y="300" width="320" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-28" value="Welding&lt;br&gt;Z Position End" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="300" width="320" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-29" value="Welding&lt;br&gt;Speed" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="420" y="160" width="80" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-30" value="1 Byte" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="420" y="100" width="80" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-32" value="1 Byte" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="240" width="80" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-33" value="End Data&lt;br&gt;Identifier" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="300" width="80" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-39" value="0x1E" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="180" width="80" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Kq9-ovB3jDTfrQgDBJFZ-40" value="0x00" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="80" height="40" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
