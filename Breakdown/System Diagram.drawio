@@ -1,4 +1,4 @@
-<mxfile host="Electron" modified="2025-03-11T11:03:58.570Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.5.3 Chrome/124.0.6367.207 Electron/30.0.6 Safari/537.36" etag="eWdtBviYmuE_6l5VtagH" version="24.5.3" type="device" pages="3">
+<mxfile host="Electron" modified="2025-06-15T08:02:17.493Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.5.3 Chrome/124.0.6367.207 Electron/30.0.6 Safari/537.36" etag="je_46NQwwtVTMcHDB8CH" version="24.5.3" type="device" pages="3">
   <diagram name="Control Panel " id="RkPph1zDhTzpOkxVqafP">
     <mxGraphModel dx="1050" dy="621" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="520" pageHeight="620" math="0" shadow="0">
       <root>
@@ -113,29 +113,29 @@
     </mxGraphModel>
   </diagram>
   <diagram id="E55usMddFNYr7sa5R81p" name="Main PCB">
-    <mxGraphModel dx="913" dy="540" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="560" pageHeight="530" math="0" shadow="0">
+    <mxGraphModel dx="1235" dy="731" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="560" pageHeight="530" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="7M6ptaRyUxaNvzf_7RMe-1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="NCO2LqycWxbiDeX2zJFK-1" target="NCO2LqycWxbiDeX2zJFK-2" edge="1">
+        <mxCell id="lDy4LjFxwYxIudaLdBet-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="NCO2LqycWxbiDeX2zJFK-1" target="NCO2LqycWxbiDeX2zJFK-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lDy4LjFxwYxIudaLdBet-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="NCO2LqycWxbiDeX2zJFK-1" target="NCO2LqycWxbiDeX2zJFK-2">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="NCO2LqycWxbiDeX2zJFK-1" value="24V Input" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-          <mxGeometry x="240" y="40" width="120" height="60" as="geometry" />
-        </mxCell>
-        <mxCell id="7M6ptaRyUxaNvzf_7RMe-2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="NCO2LqycWxbiDeX2zJFK-2" target="NCO2LqycWxbiDeX2zJFK-3" edge="1">
-          <mxGeometry relative="1" as="geometry" />
+          <mxGeometry x="240" y="100" width="120" height="60" as="geometry" />
         </mxCell>
         <mxCell id="wuVVYY8epeWkRHNsrBN2-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="NCO2LqycWxbiDeX2zJFK-2" target="uPoBzTCSr3YGejy8Md2--14" edge="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="40" y="150" />
+              <mxPoint x="40" y="130" />
               <mxPoint x="40" y="460" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="NCO2LqycWxbiDeX2zJFK-2" value="5V Buck Converter" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-          <mxGeometry x="240" y="120" width="120" height="60" as="geometry" />
+          <mxGeometry x="80" y="100" width="120" height="60" as="geometry" />
         </mxCell>
         <mxCell id="7M6ptaRyUxaNvzf_7RMe-3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="NCO2LqycWxbiDeX2zJFK-3" target="4QhXbuXUYx_mcz6Mbb62-1" edge="1">
           <mxGeometry relative="1" as="geometry" />
@@ -192,7 +192,7 @@
     </mxGraphModel>
   </diagram>
   <diagram id="o_zi0hhA4dEBxzhcTTFD" name="Teach Pendant">
-    <mxGraphModel dx="1050" dy="621" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="560" pageHeight="620" math="0" shadow="0">
+    <mxGraphModel dx="1235" dy="731" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="560" pageHeight="620" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -223,20 +223,20 @@
         <mxCell id="5d6mbjNPnXeSqrQnaQPd-6" value="Selector Switch" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
           <mxGeometry x="360" y="280" width="120" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="DkPgRGeGAMrQsHF_DMdt-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="5d6mbjNPnXeSqrQnaQPd-7" target="5d6mbjNPnXeSqrQnaQPd-8" edge="1">
+        <mxCell id="sHpucspBCbgtgdLovmw2-4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="5d6mbjNPnXeSqrQnaQPd-7" target="5d6mbjNPnXeSqrQnaQPd-9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sHpucspBCbgtgdLovmw2-5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="5d6mbjNPnXeSqrQnaQPd-7" target="5d6mbjNPnXeSqrQnaQPd-8">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="5d6mbjNPnXeSqrQnaQPd-7" value="24V Input" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-          <mxGeometry x="200" y="40" width="120" height="60" as="geometry" />
+          <mxGeometry x="200" y="120" width="120" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="yGBdMK_aSlS3ko_bMaor-1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="5d6mbjNPnXeSqrQnaQPd-8" target="5d6mbjNPnXeSqrQnaQPd-9" edge="1">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="yGBdMK_aSlS3ko_bMaor-6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="5d6mbjNPnXeSqrQnaQPd-8" target="5d6mbjNPnXeSqrQnaQPd-3" edge="1">
+        <mxCell id="sHpucspBCbgtgdLovmw2-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="5d6mbjNPnXeSqrQnaQPd-8" target="5d6mbjNPnXeSqrQnaQPd-3">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="5d6mbjNPnXeSqrQnaQPd-8" value="5V Buck Converter" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-          <mxGeometry x="200" y="130" width="120" height="60" as="geometry" />
+          <mxGeometry x="40" y="120" width="120" height="60" as="geometry" />
         </mxCell>
         <mxCell id="yGBdMK_aSlS3ko_bMaor-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="5d6mbjNPnXeSqrQnaQPd-9" target="5d6mbjNPnXeSqrQnaQPd-6" edge="1">
           <mxGeometry relative="1" as="geometry">
@@ -261,6 +261,9 @@
               <mxPoint x="520" y="550" />
             </Array>
           </mxGeometry>
+        </mxCell>
+        <mxCell id="sHpucspBCbgtgdLovmw2-1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="5d6mbjNPnXeSqrQnaQPd-9" target="LiFXck9fxT0t-kmyvIRL-1">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="5d6mbjNPnXeSqrQnaQPd-9" value="3,3V Buck Converter" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
           <mxGeometry x="200" y="220" width="120" height="60" as="geometry" />

@@ -22,16 +22,21 @@ Dialog DLL:      TCM.DLL V1.53.0.0
  
 <h2>Project:</h2>
 D:\Data Udin\Kuliah\7. TUGAS AKHIR\Arm Manipulator\Program\STM32 Arm Manipulator H7 Version\MDK-ARM\STM32 Arm Manipulator H7 Version.uvprojx
-Project File Date:  06/02/2025
+Project File Date:  06/16/2025
 
 <h2>Output:</h2>
 *** Using Compiler 'V5.06 update 7 (build 960)', folder: 'C:\Keil_v5\ARM\ARMCC\Bin'
 Build target 'STM32 Arm Manipulator H7 Version'
 compiling main.c...
+../Core/Src/main.c(3369): warning:  #1035-D: single-precision operand implicitly converted to double-precision
+  	if(max_delta > 0.02){					
+../Core/Src/main.c(3390): warning:  #177-D: variable "max_delta"  was declared but never referenced
+  	float max_delta = 0.0f;
+../Core/Src/main.c: 2 warnings, 0 errors
 linking...
-Program Size: Code=55572 RO-data=3572 RW-data=668 ZI-data=17716  
+Program Size: Code=58236 RO-data=3572 RW-data=724 ZI-data=17740  
 FromELF: creating hex file...
-"STM32 Arm Manipulator H7 Version\STM32 Arm Manipulator H7 Version.axf" - 0 Error(s), 0 Warning(s).
+"STM32 Arm Manipulator H7 Version\STM32 Arm Manipulator H7 Version.axf" - 0 Error(s), 2 Warning(s).
 
 <h2>Software Packages used:</h2>
 

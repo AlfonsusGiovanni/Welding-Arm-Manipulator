@@ -62,6 +62,7 @@ typedef enum{
 	JOINT_CALIBRATION,
 	JOINT_ZEROING,
 	JOINT_SPEED,
+	TOOLFRAME_POS,
 }Setting_Mode_t;
 ////////////////////////////////
 
@@ -172,6 +173,7 @@ typedef enum{
 	NO_PATTERN,
 	DOT,
 	LINEAR,
+	ZIG_ZAG,
 	CIRCULAR,
 	WAVE,
 }Welding_Pattern_t;

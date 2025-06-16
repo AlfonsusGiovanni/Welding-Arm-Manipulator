@@ -126,9 +126,6 @@ Data_Get_t command;
 I2C_HandleTypeDef hi2c1;
 I2C_HandleTypeDef hi2c2;
 
-TIM_HandleTypeDef htim2;
-TIM_HandleTypeDef htim3;
-
 UART_HandleTypeDef huart1;
 
 /* Definitions for interfaceTask */
@@ -243,7 +240,7 @@ emergency_state = false,
 prev_emergency_state = false;
 
 float
-increase_decrease_value = 2.5;
+increase_decrease_value = 0.0f;
 
 char
 home_menu[]					= "(HOME)",	
@@ -318,8 +315,6 @@ static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_USART1_UART_Init(void);
-static void MX_TIM2_Init(void);
-static void MX_TIM3_Init(void);
 void StartInterfaceTask(void *argument);
 void StartReceiveTask(void *argument);
 void StartLCDTask(void *argument);
@@ -425,8 +420,6 @@ int main(void)
   MX_I2C1_Init();
   MX_I2C2_Init();
   MX_USART1_UART_Init();
-  MX_TIM2_Init();
-  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
 	HAL_Delay(2000);
@@ -696,96 +689,6 @@ static void MX_I2C2_Init(void)
   /* USER CODE BEGIN I2C2_Init 2 */
 
   /* USER CODE END I2C2_Init 2 */
-
-}
-
-/**
-  * @brief TIM2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM2_Init(void)
-{
-
-  /* USER CODE BEGIN TIM2_Init 0 */
-
-  /* USER CODE END TIM2_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-
-  /* USER CODE BEGIN TIM2_Init 1 */
-
-  /* USER CODE END TIM2_Init 1 */
-  htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 287;
-  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 49999;
-  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM2_Init 2 */
-
-  /* USER CODE END TIM2_Init 2 */
-
-}
-
-/**
-  * @brief TIM3 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM3_Init(void)
-{
-
-  /* USER CODE BEGIN TIM3_Init 0 */
-
-  /* USER CODE END TIM3_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-
-  /* USER CODE BEGIN TIM3_Init 1 */
-
-  /* USER CODE END TIM3_Init 1 */
-  htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 143;
-  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 49999;
-  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM3_Init 2 */
-
-  /* USER CODE END TIM3_Init 2 */
 
 }
 
@@ -1125,12 +1028,15 @@ void ui_handler(void){
 		// *********************************************************************************
 		
 		
-		// MOVE VALUE BY STEP *****************************************
-		else if(move_mode_counter == 2) increase_decrease_value = 0.25;
+		// MOVE VALUE BY STEP *******************************************
+		else if(move_mode_counter == 2){
+			if(ctrl_mode_counter == 0) increase_decrease_value = 1.0;
+			else if(ctrl_mode_counter == 1) increase_decrease_value = 0.25;
+		}
 		
 		
 		// MOVE VALUE CONTINUOUS **********
-		else increase_decrease_value = 0.0;
+		else increase_decrease_value = 0.0f;
 		
 		
 		// INCLREASE VALUE ***************************************************************************************************************
@@ -1276,11 +1182,26 @@ void ui_handler(void){
 			
 			// PREVIEW RUN ---------------------------
 			else if(keys == '#' && prev_keys != keys){
-				for(int i=0; i<20; i++){
-					
+				// Check Preview Data
+				preview_pattern = mapped_pattern[preview_point-1];
+				preview_speed = mapped_speed[preview_point-1];
+				current_running_mode = PREVIEW_MODE;
+				
+				if((preview_point & mapped_points[preview_point-1]) == preview_point && preview_point != 0 && preview_speed != 0){
+					for(int i=0; i<20; i++){
+						Send_running(&command, RUNNING_START, PREVIEW_MODE, preview_point);
+						HAL_Delay(5);
+					}
+					change_menu(PREVIEW_MENU);
+					mapping_menu_counter = 0;
 				}
-				change_menu(PREVIEW_MENU);
-				mapping_menu_counter = 0;
+				
+				else if((preview_point & mapped_points[preview_point-1]) != preview_point || preview_point == 0 || preview_speed == 0){
+					change_menu(PREVIEW_ERR_MENU);
+					osDelay(2000);
+					change_menu(PREP_MENU);
+					run_mode_counter = 1;
+				}
 			}
 		}
 		// **************************************************************************
@@ -1399,8 +1320,11 @@ void ui_handler(void){
 				}
 			}
 			
-			// MOVE VALUE BY STEP -----------------------------------------
-			else if(move_mode_counter == 2) increase_decrease_value = 0.25;
+			// MOVE VALUE BY STEP -------------------------------------------
+			else if(move_mode_counter == 2){
+				if(ctrl_mode_counter == 0) increase_decrease_value = 1.0;
+				else if(ctrl_mode_counter == 1) increase_decrease_value = 0.25;
+			}
 			
 			
 			// MOVE VALUE CONTINUOUS ----------
@@ -1619,41 +1543,20 @@ void ui_handler(void){
 	
 	/* PREVIEW MENU HANDLER */////////////////////////////////////////////////////////////////////////////////////////////////
 	else if(select_menu == PREVIEW_MENU){
-		preview_pattern = mapped_pattern[preview_point-1];
-		preview_speed = mapped_speed[preview_point-1];
-		current_running_mode = PREVIEW_MODE;
-		
-		if((preview_point & mapped_points[preview_point-1]) == preview_point && preview_point != 0 && preview_speed != 0){
-			while(1){
-				keys = Keypad_Read(&keypad);
-
-				if(command.feedback == CURRENT_POINT_DONE){
-					move_mode_counter = 0;
-					ctrl_mode_counter = 0;
-					move_var_counter = 0;
-					command.feedback = NO_FEEDBACK;
-					change_menu(HOME_MENU);
-					break;
-				}
-				
-				if(keys == '.' && prev_keys != keys){
-					for(int i=0; i<20; i++){
-						
-					}
-					change_menu(STOP_MENU);
-				}
-				
-				prev_keys = keys;
-			}
+		if(command.feedback == CURRENT_POINT_DONE){
+			move_mode_counter = 0;
+			ctrl_mode_counter = 0;
+			move_var_counter = 0;
+			command.feedback = NO_FEEDBACK;
+			change_menu(HOME_MENU);
 		}
 		
-		else if((preview_point & mapped_points[preview_point-1]) != preview_point || preview_point == 0 || preview_speed == 0){
-			change_menu(PREVIEW_ERR_MENU);
-			
-			osDelay(2000);
-			
-			change_menu(PREP_MENU);
-			run_mode_counter = 1;
+		if(keys == '.' && prev_keys != keys){
+			for(int i=0; i<20; i++){
+				Send_running(&command, RUNNING_STOP, PREVIEW_MODE, preview_point);
+				HAL_Delay(5);
+			}
+			change_menu(STOP_MENU);
 		}
 	}
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1691,7 +1594,10 @@ void ui_handler(void){
 		
 		// STOP MENU *****************************
 		else if(keys == '.' && prev_keys != keys){
-			Send_running(&command, RUNNING_STOP, WELDING_MODE, 0);
+			for(int i=0; i<20; i++){
+				Send_running(&command, RUNNING_STOP, WELDING_MODE, 0);
+				HAL_Delay(5);
+			}
 			change_menu(STOP_MENU);
 		}
 		// ***************************************
@@ -1706,34 +1612,7 @@ void ui_handler(void){
 	
 	/* PAUSE MENU HANDLER */////////////////////////////////////////////////////
 	else if(select_menu == PAUSE_MENU){
-		// CONTINUE MENU ********************************************************
-		while(1){
-			keys = Keypad_Read(&keypad);
-			if(keys != prev_keys && keys != 0x00){
-				lcd_update();
-			}
-			
-			if(current_running_mode == WELDING_MODE){
-				Send_running(&command, RUNNING_PAUSE, WELDING_MODE, 0);
-			}
-			else if(current_running_mode == PREVIEW_MODE){
-				Send_running(&command, RUNNING_PAUSE, PREVIEW_MODE, preview_point);
-			}
-			
-			if(keys == '#' && prev_keys != keys){
-				if(current_running_mode == WELDING_MODE){
-					Send_running(&command, RUNNING_PAUSE, WELDING_MODE, 0);
-					change_menu(WELDING_MENU);
-				}
-				else if(current_running_mode == PREVIEW_MODE){
-					Send_running(&command, RUNNING_PAUSE, PREVIEW_MODE, preview_point);
-					change_menu(PREVIEW_MENU);
-				}
-			}
-			
-			prev_keys = keys;
-		}
-		// **********************************************************************
+		
 	}
 	///////////////////////////////////////////////////////////////////////////
 	
@@ -1741,26 +1620,26 @@ void ui_handler(void){
 	/* STOP MENU HANDLER */////////////////////
 	else if(select_menu == STOP_MENU){
 		// WAIT FOR AUTO HOMING DONE ************
-		while(1){
-			if(current_running_mode == WELDING_MODE){
-				Send_running(&command, RUNNING_STOP, WELDING_MODE, 0);
-			}
-			else if(current_running_mode == PREVIEW_MODE){
-				Send_running(&command, RUNNING_STOP, PREVIEW_MODE, preview_point);
-			}
+		if(command.feedback == CALIBRATION_DONE){
+			ctrl_mode_counter = 0,
+			move_mode_counter = 0,
+			move_var_counter = 0,
+			run_mode_counter = 0,
+			command.feedback = NO_FEEDBACK;
 			
-			if(command.feedback == CALIBRATION_DONE){
-				ctrl_mode_counter = 0,
-				move_mode_counter = 0,
-				move_var_counter = 0,
-				run_mode_counter = 0,
-				command.feedback = NO_FEEDBACK;
-				
-				change_menu(HOME_MENU);
-				break;
-			}
+			change_menu(HOME_MENU);
 		}
 		// **************************************
+		
+		// CANCEL AUTO HOMING ********************
+		else if(keys == '.' && prev_keys != keys){
+			for(int i=0; i<20; i++){
+				Send_running(&command, RUNNING_STOP, SETTING_MODE, 0x0000);
+				HAL_Delay(5);
+			}
+			change_menu(HOME_MENU);
+		}
+		// ***************************************
 	}
 	////////////////////////////////////////////
 	
@@ -2847,6 +2726,14 @@ void StartReceiveTask(void *argument)
 				lcd_update();
 				select_menu = EMERGENCY_MENU4;
 				command.feedback = NO_FEEDBACK;
+			}
+			else if(command.feedback == POINT_INVALID){
+				lcd_update();
+				select_menu = PREVIEW_ERR_MENU;
+				command.feedback = NO_FEEDBACK;
+				osDelay(2000);
+				change_menu(PREP_MENU);
+				run_mode_counter = 1;
 			}
 		}
 		

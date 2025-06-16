@@ -168,12 +168,12 @@
         <Ww>
           <count>3</count>
           <WinNumber>1</WinNumber>
-          <ItemText>step_cont_run</ItemText>
+          <ItemText>step_cont_run_j</ItemText>
         </Ww>
         <Ww>
           <count>4</count>
           <WinNumber>1</WinNumber>
-          <ItemText>step_cal_run</ItemText>
+          <ItemText>step_cont_run_w</ItemText>
         </Ww>
         <Ww>
           <count>5</count>
@@ -223,57 +223,87 @@
         <Ww>
           <count>14</count>
           <WinNumber>1</WinNumber>
-          <ItemText>target_step,0x0A</ItemText>
+          <ItemText>target_angle</ItemText>
         </Ww>
         <Ww>
           <count>15</count>
           <WinNumber>1</WinNumber>
-          <ItemText>target_angle</ItemText>
+          <ItemText>step_freq,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>16</count>
           <WinNumber>1</WinNumber>
-          <ItemText>step_freq,0x0A</ItemText>
+          <ItemText>step_state</ItemText>
         </Ww>
         <Ww>
           <count>17</count>
           <WinNumber>1</WinNumber>
-          <ItemText>step_state</ItemText>
+          <ItemText>sync_joint_rpm</ItemText>
         </Ww>
         <Ww>
           <count>18</count>
           <WinNumber>1</WinNumber>
-          <ItemText>sync_joint_rpm</ItemText>
+          <ItemText>input_points</ItemText>
         </Ww>
         <Ww>
           <count>19</count>
           <WinNumber>1</WinNumber>
-          <ItemText>switch_pressed</ItemText>
+          <ItemText>step_counter,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>20</count>
           <WinNumber>1</WinNumber>
-          <ItemText>home</ItemText>
+          <ItemText>target_step,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>21</count>
           <WinNumber>1</WinNumber>
-          <ItemText>group1_calibrated</ItemText>
+          <ItemText>get_preview_cmd</ItemText>
         </Ww>
         <Ww>
           <count>22</count>
           <WinNumber>1</WinNumber>
-          <ItemText>group1_count</ItemText>
+          <ItemText>preview_run</ItemText>
         </Ww>
         <Ww>
           <count>23</count>
           <WinNumber>1</WinNumber>
-          <ItemText>group2_calibrated</ItemText>
+          <ItemText>running_step</ItemText>
         </Ww>
         <Ww>
           <count>24</count>
           <WinNumber>1</WinNumber>
-          <ItemText>group2_count</ItemText>
+          <ItemText>current_point</ItemText>
+        </Ww>
+        <Ww>
+          <count>25</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>step_reached</ItemText>
+        </Ww>
+        <Ww>
+          <count>26</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>joint_ang_res</ItemText>
+        </Ww>
+        <Ww>
+          <count>27</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>int_axes_out</ItemText>
+        </Ww>
+        <Ww>
+          <count>28</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>int_x_out</ItemText>
+        </Ww>
+        <Ww>
+          <count>29</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>int_y_out</ItemText>
+        </Ww>
+        <Ww>
+          <count>30</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>int_z_out</ItemText>
         </Ww>
       </WatchWindow1>
       <WatchWindow2>
@@ -375,37 +405,37 @@
         <Ww>
           <count>19</count>
           <WinNumber>2</WinNumber>
-          <ItemText>array_pos_start</ItemText>
+          <ItemText>welding_data.array_pos_start</ItemText>
         </Ww>
         <Ww>
           <count>20</count>
           <WinNumber>2</WinNumber>
-          <ItemText>array_pos_end</ItemText>
+          <ItemText>welding_data.array_pos_end</ItemText>
         </Ww>
         <Ww>
           <count>21</count>
           <WinNumber>2</WinNumber>
-          <ItemText>array_ang_start</ItemText>
+          <ItemText>welding_data.array_ang_start</ItemText>
         </Ww>
         <Ww>
           <count>22</count>
           <WinNumber>2</WinNumber>
-          <ItemText>array_ang_end</ItemText>
+          <ItemText>welding_data.array_ang_end</ItemText>
         </Ww>
         <Ww>
           <count>23</count>
           <WinNumber>2</WinNumber>
-          <ItemText>welding_pattern</ItemText>
+          <ItemText>welding_data.welding_pattern</ItemText>
         </Ww>
         <Ww>
           <count>24</count>
           <WinNumber>2</WinNumber>
-          <ItemText>welding_speed</ItemText>
+          <ItemText>welding_data.welding_speed</ItemText>
         </Ww>
         <Ww>
           <count>25</count>
           <WinNumber>2</WinNumber>
-          <ItemText>welding_axis_offset</ItemText>
+          <ItemText>welding_data.welding_axis_offset</ItemText>
         </Ww>
         <Ww>
           <count>26</count>
