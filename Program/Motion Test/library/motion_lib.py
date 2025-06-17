@@ -46,6 +46,8 @@ class Motion:
             self.output_y[i] = y
             self.output_z[i] = z
 
+            print(self.output_x[i], self.output_y[i], self.output_z[i])
+
     def compute_parametric_t(self, points):
         t = [0]
         for i in range(1, len(points)):

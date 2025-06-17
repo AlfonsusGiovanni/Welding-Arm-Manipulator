@@ -145,7 +145,7 @@ void forward_transform_matrix(Kinematics_t *param);
 /* Calculate All Link Transformation*/
 void calculate_all_link(Kinematics_t *param);
 /* Forward Kinematics Calculation */
-void run_forward_kinematic(Kinematics_t *param, float joint_angle[6]);
+void run_forward_kinematic(Kinematics_t *param, volatile float joint_angle[6]);
 
 /* -------------------------------------------------------------------------------------------------------------------------------------------------*/
 

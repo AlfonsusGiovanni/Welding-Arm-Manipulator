@@ -224,9 +224,9 @@ Welding_Data_t welding_data;
 
 /* SYSTEM CONFIGURATION */
 //----------------------
-//#define USE_OLED
+#define USE_OLED
 //#define USE_SDCARD
-#define USE_EEPROM
+//#define USE_EEPROM
 #define USE_RS232
 #define USE_STEPPER
 #define USE_ENCODER
@@ -468,7 +468,6 @@ joint_miss_step = false,
 joint_error_bypass = false,
 check_welding_point = false,
 calculate_parameter = false,
-step_reached[JOINT_NUM],
 calibrated_joint[JOINT_NUM],
 soft_limit[JOINT_NUM],
 hard_limit[JOINT_NUM],
@@ -477,6 +476,9 @@ negative_limit[JOINT_NUM],
 positive_miss[JOINT_NUM],
 negative_miss[JOINT_NUM],
 miss_step[JOINT_NUM];
+
+volatile bool
+step_reached[JOINT_NUM];
 
 const uint8_t
 robot_axis[AXIS_NUM] = {
@@ -672,13 +674,13 @@ unsigned long
 step_timer,
 rpm_timer;
 
-bool
+volatile bool
 step_cont_run_j[JOINT_NUM],
 step_cont_run_w[JOINT_NUM],
 step_cal_run[JOINT_NUM],
 step_limit[JOINT_NUM];
 
-uint8_t
+volatile uint8_t
 step_state[JOINT_NUM];
 
 uint16_t
@@ -728,10 +730,9 @@ stepper_ratio[JOINT_NUM] = {
 	STEPPER6_RATIO,
 };
 
-uint32_t
+volatile uint32_t
 timer_counter[JOINT_NUM],
-step_counter[JOINT_NUM],
-current_step[JOINT_NUM];
+step_counter[JOINT_NUM];
 
 Stepper_Dir_t
 step_positive_dir[JOINT_NUM];
@@ -829,7 +830,7 @@ reset_enc = false;
 uint8_t
 enc_mag_status[JOINT_NUM];
 
-volatile uint32_t
+uint32_t
 pwm_freq[JOINT_NUM],
 high_time[JOINT_NUM],
 period_time[JOINT_NUM];
@@ -841,7 +842,7 @@ const float
 min_duty_cycle = 2.9,
 max_duty_cycle = 97.1;
 
-float
+volatile float
 duty_cycle[JOINT_NUM],
 diff_angle[JOINT_NUM],
 enc_angle[JOINT_NUM],
@@ -851,8 +852,9 @@ prev_cal_enc_angle[JOINT_NUM],
 reduced_cal_enc_angle[JOINT_NUM],
 raw_joint_angle[JOINT_NUM],
 filtered_joint_angle[JOINT_NUM],
-prev_filtered_joint_angle[JOINT_NUM],
+prev_filtered_joint_angle[JOINT_NUM];
 
+float
 max_joint_angle[JOINT_NUM] = {
 	JOINT1_MAX_ANGLE,
 	JOINT2_MAX_ANGLE,
@@ -1060,7 +1062,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		uint16_t pin = stepper_gpio_pin[i];
 		
 		// Step Signal
-		if(step_counter[i] <= target_step[i] || step_cont_run_j[i] || step_cal_run[i]){
+		if(step_counter[i] <= target_step[i]|| step_cont_run_j[i] || step_cal_run[i]){
 			if(cnt == 1) port->BSRR = (uint32_t)pin;
 			else if(cnt == t_on_val) port->BSRR = (uint32_t)pin << 16;
 			else if (cnt >= period){
@@ -1120,7 +1122,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 			prev_cal_enc_angle[i] = cal_enc_angle[i];
 			
 			raw_joint_angle[i] = reduced_cal_enc_angle[i] + (enc_counter[i] * (360.0f / stepper_ratio[i])) + enc_tollerance[i];
-			if(raw_joint_angle[i] >= -0.01f && raw_joint_angle[i] <= 0.01f) raw_joint_angle[i] = 0.00f;
+			if(raw_joint_angle[i] >= -0.0001f && raw_joint_angle[i] <= 0.0001f) raw_joint_angle[i] = 0.00f;
 			filtered_joint_angle[i] = FILTER_FACTOR*raw_joint_angle[i] + (1-FILTER_FACTOR) * filtered_joint_angle[i];
 		}
 	}
@@ -1586,8 +1588,8 @@ int main(void)
 								step_limit[j] = false;
 								step_cont_run_w[j] = true;
 							}
-							if(command.move_sign == UNSIGNED_VAR) rx_move_position[i] = 1.0f;
-							else if(command.move_sign == SIGNED_VAR) rx_move_position[i] = -1.0f;
+							if(command.move_sign == UNSIGNED_VAR) rx_move_position[i] = 10.0f;
+							else if(command.move_sign == SIGNED_VAR) rx_move_position[i] = -10.0f;
 						}
 						
 						// Distance or Step mode
@@ -3336,7 +3338,6 @@ void move_joint(uint8_t select_joint, float input_angle, Speed_t set_speed){
 /* --- MOVE ALL JOINT FUNCTION --- */
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 bool move_all_joint(float *input_angle, Speed_t set_speed){
-	bool all_step_reached = true;
 	float max_delta = 0.0f;
 	
 	// Set Minimum Joint Speed
@@ -3344,9 +3345,16 @@ bool move_all_joint(float *input_angle, Speed_t set_speed){
 	else if(set_speed == MED) joint_rpm = 0.75f;
 	else if(set_speed == HIGH) joint_rpm = 1.0f;
 	
-	// Calulate Max Delta Angle
+	// Reset Step Reached When Stopping
 	for(int i=0; i<JOINT_NUM; i++){
-		if(step_counter[i] == 0){
+		if(step_state[i] == STOPPING){
+			step_reached[i] = true;
+		}
+	}
+	
+	// Calulate Max Delta Angle - Run Once
+	for(int i=0; i<JOINT_NUM; i++){
+		if(step_reached[i]){
 			delta_move_ang[i] = input_angle[i] - filtered_joint_angle[i];
 			
 			delta_angle[i] = fabs(delta_move_ang[i]);
@@ -3357,19 +3365,11 @@ bool move_all_joint(float *input_angle, Speed_t set_speed){
 		else continue;
 	}
 	
-	// Check Step Reached To Update Point Counter
-	if(!step_reached[0] || !step_reached[1] || !step_reached[2] || !step_reached[3] || !step_reached[4] || !step_reached[5]){
-		all_step_reached = false;
-	}
-	
-	if(all_step_reached) return true;
-	
 	// Calculate Each Joint Speed & Run Stepper
-	max_delta_angle = max_delta;
-	if(max_delta > 0.02){					
+	if(max_delta > 0.02f){					
 		for(int i=0; i<JOINT_NUM; i++){
-			if(delta_angle[i] >= joint_ang_res[i] && step_counter[i] == 0){
-				step_reached[i] = false;
+			if(delta_angle[i] >= joint_ang_res[i] && step_reached[i]){
+				step_counter[i] = 0;
 				sync_joint_rpm[i] = joint_rpm * (delta_angle[i] / max_delta);
 				Joint_Dir_t dir = (delta_move_ang[i] > 0.0f) ? POSITIVE_DIR : NEGATIVE_DIR;
 				move_stepper(robot_joint[i], calc_stepper_step(i, delta_move_ang[i]), dir, calc_stepper_freq(i, sync_joint_rpm[i]));
@@ -3387,7 +3387,6 @@ bool move_all_joint(float *input_angle, Speed_t set_speed){
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 bool move_world(uint8_t select_axis, float move_pos, Speed_t set_speed){
 	bool all_step_stopped = true;
-	float max_delta = 0.0f;
 	
 	// Set Minimum Joint Speed
 	if(set_speed == LOW) joint_rpm = 0.5f;
@@ -3457,8 +3456,8 @@ bool move_world(uint8_t select_axis, float move_pos, Speed_t set_speed){
 /* --- LINEAR MOVE FUNCTION ---- */
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 bool linear_move(float *start_pos, float *end_pos, Speed_t speed){
-	uint8_t steps = (speed == LOW) ? 20 :	
-									(speed == MED) ? 15 : 10;
+	uint8_t steps = (speed == LOW) ? 40 :	
+									(speed == MED) ? 30 : 20;
 	
 	for(int i=0; i<AXIS_NUM; i++){
 		input_points[0][i] = start_pos[i];
@@ -3480,9 +3479,9 @@ bool linear_move(float *start_pos, float *end_pos, Speed_t speed){
 		int_axes_out[5] = int_rz_out[current_point+1];
 		
 		run_inverse_kinematic(&kinematics, int_axes_out);
-		end_point_reach = false;
 		
 		if(move_all_joint(kinematics.joint_ang_out, speed) == true){
+			HAL_Delay(1000);
 			current_point++;
 		}
 	}
@@ -3606,7 +3605,7 @@ void welding_preview(void){
 		
 		// Move to start point
 		if(running_step == MOVE_TO_START_POINT){
-			if(linear_move(current_position, welding_data.array_pos_start, LOW) == true){
+			if(linear_move(home_pos, welding_data.array_pos_start, LOW) == true){
 				running_step = MOVE_TO_END_POINT;
 			}
 		}
@@ -4241,7 +4240,7 @@ void receive_data(void){
 		command.msg_get = false;
 	}
 	
-	if(HAL_GetTick() - prev_time_get > 300 && command.msg_get == false){
+	if(HAL_GetTick() - prev_time_get > 250 && command.msg_get == false){
 		Reset_command(&command);
 		prev_time_get = HAL_GetTick();
 	}
