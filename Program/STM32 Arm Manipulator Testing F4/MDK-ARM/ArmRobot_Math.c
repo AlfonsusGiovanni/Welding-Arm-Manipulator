@@ -9,7 +9,7 @@
 /* MATRIX MULTIPLY ---------------------------------------------------------------------------------------------------------------------------------*/
 
 /* Multiply Matrix 4x4 */
-void multiply_4x4(double a[4][4], double b[4][4], double c[4][4]){
+void multiply_4x4(float a[4][4], float b[4][4], float c[4][4]){
 	for(int i=0; i<4; i++){
 		for (int j=0; j<4; j++){
 			c[i][j] = 0;
@@ -21,7 +21,7 @@ void multiply_4x4(double a[4][4], double b[4][4], double c[4][4]){
 }
 
 /* Multiply Matrix 3x3 */
-void multiply_3x3(double a[3][3], double b[3][3], double c[3][3]){
+void multiply_3x3(float a[3][3], float b[3][3], float c[3][3]){
 	for(int i=0; i<3; i++){
 		for (int j=0; j<3; j++){
 			c[i][j] = 0;
@@ -32,8 +32,8 @@ void multiply_3x3(double a[3][3], double b[3][3], double c[3][3]){
 	}
 }
 
-double determinant_6x6(double A[6][6]){
-	double 
+float determinant_6x6(float A[6][6]){
+	float 
 	U[6][6],
 	L[6][6],
 	det = 1.0;
@@ -55,7 +55,7 @@ double determinant_6x6(double A[6][6]){
 	for(int i=0; i<6; i++) {
 		for(int j=i+1; j<6; j++) {
 			if(U[i][i] == 0) return 0;  // Singular matrix
-			double factor = U[j][i] / U[i][i];
+			float factor = U[j][i] / U[i][i];
 			L[j][i] = factor;
 			for(int k=i; k<6; k++){
 				U[j][k] -= factor * U[i][k];
@@ -76,7 +76,7 @@ double determinant_6x6(double A[6][6]){
 /* FORWARD KINEMATICS ------------------------------------------------------------------------------------------------------------------------------*/
 
 /* DH Parameter Variable Init */
-void DHparam_init(Kinematics_t *param, double input_link_offset[6], double input_link_length[6], double input_link_twist[6]){	
+void DHparam_init(Kinematics_t *param, float input_link_offset[6], float input_link_length[6], float input_link_twist[6]){	
 	// Set Calibration Value
 	param->theta_cal[0] = 0;
 	param->theta_cal[1] = -90;
@@ -93,7 +93,7 @@ void DHparam_init(Kinematics_t *param, double input_link_offset[6], double input
 }
 
 /* Toolframe Variable Init */
-void tollframe_init(Kinematics_t *param, double x, double y, double z, double rx, double ry, double rz){
+void tollframe_init(Kinematics_t *param, float x, float y, float z, float rx, float ry, float rz){
 	param->tool_x = x;
 	param->tool_y = y;
 	param->tool_z = z;
@@ -303,7 +303,7 @@ void calculate_all_link(Kinematics_t *param){
 	param->axis_pos_out[2] = param->trans_mat_0_t[2][3];	// Z axis
 	
 	// Get Toolframe Axis Rotation
-	param->axis_rot_rad[1] = atan2(-param->trans_mat_0_t[2][0], sqrt(pow(param->trans_mat_0_t[2][1], 2) + pow(param->trans_mat_0_t[2][2], 2))); 			// Y axis
+	param->axis_rot_rad[1] = atan2(-param->trans_mat_0_t[2][0], sqrt(pow(param->trans_mat_0_t[0][0], 2) + pow(param->trans_mat_0_t[1][0], 2))); 			// Y axis
 	param->axis_rot_rad[0] = atan2(param->trans_mat_0_t[2][1]/cos(param->axis_rot_rad[1]), param->trans_mat_0_t[2][2]/cos(param->axis_rot_rad[1]));		// X axis
 	param->axis_rot_rad[2] = atan2(param->trans_mat_0_t[1][0]/cos(param->axis_rot_rad[1]), param->trans_mat_0_t[0][0]/cos(param->axis_rot_rad[1]));		// Z axis
 	
@@ -313,7 +313,7 @@ void calculate_all_link(Kinematics_t *param){
 }
 
 /* Forward Kinematics Calculation */
-void run_forward_kinematic(Kinematics_t *param, double joint_angle[6]){
+void run_forward_kinematic(Kinematics_t *param, volatile float joint_angle[6]){
 	for(int i=0; i<6; i++){	
 		param->joint_ang_in[i] = joint_angle[i];
 		param->dh_theta[i] = (joint_angle[i] + param->theta_cal[i]) * DEG2RAD;
@@ -328,8 +328,8 @@ void run_forward_kinematic(Kinematics_t *param, double joint_angle[6]){
 /* INVERSE KINEMATICS ------------------------------------------------------------------------------------------------------------------------------*/
 
 /* Invert Toolframe Axis Rotation Calculation */
-double calculate_tf_rot_axis(Kinematics_t *param, uint8_t sel_axis){
-	double 
+float calculate_tf_rot_axis(Kinematics_t *param, uint8_t sel_axis){
+	float 
 	rx_val[3],
 	ry_val[3],
 	rz_val[3],
@@ -360,22 +360,22 @@ double calculate_tf_rot_axis(Kinematics_t *param, uint8_t sel_axis){
 }
 
 /* Inverse Kinematics Calculation */
-void run_inverse_kinematic(Kinematics_t *param, double input_x, double input_y, double input_z, double input_rx, double input_ry, double input_rz){
+void run_inverse_kinematic(Kinematics_t *param, float tool_axes[6]){
 	// Spherical Wirst Transformation Matrix
-	param->trans_mat_1_t_rev[0][0] = cos(input_rz*DEG2RAD)*cos(input_ry*DEG2RAD);
-	param->trans_mat_1_t_rev[0][1] = cos(input_rz*DEG2RAD)*sin(input_ry*DEG2RAD)*sin(input_rx*DEG2RAD) - sin(input_rz*DEG2RAD)*cos(input_rx*DEG2RAD);
-	param->trans_mat_1_t_rev[0][2] = cos(input_rz*DEG2RAD)*sin(input_ry*DEG2RAD)*cos(input_rx*DEG2RAD) + sin(input_rz*DEG2RAD)*sin(input_rx*DEG2RAD);
-	param->trans_mat_1_t_rev[0][3] = input_x;
+	param->trans_mat_1_t_rev[0][0] = cos(tool_axes[5]*DEG2RAD)*cos(tool_axes[4]*DEG2RAD);
+	param->trans_mat_1_t_rev[0][1] = cos(tool_axes[5]*DEG2RAD)*sin(tool_axes[4]*DEG2RAD)*sin(tool_axes[3]*DEG2RAD) - sin(tool_axes[5]*DEG2RAD)*cos(tool_axes[3]*DEG2RAD);
+	param->trans_mat_1_t_rev[0][2] = cos(tool_axes[5]*DEG2RAD)*sin(tool_axes[4]*DEG2RAD)*cos(tool_axes[3]*DEG2RAD) + sin(tool_axes[5]*DEG2RAD)*sin(tool_axes[3]*DEG2RAD);
+	param->trans_mat_1_t_rev[0][3] = tool_axes[0];
 	
-	param->trans_mat_1_t_rev[1][0] = sin(input_rz*DEG2RAD)*cos(input_ry*DEG2RAD);
-	param->trans_mat_1_t_rev[1][1] = sin(input_rz*DEG2RAD)*sin(input_ry*DEG2RAD)*sin(input_rx*DEG2RAD) + cos(input_rz*DEG2RAD)*cos(input_rx*DEG2RAD);
-	param->trans_mat_1_t_rev[1][2] = sin(input_rz*DEG2RAD)*sin(input_ry*DEG2RAD)*cos(input_rx*DEG2RAD) - cos(input_rz*DEG2RAD)*sin(input_rx*DEG2RAD);
-	param->trans_mat_1_t_rev[1][3] = input_y;
+	param->trans_mat_1_t_rev[1][0] = sin(tool_axes[5]*DEG2RAD)*cos(tool_axes[4]*DEG2RAD);
+	param->trans_mat_1_t_rev[1][1] = sin(tool_axes[5]*DEG2RAD)*sin(tool_axes[4]*DEG2RAD)*sin(tool_axes[3]*DEG2RAD) + cos(tool_axes[5]*DEG2RAD)*cos(tool_axes[3]*DEG2RAD);
+	param->trans_mat_1_t_rev[1][2] = sin(tool_axes[5]*DEG2RAD)*sin(tool_axes[4]*DEG2RAD)*cos(tool_axes[3]*DEG2RAD) - cos(tool_axes[5]*DEG2RAD)*sin(tool_axes[3]*DEG2RAD);
+	param->trans_mat_1_t_rev[1][3] = tool_axes[1];
 	
-	param->trans_mat_1_t_rev[2][0] = -sin(input_ry*DEG2RAD);
-	param->trans_mat_1_t_rev[2][1] = cos(input_ry*DEG2RAD)*sin(input_rx*DEG2RAD);
-	param->trans_mat_1_t_rev[2][2] = cos(input_ry*DEG2RAD)*cos(input_rx*DEG2RAD);
-	param->trans_mat_1_t_rev[2][3] = input_z;
+	param->trans_mat_1_t_rev[2][0] = -sin(tool_axes[4]*DEG2RAD);
+	param->trans_mat_1_t_rev[2][1] = cos(tool_axes[4]*DEG2RAD)*sin(tool_axes[3]*DEG2RAD);
+	param->trans_mat_1_t_rev[2][2] = cos(tool_axes[4]*DEG2RAD)*cos(tool_axes[3]*DEG2RAD);
+	param->trans_mat_1_t_rev[2][3] = tool_axes[2];
 	
 	param->trans_mat_1_t_rev[3][0] = 0;
 	param->trans_mat_1_t_rev[3][1] = 0;
@@ -664,7 +664,7 @@ void find_jacobian_variable(Kinematics_t *param){
 void check_singularity(Kinematics_t *param){
 	param->jacobian_det = determinant_6x6(param->jacobian_matrix);
 	
-	if(param->jacobian_det == 0.00000000000000){
+	if(param->jacobian_det == 0.0000000f){
 		param->singularity = true;
 	}
 	else param->singularity =  false;
@@ -674,7 +674,7 @@ void check_singularity(Kinematics_t *param){
 
 
 /* MINUS ZERO PREVENTION ----------------------------------------------------------------------------------------------------------------------------*/
-double sanitize_zero(double value){
-	return (value == 0.0) ? 0.0 : value;
+float sanitize_zero(float value){
+	return (value == 0.0f) ? 0.0f : value;
 }
 /* --------------------------------------------------------------------------------------------------------------------------------------------------*/

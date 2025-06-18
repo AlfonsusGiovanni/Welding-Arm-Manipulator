@@ -185,6 +185,7 @@ typedef enum{
 	ALL_AXES,
 	POS_AXES,
 	ROT_AXES,
+	ALL_ANGLE,
 }Linear_Move_Mode_t;
 // ------------------------------------
 
@@ -226,7 +227,7 @@ Welding_Data_t welding_data;
 //----------------------
 #define USE_OLED
 //#define USE_SDCARD
-//#define USE_EEPROM
+#define USE_EEPROM
 #define USE_RS232
 #define USE_STEPPER
 #define USE_ENCODER
@@ -396,6 +397,8 @@ UART_HandleTypeDef huart4;
 /* USER CODE BEGIN PV */
 
 // PARAMETER VARIABLE
+uint32_t dummy_timer;
+
 Speed_t
 global_speed;
 
@@ -437,9 +440,14 @@ float
 home_pos[AXIS_NUM] = {
 	598.5f, 0.0f, 776.0f,
 	180.0f, 0.0f, 180.0f
-};
+},
 
-float
+home_ang[JOINT_NUM] = {
+	0.0f, 0.0f, 0.0f,
+	0.0f, 90.0f, 0.0f
+},
+
+
 joint_max_traveldist[JOINT_NUM],
 joint_ang_res[JOINT_NUM],
 joint_miss_step_angle[JOINT_NUM];
@@ -453,9 +461,7 @@ joint_input_angle[JOINT_NUM];
 
 bool
 calibrating = false,
-clear_to_update = false,
 cont_world_move = false,
-end_point_reach = false,
 home = false,
 robot_stop = false,
 get_welding_cmd = false,
@@ -475,9 +481,12 @@ positive_limit[JOINT_NUM],
 negative_limit[JOINT_NUM],
 positive_miss[JOINT_NUM],
 negative_miss[JOINT_NUM],
-miss_step[JOINT_NUM];
+miss_step[JOINT_NUM],
+zero_delta[JOINT_NUM];
 
 volatile bool
+robot_run = false,
+clear_to_update = false,
 step_reached[JOINT_NUM];
 
 const uint8_t
@@ -547,7 +556,6 @@ calibration_dir[JOINT_NUM],
 home_dir[JOINT_NUM];
 
 
-
 // EEPROM VARIABLE
 uint8_t
 page_data_byte[EEPROM_512Kb_PAGE_SIZE],
@@ -577,19 +585,6 @@ uint16_t
 chcksum_sp, chcksum_ep,
 chcksum_sp_validation,
 chcksum_ep_validation;
-
-
-// INVERSE KINEMATICS VARIABLE
-float
-ik_pos_input[AXIS_NUM],
-ik_angle_output[JOINT_NUM];
-
-
-// FORWARD KINEMATICS VARIABLE
-float
-fk_angle_input[JOINT_NUM],
-fk_pos_output[AXIS_NUM];
-
 
 // MOVE VARIABLE
 float
@@ -627,6 +622,7 @@ int_j6_out[MAX_UPDATE_STEP],
 int_angle_out[JOINT_NUM];
 
 uint8_t
+independent_point[JOINT_NUM],
 current_point,
 int_counter;
 
@@ -683,12 +679,14 @@ step_limit[JOINT_NUM];
 volatile uint8_t
 step_state[JOINT_NUM];
 
+volatile uint16_t
+target_step[JOINT_NUM];
+
 uint16_t
 stepper_rpm[JOINT_NUM],
 stepper_freq[JOINT_NUM],
 t_on[JOINT_NUM],
 t_off[JOINT_NUM],
-target_step[JOINT_NUM],
 step_count[JOINT_NUM],
 step_freq[JOINT_NUM],
 step_period[JOINT_NUM],
@@ -875,7 +873,7 @@ min_joint_angle[JOINT_NUM] = {
 
 enc_tollerance[JOINT_NUM] = {
 	0.0, 0.0, 0.0,
-	0.0, 0.0, 0.0,
+	0.0, 90.0, 0.0,
 };
 
 
@@ -1034,7 +1032,6 @@ void show_menu(Oled_Menu_t sel_menu);
 uint32_t RS232_state, RS232_err_status;
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	if(huart->Instance == UART4){
-		RS232_state = check_state();
 		command.msg_get = true;
 		prev_time_get = HAL_GetTick();
 	}
@@ -1048,7 +1045,7 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 //------------------------------------------------------
 
 
-/*STEPPER TIMER CALLBACK*/
+/*TIMER CALLBACK*/
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	for(int i=0; i<JOINT_NUM; i++){
@@ -1072,13 +1069,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		}
 		
 		// Step Reached 
-		if(step_counter[i] > target_step[i] && step_cont_run_w[i]){
-			step_counter[i] = 0;
+		if(step_counter[i] > target_step[i]){
+			if(step_cont_run_w[i]) step_counter[i] = 0;
 			step_reached[i] = true;
 		}
 		
 		// Stop Timer 
-		if(((step_counter[i] >= target_step[i]) && step_limit[i]) || (!step_limit[i] && !step_cont_run_j[i] && !step_cont_run_w[i] && !step_cal_run[i]) || joint_limit || robot_stop || end_point_reach){		
+		if(((step_counter[i] >= target_step[i]) && step_limit[i]) || (!step_limit[i] && !step_cont_run_j[i] && !step_cont_run_w[i] && !step_cal_run[i] && !robot_run) || joint_limit || robot_stop){		
 			port->BSRR = (uint32_t)pin << 16;
 			HAL_TIM_Base_Stop_IT(stepper_tim_handler[i]);
 			timer_counter[i] = 0;
@@ -1484,7 +1481,7 @@ int main(void)
 		}
 		#endif
 		
-		// UPDATE IK AND FK VALUE
+		// UPDATE FK VALUE
 		update_value();
 		
 		// RECEIVE RS232 DATA
@@ -1675,6 +1672,7 @@ int main(void)
 				}
 				else if(command.running_state == RUNNING_STOP){
 					get_preview_cmd = false;
+					preview_run = false;
 					if(joint_calibrate(HOMING_ONLY, true, true, true, true, true, false) == true){
 						for(int i=0; i<50; i++){
 							Send_feedback(&command, CALIBRATION_DONE, 0x00);
@@ -1732,8 +1730,10 @@ int main(void)
 			welding_preview();
 		}
 		
-		// SEND ALL DATA ---
-		send_ang_pos_data();
+		// SEND UPDATED DATA
+		if(!preview_run){
+			send_ang_pos_data();
+		}
 		
 		// SHOW MENU --------
 		show_menu(MAIN_MENU);
@@ -2572,8 +2572,9 @@ static void MX_UART4_Init(void)
   huart4.Init.OverSampling = UART_OVERSAMPLING_16;
   huart4.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
   huart4.Init.ClockPrescaler = UART_PRESCALER_DIV1;
-  huart4.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_RXOVERRUNDISABLE_INIT;
+  huart4.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_RXOVERRUNDISABLE_INIT|UART_ADVFEATURE_DMADISABLEONERROR_INIT;
   huart4.AdvancedInit.OverrunDisable = UART_ADVFEATURE_OVERRUN_DISABLE;
+  huart4.AdvancedInit.DMADisableonRxError = UART_ADVFEATURE_DMA_DISABLEONRXERROR;
   if (HAL_UART_Init(&huart4) != HAL_OK)
   {
     Error_Handler();
@@ -2709,19 +2710,19 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(SDMMC1_BSP_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI2_IRQn, 11, 0);
+  HAL_NVIC_SetPriority(EXTI2_IRQn, 12, 0);
   HAL_NVIC_EnableIRQ(EXTI2_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI3_IRQn, 11, 0);
+  HAL_NVIC_SetPriority(EXTI3_IRQn, 12, 0);
   HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI4_IRQn, 11, 0);
+  HAL_NVIC_SetPriority(EXTI4_IRQn, 12, 0);
   HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 11, 0);
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 12, 0);
   HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 11, 0);
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 12, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
@@ -3243,6 +3244,18 @@ void calc_linear_points(float points[2][6], int steps, Linear_Move_Mode_t mode){
 			int_rx_out[i] = points[0][3] + i*axis_delta[3];
 			int_ry_out[i] = points[0][4] + i*axis_delta[4];
 			int_rz_out[i] = points[0][5] + i*axis_delta[5];
+			
+			#ifdef USE_DEBUG_PROGRAM
+			float current_pos[6] = {int_x_out[i], int_y_out[i], int_z_out[i], int_rx_out[i], int_ry_out[i], int_rz_out[i]};
+			run_inverse_kinematic(&kinematics, current_pos);
+			
+			int_j1_out[i] = kinematics.joint_ang_out[0];
+			int_j2_out[i] = kinematics.joint_ang_out[1];
+			int_j3_out[i] = kinematics.joint_ang_out[2];
+			int_j4_out[i] = kinematics.joint_ang_out[3];
+			int_j5_out[i] = kinematics.joint_ang_out[4];
+			int_j6_out[i] = kinematics.joint_ang_out[5];
+			#endif
 		}
 	}
 	
@@ -3267,6 +3280,34 @@ void calc_linear_points(float points[2][6], int steps, Linear_Move_Mode_t mode){
 			int_rx_out[i] = points[0][3] + i*axis_delta[3];
 			int_ry_out[i] = points[0][4] + i*axis_delta[4];
 			int_rz_out[i] = points[0][5] + i*axis_delta[5];
+		}
+	}
+	
+	else if(mode == ALL_ANGLE){
+		for(int i=0; i<JOINT_NUM; i++){
+			joint_delta[i] = (points[1][i] - points[0][i]) / steps;
+		}
+		
+		for(int i=0; i<=steps; i++){
+			int_j1_out[i] = points[0][0] + i*joint_delta[0];
+			int_j2_out[i] = points[0][1] + i*joint_delta[1];
+			int_j3_out[i] = points[0][2] + i*joint_delta[2];
+			
+			int_j4_out[i] = points[0][3] + i*joint_delta[3];
+			int_j5_out[i] = points[0][4] + i*joint_delta[4];
+			int_j6_out[i] = points[0][5] + i*joint_delta[5];
+			
+			#ifdef USE_DEBUG_PROGRAM
+			float current_ang[6] = {int_j1_out[i], int_j2_out[i], int_j3_out[i], int_j4_out[i], int_j5_out[i], int_j6_out[i]};
+			run_forward_kinematic(&kinematics, current_ang);
+			
+			int_x_out[i] = kinematics.axis_pos_out[0];
+			int_y_out[i] = kinematics.axis_pos_out[1];
+			int_z_out[i] = kinematics.axis_pos_out[2];
+			int_rx_out[i] = kinematics.axis_rot_out[0];
+			int_ry_out[i] = kinematics.axis_rot_out[1];
+			int_rz_out[i] = kinematics.axis_rot_out[2];
+			#endif
 		}
 	}
 }
@@ -3345,36 +3386,77 @@ bool move_all_joint(float *input_angle, Speed_t set_speed){
 	else if(set_speed == MED) joint_rpm = 0.75f;
 	else if(set_speed == HIGH) joint_rpm = 1.0f;
 	
-	// Reset Step Reached When Stopping
-	for(int i=0; i<JOINT_NUM; i++){
-		if(step_state[i] == STOPPING){
-			step_reached[i] = true;
-		}
-	}
-	
-	// Calulate Max Delta Angle - Run Once
-	for(int i=0; i<JOINT_NUM; i++){
-		if(step_reached[i]){
-			delta_move_ang[i] = input_angle[i] - filtered_joint_angle[i];
-			
-			delta_angle[i] = fabs(delta_move_ang[i]);
-			if(delta_angle[i] > max_delta){
-				max_delta = delta_angle[i];
+	if(!preview_run || !welding_run){
+		// Reset Step Reached When Stopping
+		for(int i=0; i<JOINT_NUM; i++){
+			if(step_state[i] == STOPPING){
+				step_reached[i] = true;
 			}
 		}
-		else continue;
-	}
-	
-	// Calculate Each Joint Speed & Run Stepper
-	if(max_delta > 0.02f){					
+		
+		// Calulate Max Delta Angle - Run Once
 		for(int i=0; i<JOINT_NUM; i++){
-			if(delta_angle[i] >= joint_ang_res[i] && step_reached[i]){
-				step_counter[i] = 0;
-				sync_joint_rpm[i] = joint_rpm * (delta_angle[i] / max_delta);
-				Joint_Dir_t dir = (delta_move_ang[i] > 0.0f) ? POSITIVE_DIR : NEGATIVE_DIR;
-				move_stepper(robot_joint[i], calc_stepper_step(i, delta_move_ang[i]), dir, calc_stepper_freq(i, sync_joint_rpm[i]));
+			if(step_reached[i]){
+				delta_move_ang[i] = input_angle[i] - filtered_joint_angle[i];
+				delta_angle[i] = fabs(delta_move_ang[i]);
+				
+				if(delta_angle[i] > max_delta){
+					max_delta = delta_angle[i];
+				}
 			}
 			else continue;
+		}
+		
+		// Calculate Each Joint Speed & Run Stepper - Run Once
+		max_delta_angle = max_delta;
+		if(max_delta > 0.02f){					
+			for(int i=0; i<JOINT_NUM; i++){
+				if(delta_angle[i] >= joint_ang_res[i] && step_reached[i]){
+					step_reached[i] = false;
+					step_counter[i] = 0;
+					sync_joint_rpm[i] = joint_rpm * (delta_angle[i] / max_delta);
+					Joint_Dir_t dir = (delta_move_ang[i] > 0.0f) ? POSITIVE_DIR : NEGATIVE_DIR;
+					move_stepper(robot_joint[i], calc_stepper_step(i, delta_move_ang[i]), dir, calc_stepper_freq(i, sync_joint_rpm[i]));
+				}
+				else continue;
+			}
+		}
+	}
+	
+	else{		
+		// Reset Step Reached When Stopping
+		for(int i=0; i<JOINT_NUM; i++){
+			if(step_state[i] == STOPPING){
+				step_reached[i] = true;
+			}
+		}
+		
+		// Calulate Max Delta Angle - Run Once
+		for(int i=0; i<JOINT_NUM; i++){
+			if(step_reached[i] && clear_to_update){
+				delta_move_ang[i] = input_angle[i] - filtered_joint_angle[i];
+				delta_angle[i] = fabs(delta_move_ang[i]);
+				
+				if(delta_angle[i] > max_delta){
+					max_delta = delta_angle[i];
+				}
+			}
+			else continue;
+		}
+		
+		// Calculate Each Joint Speed & Run Stepper - Run Once
+		max_delta_angle = max_delta;
+		if(max_delta > 0.02f){
+			for(int i=0; i<JOINT_NUM; i++){
+				if(delta_angle[i] >= joint_ang_res[i] && step_reached[i] && clear_to_update){
+					step_reached[i] = false;
+					step_counter[i] = 0;
+					sync_joint_rpm[i] = joint_rpm * (delta_angle[i] / max_delta);
+					Joint_Dir_t dir = (delta_move_ang[i] > 0.0f) ? POSITIVE_DIR : NEGATIVE_DIR;
+					move_stepper(robot_joint[i], calc_stepper_step(i, delta_move_ang[i]), dir, calc_stepper_freq(i, sync_joint_rpm[i]));
+				}
+				else continue;
+			}
 		}
 	}
 	
@@ -3456,50 +3538,65 @@ bool move_world(uint8_t select_axis, float move_pos, Speed_t set_speed){
 /* --- LINEAR MOVE FUNCTION ---- */
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 bool linear_move(float *start_pos, float *end_pos, Speed_t speed){
-	uint8_t steps = (speed == LOW) ? 40 :	
-									(speed == MED) ? 30 : 20;
-	
-	for(int i=0; i<AXIS_NUM; i++){
-		input_points[0][i] = start_pos[i];
-		input_points[1][i] = end_pos[i];
-		step_cont_run_w[i] = true;
-	}
+	uint8_t steps = (speed == LOW) ? 20 :	
+									(speed == MED) ? 15 : 10;
 	
 	if(calculate_parameter){
-		calc_linear_points(input_points, steps, ALL_AXES);
+		for(int i=0; i<JOINT_NUM; i++){
+			input_points[0][i] = start_pos[i];
+			input_points[1][i] = end_pos[i];
+//			step_limit[i] = true;
+		}
+		calc_linear_points(input_points, steps, ALL_ANGLE);
+		
+		current_point = 0;
+		robot_run = true;
 		calculate_parameter = false;
+		clear_to_update = true;
 	}
 	
-	if(current_point < steps){
-		int_axes_out[0] = int_x_out[current_point+1];
-		int_axes_out[1] = int_y_out[current_point+1];
-		int_axes_out[2] = int_z_out[current_point+1];
-		int_axes_out[3] = int_rx_out[current_point+1];
-		int_axes_out[4] = int_ry_out[current_point+1];
-		int_axes_out[5] = int_rz_out[current_point+1];
+	else if(current_point < steps){
+		int_angle_out[0] = int_j1_out[current_point + 1];
+		int_angle_out[1] = int_j2_out[current_point + 1];
+		int_angle_out[2] = int_j3_out[current_point + 1];
+		int_angle_out[3] = int_j4_out[current_point + 1];
+		int_angle_out[4] = int_j5_out[current_point + 1];
+		int_angle_out[5] = int_j6_out[current_point + 1];
 		
-		run_inverse_kinematic(&kinematics, int_axes_out);
+		if(clear_to_update){
+			move_all_joint(int_angle_out, speed);
+			clear_to_update = false;
+		}
 		
-		if(move_all_joint(kinematics.joint_ang_out, speed) == true){
-			HAL_Delay(1000);
-			current_point++;
+		else if(!clear_to_update){
+			if(step_reached[0] && step_reached[1] && step_reached[2] && step_reached[3] && step_reached[4] && step_reached[5]){
+				current_point++;
+				clear_to_update = true;
+			}
 		}
 	}
-	else{
-		end_point_reach = true;
-		current_point = 0;
-		for(int i=0; i<JOINT_NUM; i++){
-			step_cont_run_w[i] = false;
-			HAL_TIM_Base_Stop_IT(stepper_tim_handler[i]);
-			timer_counter[i] = 0;
-			step_counter[i] = 0;
-			step_state[i] = STOPPING;
-		}
+	
+	else if(current_point == steps){
+		robot_run = false;
+		calculate_parameter = true;
 		return true;
 	}
+
+//	if(current_point == 0){
+//		move_all_joint(end_pos, speed);
+//		current_point = 1;
+//	}
+//	
+//	else if(current_point == 1){
+//		if(step_state[0] == 0x01 && step_state[1] == 0x01 && step_state[2] == 0x01 && step_state[3] == 0x01 && step_state[4] == 0x01){
+//		calculate_parameter = true;
+//		return true;
+//		}
+//	}
 	
 	return false;
 }
+
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -3536,7 +3633,6 @@ bool spline_move(float *start_pos, float *mid_pos, float *end_pos, Axis_Offset_t
 		int_axes_out[5] = int_rz_out[current_point];
 		
 		run_inverse_kinematic(&kinematics, int_axes_out);
-		end_point_reach = false;
 		
 		if(move_all_joint(kinematics.joint_ang_out, speed) == true){
 			for(int i=0; i<JOINT_NUM; i++) step_counter[i] = 0;
@@ -3544,7 +3640,6 @@ bool spline_move(float *start_pos, float *mid_pos, float *end_pos, Axis_Offset_t
 		}
 	}
 	else{
-		end_point_reach = true;
 		current_point = 0;
 		return true;
 	}
@@ -3596,16 +3691,14 @@ void welding_preview(void){
 	if(preview_run){
 		// Move to home
 		if(running_step == MOVE_TO_HOME){
-			if(joint_calibrate(HOMING_ONLY, true, true, true, true, true, false) == true){
-				HAL_Delay(1000);
-				calculate_parameter = true;
-				running_step = MOVE_TO_START_POINT;
-			}
+			HAL_Delay(1000);
+			calculate_parameter = true;
+			running_step = MOVE_TO_START_POINT;
 		}
 		
 		// Move to start point
 		if(running_step == MOVE_TO_START_POINT){
-			if(linear_move(home_pos, welding_data.array_pos_start, LOW) == true){
+			if(linear_move(home_ang, welding_data.array_ang_start, HIGH) == true){
 				running_step = MOVE_TO_END_POINT;
 			}
 		}
@@ -3616,7 +3709,7 @@ void welding_preview(void){
 				// Do Nothing
 			}
 			else if(welding_data.welding_pattern == LINEAR){
-				if(linear_move(welding_data.array_ang_start, welding_data.array_pos_end, LOW) == true){
+				if(linear_move(welding_data.array_ang_start, welding_data.array_ang_end, welding_data.welding_speed) == true){
 					running_step = MOVE_STOP;
 				}
 			}
@@ -3624,16 +3717,16 @@ void welding_preview(void){
 		
 		// Move stop
 		else if(running_step == MOVE_STOP){
-			if(linear_move(welding_data.array_pos_end, home_pos, LOW) == true){
+			if(linear_move(welding_data.array_ang_end, home_ang, HIGH) == true){
 				preview_run = false;
 				get_preview_cmd = false;
+				robot_run = false;
 				running_step = NO_STEP;
 			}
 		}
 	}
 }
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 
 /* --- WELDING START FUNCTION ---*/
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -3893,7 +3986,7 @@ bool joint_calibrate(Cal_Mode_t mode, bool j1_cal, bool j2_cal, bool j3_cal, boo
 		
 		// Move Last 3 Joints To Offset Angle
 		else if(calibration_step == J4_J6_OFFSET_MOVE){
-			float offset_angle[2] = {10.0, -10.0};
+			float offset_angle[2] = {10.0, 80.0};
 			
 			if(filtered_joint_angle[3] < offset_angle[0]){
 				step_cal_run[3] = true;
@@ -3953,7 +4046,7 @@ bool joint_calibrate(Cal_Mode_t mode, bool j1_cal, bool j2_cal, bool j3_cal, boo
 		
 		// Move All Joints To Home Position
 		else if(calibration_step == ALL_JOINT_HOME){
-			float offset_angle[6] = {90, 45, -45, 90, -120, 0};
+			float offset_angle[6] = {90, 45, -45, 90, 90, 0};
 			
 			for(int i=0; i<JOINT_NUM-1; i++){
 				if(offset_angle[i] < 0){
@@ -4190,40 +4283,42 @@ void send_mapped_data(void){
 /* --- CUSTON RS232 TRANSMIT FUNCTION ---*/
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void send_ang_pos_data(void){
-//	tx_pos[0] = 12.3;
-//	tx_pos[1] = 12.3;
-//	tx_pos[2] = 12.3;
-//	
-//	tx_rot[0] = 11.1;
-//	tx_rot[1] = 11.1;
-//	tx_rot[2] = 11.1;
+	#ifdef USE_DEBUG_PROGRAM
+	tx_pos[0] = 12.3;
+	tx_pos[1] = 12.3;
+	tx_pos[2] = 12.3;
 	
-//	tx_angle[0] = 90.5;
-//	tx_angle[1] = 90.5;
-//	tx_angle[2] = 90.5;
-//	tx_angle[3] = 90.5;
-//	tx_angle[4] = 90.5;
-//	tx_angle[5] = 90.5;
+	tx_rot[0] = 11.1;
+	tx_rot[1] = 11.1;
+	tx_rot[2] = 11.1;
 	
-	tx_pos[0] = (float)kinematics.axis_pos_out[0];
-	tx_pos[1] = (float)kinematics.axis_pos_out[1];
-	tx_pos[2] = (float)kinematics.axis_pos_out[2];
+	tx_angle[0] = 90.5;
+	tx_angle[1] = 90.5;
+	tx_angle[2] = 90.5;
+	tx_angle[3] = 90.5;
+	tx_angle[4] = 90.5;
+	tx_angle[5] = 90.5;
 	
-	tx_rot[0] = (float)kinematics.axis_rot_out[0];
-	tx_rot[1] = (float)kinematics.axis_rot_out[1];
-	tx_rot[2] = (float)kinematics.axis_rot_out[2];
+	#else
+	tx_pos[0] = kinematics.axis_pos_out[0];
+	tx_pos[1] = kinematics.axis_pos_out[1];
+	tx_pos[2] = kinematics.axis_pos_out[2];
 	
-	tx_angle[0] = (float)filtered_joint_angle[0];
-	tx_angle[1] = (float)filtered_joint_angle[1];
-	tx_angle[2] = (float)filtered_joint_angle[2];
-	tx_angle[3] = (float)filtered_joint_angle[3];
-	tx_angle[4] = (float)filtered_joint_angle[4];
-	tx_angle[5] = (float)filtered_joint_angle[5];
+	tx_rot[0] = kinematics.axis_rot_out[0];
+	tx_rot[1] = kinematics.axis_rot_out[1];
+	tx_rot[2] = kinematics.axis_rot_out[2];
 	
-	if(HAL_GetTick() - prev_time_send > send_data_interval){
-		for(int i=0; i<25; i++){
-			Send_requested_data(&command, tx_pos, tx_rot, tx_angle, welding_data.welding_point, welding_data.welding_pattern, welding_data.welding_speed);
-		}
+	tx_angle[0] = filtered_joint_angle[0];
+	tx_angle[1] = filtered_joint_angle[1];
+	tx_angle[2] = filtered_joint_angle[2];
+	tx_angle[3] = filtered_joint_angle[3];
+	tx_angle[4] = filtered_joint_angle[4];
+	tx_angle[5] = filtered_joint_angle[5];
+	#endif
+	
+	if(HAL_GetTick() - prev_time_send > 20 && HAL_UART_GetState(&huart4) != HAL_UART_STATE_BUSY_TX){
+		command.msg_sent = false;
+		Send_requested_data(&command, tx_pos, tx_rot, tx_angle, welding_data.welding_point, welding_data.welding_pattern, welding_data.welding_speed);
 		prev_time_send = HAL_GetTick();
 	}
 }
@@ -4240,7 +4335,7 @@ void receive_data(void){
 		command.msg_get = false;
 	}
 	
-	if(HAL_GetTick() - prev_time_get > 250 && command.msg_get == false){
+	if(HAL_GetTick() - prev_time_get > 300 && command.msg_get == false){
 		Reset_command(&command);
 		prev_time_get = HAL_GetTick();
 	}

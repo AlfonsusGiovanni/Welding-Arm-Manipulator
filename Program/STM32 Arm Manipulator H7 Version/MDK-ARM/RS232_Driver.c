@@ -66,7 +66,7 @@ void Req_data(Data_Get_t* get, Req_t data){
 
 /*SEND REQUESTED DATA COMMAND*/
 void Send_requested_data(Data_Get_t* get, float* world_pos, float* world_rot, float* joint_value, uint8_t welding_point, Welding_Pattern_t pattern_type, Speed_t welding_speed){	
-	uint8_t send_req[BUFF_SIZE];
+	uint8_t send_req[BUFF_SIZE] __attribute__((aligned(32)));
 	
 	send_req[0] = HEADER1;
 	send_req[1] = HEADER2;
@@ -94,10 +94,10 @@ void Send_requested_data(Data_Get_t* get, float* world_pos, float* world_rot, fl
 	send_req[55] = welding_speed;	
 	
 	if(!IS_ALIGNED(send_req, 8)){
-		get->buff_status = BUFF_MISSALIGNED;
+		get->tx_buff_status = BUFF_MISSALIGNED;
 	}
 	else{
-		get->buff_status = BUFF_ALIGNED;
+		get->tx_buff_status = BUFF_ALIGNED;
 		HAL_UART_Transmit(huart, send_req, sizeof(send_req), RS232_TIMEOUT);
 	}
 }
@@ -139,12 +139,12 @@ void Start_get_command(Data_Get_t* get){
 /*GET COM DATA*/
 void Get_command(Data_Get_t* get){
 	if(!IS_ALIGNED(rx_buff, 8)){
-		get->buff_status = BUFF_MISSALIGNED;
+		get->rx_buff_status = BUFF_MISSALIGNED;
 	}
-	else get->buff_status = BUFF_ALIGNED;
+	else get->rx_buff_status = BUFF_ALIGNED;
 	
 	for(int i=0; i<BUFF_SIZE; i++){
-		if(rx_buff[i] == HEADER1 && rx_buff[i+1] == HEADER2 && rx_buff[i+2] == HEADER3 && get->buff_status == BUFF_ALIGNED){
+		if(rx_buff[i] == HEADER1 && rx_buff[i+1] == HEADER2 && rx_buff[i+2] == HEADER3 && get->rx_buff_status == BUFF_ALIGNED){
 			//CHECK AUTO HOME COMMAND 
 			if(rx_buff[i+3] == SETTING_CMD){
 				get->type = SETTING;

@@ -26,6 +26,9 @@
 #define RY	0x01
 #define RZ	0x02
 
+#define OUTPUT_MAIN		0x01	// Memilih variabel utama sebagai variabel hasil kalulasi
+#define OUTPUT_SEC		0x02	// Memilih variabel sekunder sebagai variabel hasil kalkulasi
+
 typedef struct{
 	bool
 	singularity;
@@ -120,6 +123,10 @@ typedef struct{
 	
 	jacobian_matrix[6][6],	// Matrix jacobian
 	jacobian_det; // Determinan dari matrix jacobian
+	
+	float
+	calc_axis_pos[6],		// Variable untuk menyimpan hasil kalkulasi posisi tanpa mengubah variable utama
+	calc_joint_ang[6];	// Variable untuk menyimpan hasil kalkulasi sudut tanpa mengubah variable utama
 }Kinematics_t;
 
 /* MATRIX FUNCTION ---------------------------------------------------------------------------------------------------------------------------------*/

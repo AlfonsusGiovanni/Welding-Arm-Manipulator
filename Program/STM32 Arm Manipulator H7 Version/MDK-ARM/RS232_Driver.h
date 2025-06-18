@@ -23,7 +23,7 @@
 #define BUFF_SIZE 60
 
 /*RS232 COM TIMEOUT*/
-#define RS232_TIMEOUT 10
+#define RS232_TIMEOUT 5
 
 /*RS232 COM COMMAND*/
 #define SETTING_CMD					0x01	// Robot Homing Command
@@ -279,6 +279,7 @@ typedef enum{
 	NO_BUFF_STATUS,
 	BUFF_ALIGNED,
 	BUFF_MISSALIGNED,
+	BUFF_SEND_FAILED,
 }Buff_Status_t;
 /////////////////////////////
 
@@ -335,7 +336,8 @@ typedef struct ALIGNED_8{
 	Welder_State_t welder_state;
 	Speed_t running_speed;
 	Feedback_t feedback;
-	Buff_Status_t buff_status;
+	Buff_Status_t tx_buff_status;
+	Buff_Status_t rx_buff_status;
 	Data_Status_t data_status;
 }Data_Get_t;
 //////////////////////////////////////

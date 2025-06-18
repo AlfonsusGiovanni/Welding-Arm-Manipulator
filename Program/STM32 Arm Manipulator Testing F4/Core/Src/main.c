@@ -33,6 +33,11 @@
 Data_Get_t main_command;
 Data_Get_t pendant_command;
 Kinematics_t kinematics;
+
+typedef enum{
+	LINEAR_INTERPOLATION = 0x01,
+	SPLINE_INTERPOLATION,
+}Interpolation_t;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -41,16 +46,28 @@ Kinematics_t kinematics;
 //#define USE_BUTTON
 //#define USE_MANUAL_ENCODER
 
-//#define TEST_STEPPER
+#define TEST_STEPPER
 //#define TEST_ENCODER
 //#define TEST_COM
-#define TEST_KINEMATICS
+//#define TEST_KINEMATICS
 //#define TEST_MOTION
 
-typedef enum{
-	LINEAR_INTERPOLATION = 0x01,
-	SPLINE_INTERPOLATION,
-}Interpolation_t;
+#define JOINT_NUM		3
+#define AXIS_NUM		3
+
+#define MICROSTEP_VALUE1 			200
+#define MICROSTEP_VALUE2 			400
+#define MICROSTEP_VALUE3 			800
+#define MICROSTEP_VALUE4 			1600
+#define MICROSTEP_VALUE5			3200
+#define MICROSTEP_VALUE6 			6400  
+
+#define STEPPER1_RATIO				162.0f
+#define	STEPPER2_RATIO				200.0f
+#define	STEPPER3_RATIO				50.0f
+#define	STEPPER4_RATIO				96.0f 
+#define	STEPPER5_RATIO				22.5f
+#define	STEPPER6_RATIO				25.0f
 
 /* USER CODE END PD */
 
@@ -64,6 +81,8 @@ I2C_HandleTypeDef hi2c1;
 
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim4;
+TIM_HandleTypeDef htim5;
 
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
@@ -71,7 +90,7 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 
 // PARAMETER VARIABLE
-double
+float
 joint_d[6] = {
 	191.0, 0.0, 0.0,
 	575.0, 0.0, 65.0,
@@ -96,48 +115,36 @@ uint16_t
 welding_point_num,
 current_welding_point;
 
-// INTERPOLATION VARIABLE
-double
-axis_delta[6],
-joint_delta[6],
-int_x_out, int_y_out, int_z_out,
-int_rx_out, int_ry_out, int_rz_out;
-
-
-// INVERSE KINEMATICS VARIABLE
-double
-ik_pos_input[6],
-ik_angle_output[6];
-
-
-// FORWARD KINEMATICS VARIABLE
-double
-fk_angle_input[6],
-fk_pos_output[6];
-
 
 // STEPPER VARIABLE
 bool
 direction = false,
 step_start = false;
 
-uint8_t
-pulse_count,
-stepper_ratio = 90,
-processed_buff[5],
-rx_buff[80];
+TIM_TypeDef*
+stepper_tim_instance[JOINT_NUM] = {
+	TIM3,
+	TIM4,
+	TIM5,
+};
 
-uint16_t
-base_freq = 1000,
-step_freq,
-step_period,
-t_on, t_off,
-stepper_microstep = 800;
+TIM_HandleTypeDef*
+stepper_tim_handler[JOINT_NUM] = {
+	&htim3,
+	&htim4,
+	&htim5,
+};
 
-uint32_t
-timer_counter,
-step_counter,
-step_input;
+GPIO_TypeDef*
+stepper_gpio_port[6] = {
+	PUL1_GPIO_Port,
+	PUL2_GPIO_Port,
+	PUL3_GPIO_Port,
+	
+	DIR1_GPIO_Port,
+	DIR2_GPIO_Port,
+	DIR3_GPIO_Port,
+};
 
 
 // RS-232 VARIABLE
@@ -190,6 +197,8 @@ static void MX_TIM2_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_TIM4_Init(void);
+static void MX_TIM5_Init(void);
 /* USER CODE BEGIN PFP */
 
 void uart_receive(uint8_t *msg_buff, uint16_t len);
@@ -197,12 +206,7 @@ void uart_transmit(uint8_t *msg, uint16_t len);
 void process_data(uint8_t *data, uint16_t len);
 
 void move_stepper(uint32_t step, uint8_t dir, uint32_t freq);
-void move_joint(double input_angle, Speed_t input_speed); 
-
-uint32_t calculate_exponential_step_interval(uint32_t step);
-void calc_linear_parametric(double start_pos[6], double end_pos[6], uint8_t input_step, uint8_t current_step);
-
-void run_motion(Interpolation_t mode, double start_value[6], double end_value[6], Speed_t input_speed);
+void move_joint(double input_angle, Speed_t input_speed);
 
 /* USER CODE END PFP */
 
@@ -222,26 +226,40 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_PIN){
 
 #ifdef TEST_STEPPER
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
-	if(htim->Instance == TIM3){
-		timer_counter++;
+	for(int i=0; i<JOINT_NUM; i++){
+		if(htim->Instance != stepper_tim_instance[i]) continue;
+			
+		// Cache Variable
+		uint16_t cnt = ++timer_counter[i];
+		uint16_t t_on_val = t_on[i];
+		uint16_t period = step_period[i];
+		GPIO_TypeDef *port = stepper_gpio_port[i];
+		uint16_t pin = stepper_gpio_pin[i];
 		
-//		if(step_counter < step_input*0.25) step_period = calculate_exponential_step_interval(step_counter)/2;
-//		else step_period = calculate_exponential_step_interval(step_input-step_counter)/2;
-		
-		t_on = step_period * 0.5;
-		t_off = step_period - t_on;
-		
-		if(timer_counter < t_on) HAL_GPIO_WritePin(PUL_GPIO_Port, PUL_Pin, GPIO_PIN_SET);
-		else if(timer_counter >= t_on && timer_counter < step_period-1) HAL_GPIO_WritePin(PUL_GPIO_Port, PUL_Pin, GPIO_PIN_RESET);
-		else if(timer_counter == step_period-1){
-			timer_counter = 0;
-			step_counter++;
+		// Step Signal
+		if(step_counter[i] <= target_step[i] || step_cont_run_j[i] || step_cal_run[i]){
+			if(cnt == 1) port->BSRR = (uint32_t)pin;
+			else if(cnt == t_on_val) port->BSRR = (uint32_t)pin << 16;
+			else if (cnt >= period){
+				timer_counter[i] = 0;
+				step_counter[i]++;
+			}
 		}
 		
-		if(step_start == false || step_counter >= step_input){
-			HAL_TIM_Base_Stop_IT(&htim3);
-			timer_counter = 0;
-			step_counter = 0;
+		// Step Reached 
+		if(step_counter[i] > target_step[i]){
+			if(step_cont_run_w[i]) step_counter[i] = 0;
+			step_reached[i] = true;
+		}
+		
+		// Stop Timer 
+		if(((step_counter[i] >= target_step[i]) && step_limit[i]) || (!step_limit[i] && !step_cont_run_j[i] && !step_cont_run_w[i] && !step_cal_run[i] && !robot_run) || joint_limit || robot_stop || end_point_reach){		
+			port->BSRR = (uint32_t)pin << 16;
+			HAL_TIM_Base_Stop_IT(stepper_tim_handler[i]);
+			timer_counter[i] = 0;
+			step_counter[i] = 0;
+			target_step[i] = 0;
+			step_state[i] = STOPPING;
 		}
 	}
 }
@@ -313,6 +331,8 @@ int main(void)
   MX_USART1_UART_Init();
   MX_TIM3_Init();
   MX_USART2_UART_Init();
+  MX_TIM4_Init();
+  MX_TIM5_Init();
   /* USER CODE BEGIN 2 */
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
 	HAL_Delay(1000);
@@ -612,7 +632,7 @@ static void MX_TIM3_Init(void)
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 0;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 8399;
+  htim3.Init.Period = 839;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -633,6 +653,96 @@ static void MX_TIM3_Init(void)
   /* USER CODE BEGIN TIM3_Init 2 */
 
   /* USER CODE END TIM3_Init 2 */
+
+}
+
+/**
+  * @brief TIM4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM4_Init(void)
+{
+
+  /* USER CODE BEGIN TIM4_Init 0 */
+
+  /* USER CODE END TIM4_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM4_Init 1 */
+
+  /* USER CODE END TIM4_Init 1 */
+  htim4.Instance = TIM4;
+  htim4.Init.Prescaler = 0;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Period = 839;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim4, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM4_Init 2 */
+
+  /* USER CODE END TIM4_Init 2 */
+
+}
+
+/**
+  * @brief TIM5 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM5_Init(void)
+{
+
+  /* USER CODE BEGIN TIM5_Init 0 */
+
+  /* USER CODE END TIM5_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM5_Init 1 */
+
+  /* USER CODE END TIM5_Init 1 */
+  htim5.Instance = TIM5;
+  htim5.Init.Prescaler = 0;
+  htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim5.Init.Period = 839;
+  htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim5.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim5) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim5, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim5, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM5_Init 2 */
+
+  /* USER CODE END TIM5_Init 2 */
 
 }
 
@@ -753,10 +863,10 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(PUL_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 14, 0);
   HAL_NVIC_EnableIRQ(EXTI0_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI1_IRQn, 14, 0);
   HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
@@ -818,59 +928,6 @@ void move_stepper(uint32_t step, uint8_t dir, uint32_t freq){
 		step_start = true;
 		step_period = 10000/freq;
 		HAL_TIM_Base_Start_IT(&htim3);
-	}
-}
-
-/* LINEAR TRAJCETORY CALCULATION*/
-void calc_linear_parametric(double start_pos[6], double end_pos[6], uint8_t input_step, uint8_t current_step){
-	axis_delta[0] = (end_pos[0] - start_pos[0]) / input_step;
-	axis_delta[1] = (end_pos[1] - start_pos[1]) / input_step;
-	axis_delta[2] = (end_pos[2] - start_pos[2]) / input_step;
-	axis_delta[3] = (end_pos[3] - start_pos[3]) / input_step;
-	axis_delta[4] = (end_pos[4] - start_pos[4]) / input_step;
-	axis_delta[5] = (end_pos[5] - start_pos[5]) / input_step;
-	
-	int_x_out = start_pos[0] + current_step * axis_delta[0];
-	int_y_out = start_pos[1] + current_step * axis_delta[1];
-	int_z_out = start_pos[2] + current_step * axis_delta[2];
-	int_rx_out = start_pos[3] + current_step * axis_delta[3];
-	int_ry_out = start_pos[4] + current_step * axis_delta[4];
-	int_rz_out = start_pos[5] + current_step * axis_delta[5];
-}
-
-/* RUN MOTION FUNCTION*/
-void run_motion(Interpolation_t mode, double start_value[6], double end_value[6], Speed_t input_speed){
-	uint8_t step_num = (input_speed == LOW) ? 50 :
-										 (input_speed == MED) ? 30 :
-										 (input_speed == HIGH) ? 10 : step_num;
-	
-	if(mode == LINEAR_INTERPOLATION){
-		for(uint8_t i=0; i<=step_num; i++){
-			calc_linear_parametric(start_value, end_value, step_num, i);
-			run_inverse_kinematic(&kinematics, int_x_out, int_y_out, int_z_out, int_rx_out, int_ry_out, int_rz_out);
-			
-		}
-	}
-	
-	else if(mode == SPLINE_INTERPOLATION){
-	}
-}
-
-/* MOVE JOINT FUNCTION */
-void move_joint(double input_angle, Speed_t input_speed){
-	uint16_t joint_freq = (input_speed == LOW) ? 1000:
-										(input_speed == MED) ? 2500:
-										(input_speed == HIGH) ? 5000: joint_freq;
-	
-	move_ang = input_angle;
-	delta_move_ang = move_ang - dummy_joint_angle;
-	dummy_input_step = abs((int)(delta_move_ang / 0.0125));
-	
-	if(delta_move_ang < 0){
-		move_stepper(dummy_input_step, 0, joint_freq);
-	}
-	else if(delta_move_ang > 0){
-		move_stepper(dummy_input_step, 1, joint_freq);
 	}
 }
 

@@ -26,11 +26,14 @@
 #define RY	0x01
 #define RZ	0x02
 
+#define OUTPUT_MAIN		0x01	// Memilih variabel utama sebagai variabel hasil kalulasi
+#define OUTPUT_SEC		0x02	// Memilih variabel sekunder sebagai variabel hasil kalkulasi
+
 typedef struct{
 	bool
 	singularity;
 	
-	double
+	float
 	dh_theta[6],	// Sudut rotasi Zi-1 dengan Z1 searah rotasi Zi
 	dh_d[6],			// Jarak translasi sepanjang sumbu Z yang menhubungkan link satu dengan link yang lain
 	dh_a[6],			// Jarak translasi sepanjang sumbu X antara sumubu Zi+1 dengan Zi
@@ -67,7 +70,7 @@ typedef struct{
 	axis_rot_rad[3],	// Output rotasi pada setiap sumbu
 	axis_rot_out[3];	// Output rotasi pada setiap sumbu
 	
-	double
+	float
 	trans_mat_1_t_rev[4][4], // Reverse matriks transformasi toolframe ke frame 1
 	tf_mat_trans_inv[4][4],	 // Inverse matriks transformasi pada toolframe
 	
@@ -96,7 +99,7 @@ typedef struct{
 	joint_ang_out_rad[6],	// Keluaran sudut setiap sendi dalam radian
 	joint_ang_out[6]; // Keluaran sudut setiap sendi dalam derajat
 	
-	double	
+	float	
 	j1_jcb_delta_pos[3],	// Delta posisi joint	1
 	j2_jcb_delta_pos[3],	// Delta posisi joint	2
 	j3_jcb_delta_pos[3],	// Delta posisi joint	3
@@ -120,16 +123,20 @@ typedef struct{
 	
 	jacobian_matrix[6][6],	// Matrix jacobian
 	jacobian_det; // Determinan dari matrix jacobian
+	
+	float
+	calc_axis_pos[6],		// Variable untuk menyimpan hasil kalkulasi posisi tanpa mengubah variable utama
+	calc_joint_ang[6];	// Variable untuk menyimpan hasil kalkulasi sudut tanpa mengubah variable utama
 }Kinematics_t;
 
 /* MATRIX FUNCTION ---------------------------------------------------------------------------------------------------------------------------------*/
 
 /* Multiply Matrix 4x4 */
-void multiply_4x4(double a[4][4], double b[4][4], double c[4][4]);
+void multiply_4x4(float a[4][4], float b[4][4], float c[4][4]);
 /* Multiply Matrix 3x3 */
-void multiply_3x3(double a[3][3], double b[3][3], double c[3][3]);
+void multiply_3x3(float a[3][3], float b[3][3], float c[3][3]);
 /* Matrix 6x6 Determinant*/
-double determinant_6x6(double A[6][6]);
+float determinant_6x6(float A[6][6]);
 
 /* -------------------------------------------------------------------------------------------------------------------------------------------------*/
 
@@ -137,15 +144,15 @@ double determinant_6x6(double A[6][6]);
 /* FORWARD KINEMATICS ------------------------------------------------------------------------------------------------------------------------------*/
 
 /* DH Parameter Variable Init */
-void DHparam_init(Kinematics_t *param, double input_link_offset[6], double input_link_length[6], double input_link_twist[6]);
+void DHparam_init(Kinematics_t *param, float input_link_offset[6], float input_link_length[6], float input_link_twist[6]);
 /* Toolframe Variable Init */
-void tollframe_init(Kinematics_t *param, double x, double y, double z, double rx, double ry, double rz);
+void tollframe_init(Kinematics_t *param, float x, float y, float z, float rx, float ry, float rz);
 /* Matrix Transformation Calculation */
 void forward_transform_matrix(Kinematics_t *param);
 /* Calculate All Link Transformation*/
 void calculate_all_link(Kinematics_t *param);
 /* Forward Kinematics Calculation */
-void run_forward_kinematic(Kinematics_t *param, double joint_angle[6]);
+void run_forward_kinematic(Kinematics_t *param, volatile float joint_angle[6]);
 
 /* -------------------------------------------------------------------------------------------------------------------------------------------------*/
 
@@ -153,9 +160,9 @@ void run_forward_kinematic(Kinematics_t *param, double joint_angle[6]);
 /* INVERSE KINEMATICS ------------------------------------------------------------------------------------------------------------------------------*/
 
 /* Invert Toolframe Axis Rotation Calculation */
-double calculate_tf_rot_axis(Kinematics_t *param, uint8_t sel_axis);
+float calculate_tf_rot_axis(Kinematics_t *param, uint8_t sel_axis);
 /* Inverse Kinematic Parameter Variable Init */
-void run_inverse_kinematic(Kinematics_t *param, double input_x, double input_y, double input_z, double input_rx, double input_ry, double input_rz);
+void run_inverse_kinematic(Kinematics_t *param, float tool_axes[6]);
 
 /* ------------------------------------------------------------------------------------------------------------------------------------------------*/
 
@@ -171,7 +178,7 @@ void check_singularity(Kinematics_t *param);
 
 
 /* MINUS ZERO PREVENTION --------------------------------------------------------------------------------------------------------------------------*/
-double sanitize_zero(double value);
+float sanitize_zero(float value);
 /* ------------------------------------------------------------------------------------------------------------------------------------------------*/
 
 #endif
