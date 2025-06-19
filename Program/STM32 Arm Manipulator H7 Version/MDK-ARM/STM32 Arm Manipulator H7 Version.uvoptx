@@ -258,17 +258,17 @@
         <Ww>
           <count>21</count>
           <WinNumber>1</WinNumber>
-          <ItemText>input_points</ItemText>
+          <ItemText>input_linear_pts</ItemText>
         </Ww>
         <Ww>
           <count>22</count>
           <WinNumber>1</WinNumber>
-          <ItemText>get_preview_cmd</ItemText>
+          <ItemText>input_spline_pts</ItemText>
         </Ww>
         <Ww>
           <count>23</count>
           <WinNumber>1</WinNumber>
-          <ItemText>preview_run</ItemText>
+          <ItemText>welding_run</ItemText>
         </Ww>
         <Ww>
           <count>24</count>
@@ -278,7 +278,7 @@
         <Ww>
           <count>25</count>
           <WinNumber>1</WinNumber>
-          <ItemText>current_point</ItemText>
+          <ItemText>current_int_pt</ItemText>
         </Ww>
         <Ww>
           <count>26</count>
@@ -324,6 +324,51 @@
           <count>34</count>
           <WinNumber>1</WinNumber>
           <ItemText>int_j6_out</ItemText>
+        </Ww>
+        <Ww>
+          <count>35</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>int_x_out</ItemText>
+        </Ww>
+        <Ww>
+          <count>36</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>int_y_out</ItemText>
+        </Ww>
+        <Ww>
+          <count>37</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>int_z_out</ItemText>
+        </Ww>
+        <Ww>
+          <count>38</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>int_rx_out</ItemText>
+        </Ww>
+        <Ww>
+          <count>39</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>int_ry_out</ItemText>
+        </Ww>
+        <Ww>
+          <count>40</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>int_rz_out</ItemText>
+        </Ww>
+        <Ww>
+          <count>41</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>middle_point</ItemText>
+        </Ww>
+        <Ww>
+          <count>42</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>total_mapped_points,0x0A</ItemText>
+        </Ww>
+        <Ww>
+          <count>43</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>point_status</ItemText>
         </Ww>
       </WatchWindow1>
       <WatchWindow2>
@@ -425,75 +470,80 @@
         <Ww>
           <count>19</count>
           <WinNumber>2</WinNumber>
-          <ItemText>welding_data.array_pos_start</ItemText>
+          <ItemText>current_welding_data.array_pos_start</ItemText>
         </Ww>
         <Ww>
           <count>20</count>
           <WinNumber>2</WinNumber>
-          <ItemText>welding_data.array_pos_end</ItemText>
+          <ItemText>current_welding_data.array_pos_end</ItemText>
         </Ww>
         <Ww>
           <count>21</count>
           <WinNumber>2</WinNumber>
-          <ItemText>welding_data.array_ang_start</ItemText>
+          <ItemText>current_welding_data.array_ang_start</ItemText>
         </Ww>
         <Ww>
           <count>22</count>
           <WinNumber>2</WinNumber>
-          <ItemText>welding_data.array_ang_end</ItemText>
+          <ItemText>current_welding_data.array_ang_end</ItemText>
         </Ww>
         <Ww>
           <count>23</count>
           <WinNumber>2</WinNumber>
-          <ItemText>welding_data.welding_pattern</ItemText>
+          <ItemText>current_welding_data.welding_pattern</ItemText>
         </Ww>
         <Ww>
           <count>24</count>
           <WinNumber>2</WinNumber>
-          <ItemText>welding_data.welding_speed</ItemText>
+          <ItemText>current_welding_data.welding_speed</ItemText>
         </Ww>
         <Ww>
           <count>25</count>
           <WinNumber>2</WinNumber>
-          <ItemText>welding_data.welding_axis_offset</ItemText>
+          <ItemText>current_welding_data.welding_axis_offset</ItemText>
         </Ww>
         <Ww>
           <count>26</count>
           <WinNumber>2</WinNumber>
-          <ItemText>chcksum_sp</ItemText>
+          <ItemText>next_welding_data.array_pos_start</ItemText>
         </Ww>
         <Ww>
           <count>27</count>
           <WinNumber>2</WinNumber>
-          <ItemText>chcksum_sp_validation</ItemText>
+          <ItemText>next_welding_data.array_pos_end</ItemText>
         </Ww>
         <Ww>
           <count>28</count>
           <WinNumber>2</WinNumber>
-          <ItemText>chcksum_ep</ItemText>
+          <ItemText>next_welding_data.array_ang_start</ItemText>
         </Ww>
         <Ww>
           <count>29</count>
           <WinNumber>2</WinNumber>
-          <ItemText>chcksum_ep_validation</ItemText>
+          <ItemText>next_welding_data.array_ang_end</ItemText>
         </Ww>
         <Ww>
           <count>30</count>
           <WinNumber>2</WinNumber>
-          <ItemText>RS232_state</ItemText>
+          <ItemText>next_welding_data.welding_pattern</ItemText>
         </Ww>
         <Ww>
           <count>31</count>
           <WinNumber>2</WinNumber>
-          <ItemText>command.msg_get</ItemText>
+          <ItemText>next_welding_data.welding_speed</ItemText>
         </Ww>
         <Ww>
           <count>32</count>
           <WinNumber>2</WinNumber>
-          <ItemText>command.tx_buff_status</ItemText>
+          <ItemText>next_welding_data.welding_axis_offset</ItemText>
         </Ww>
         <Ww>
           <count>33</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>command.tx_buff_status</ItemText>
+        </Ww>
+        <Ww>
+          <count>34</count>
           <WinNumber>2</WinNumber>
           <ItemText>command.rx_buff_status</ItemText>
         </Ww>
@@ -504,7 +554,7 @@
       <DebugFlag>
         <trace>0</trace>
         <periodic>1</periodic>
-        <aLwin>0</aLwin>
+        <aLwin>1</aLwin>
         <aCover>0</aCover>
         <aSer1>0</aSer1>
         <aSer2>0</aSer2>

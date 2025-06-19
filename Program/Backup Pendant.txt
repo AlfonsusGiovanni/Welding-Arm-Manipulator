@@ -142,7 +142,7 @@ const osThreadAttr_t interfaceTask_attributes = {
 };
 /* Definitions for receiveTask */
 osThreadId_t receiveTaskHandle;
-uint32_t receiveTaskBuffer[ 256 ];
+uint32_t receiveTaskBuffer[ 128 ];
 osStaticThreadDef_t receiveTaskControlBlock;
 const osThreadAttr_t receiveTask_attributes = {
   .name = "receiveTask",
@@ -219,7 +219,7 @@ rot_value[3], move_rot_value[3],
 A1, A2, A3, A4, A5, A6,
 moveX, moveY, moveZ,
 distance_val,
-max_axis_distance = 200,
+max_axis_distance = 500,
 max_joint_distance = 90;
 
 
@@ -279,7 +279,7 @@ linear_mode[]				= "LINEAR",
 circular_mode[] 		= "CIRCULAR",
 wave_mode[]					= "WAVE",
 
-string_max_dist1[] 	= "100      ",
+string_max_dist1[] 	= "500      ",
 string_max_dist2[] 	= "90       ",
 string_max_point[] 	= "360      ";
 

@@ -7,7 +7,6 @@
 #include "RS232_Driver.h"
 
 static UART_HandleTypeDef* huart;
-static uint8_t rx_buff[BUFF_SIZE];
 
 /*RS232 INITIALIZE*/
 void RS232_Init(UART_HandleTypeDef* huart_handler){
@@ -66,7 +65,7 @@ void Req_data(Data_Get_t* get, Req_t data){
 
 /*SEND REQUESTED DATA COMMAND*/
 void Send_requested_data(Data_Get_t* get, float* world_pos, float* world_rot, float* joint_value, uint8_t welding_point, Welding_Pattern_t pattern_type, Speed_t welding_speed){	
-	uint8_t send_req[BUFF_SIZE] __attribute__((aligned(32)));
+	uint8_t send_req[BUFF_SIZE];
 	
 	send_req[0] = HEADER1;
 	send_req[1] = HEADER2;
@@ -133,115 +132,115 @@ void Send_state_reset(Data_Get_t* get){
 
 /*START GET COM DATA*/
 void Start_get_command(Data_Get_t* get){
-	HAL_UART_Receive_IT(huart, rx_buff, BUFF_SIZE);
+	HAL_UART_Receive_IT(huart, get->data_buff, BUFF_SIZE);
 }
 
 /*GET COM DATA*/
 void Get_command(Data_Get_t* get){
-	if(!IS_ALIGNED(rx_buff, 8)){
+	if(!IS_ALIGNED(get->data_buff, 8)){
 		get->rx_buff_status = BUFF_MISSALIGNED;
 	}
 	else get->rx_buff_status = BUFF_ALIGNED;
 	
 	for(int i=0; i<BUFF_SIZE; i++){
-		if(rx_buff[i] == HEADER1 && rx_buff[i+1] == HEADER2 && rx_buff[i+2] == HEADER3 && get->rx_buff_status == BUFF_ALIGNED){
+		if(get->data_buff[i] == HEADER1 && get->data_buff[i+1] == HEADER2 && get->data_buff[i+2] == HEADER3){
 			//CHECK AUTO HOME COMMAND 
-			if(rx_buff[i+3] == SETTING_CMD){
+			if(get->data_buff[i+3] == SETTING_CMD){
 				get->type = SETTING;
-				get->setting_mode = (Setting_Mode_t) rx_buff[i+4];
-				get->calibration_mode = (Cal_Mode_t) rx_buff[i+5];
-				get->joint_zeroing = (Zeroing_Select_t) rx_buff[i+6];
-				get->running_speed = (Speed_t) rx_buff[i+7];
+				get->setting_mode = (Setting_Mode_t) get->data_buff[i+4];
+				get->calibration_mode = (Cal_Mode_t) get->data_buff[i+5];
+				get->joint_zeroing = (Zeroing_Select_t) get->data_buff[i+6];
+				get->running_speed = (Speed_t) get->data_buff[i+7];
 			}
 			
 			//CHECK MAPPING MODE COMMAND
-			else if(rx_buff[i+3] == MAPPING_CMD){
+			else if(get->data_buff[i+3] == MAPPING_CMD){
 				get->type = MAPPING;
 				
-				get->welding_point_num = (uint16_t)(rx_buff[i+4] << 8 | rx_buff[i+5]);
-				get->data_type = (Data_Point_t) rx_buff[i+6];
-				get->pattern_type = (Welding_Pattern_t) rx_buff[i+7];
-				get->running_speed = (Speed_t) rx_buff[i+8];
-				get->axis_offset = (Axis_Offset_t) rx_buff[i+9];
-				get->mapping_state = (Mapping_State_t) rx_buff[i+10];
+				get->welding_point_num = (uint16_t)(get->data_buff[i+4] << 8 | get->data_buff[i+5]);
+				get->data_type = (Data_Point_t) get->data_buff[i+6];
+				get->pattern_type = (Welding_Pattern_t) get->data_buff[i+7];
+				get->running_speed = (Speed_t) get->data_buff[i+8];
+				get->axis_offset = (Axis_Offset_t) get->data_buff[i+9];
+				get->mapping_state = (Mapping_State_t) get->data_buff[i+10];
 			}
 			
 			//CHECK MOVE COMMAND
-			else if(rx_buff[i+3] == MOVE_POSITION_CMD){
+			else if(get->data_buff[i+3] == MOVE_POSITION_CMD){
 				get->type = MOVE;
 				
-				get->control_mode = (Ctrl_Mode_t) rx_buff[i+4];
-				get->move_mode = (Move_Mode_t) rx_buff[i+5];
-				get->move_variable = (Move_Var_t) rx_buff[i+6];
-				get->move_sign = (Move_Sign_t) rx_buff[i+7];
-				memcpy(&get->move_value, &rx_buff[i+8], sizeof(float));
+				get->control_mode = (Ctrl_Mode_t) get->data_buff[i+4];
+				get->move_mode = (Move_Mode_t) get->data_buff[i+5];
+				get->move_variable = (Move_Var_t) get->data_buff[i+6];
+				get->move_sign = (Move_Sign_t) get->data_buff[i+7];
+				memcpy(&get->move_value, &get->data_buff[i+8], sizeof(float));
 			}
 			
 			//CHECK START RUNNING COMMAND
-			else if(rx_buff[i+3] == RUNNING_CMD){
+			else if(get->data_buff[i+3] == RUNNING_CMD){
 				get->type = RUN;
-				get->running_state = (Run_State_t) rx_buff[i+4];
-				get->running_mode = (Run_Mode_t) rx_buff[i+5];
-				get->preview_point_num = (uint16_t)((rx_buff[i+6] << 8) | rx_buff[i+7]);
+				get->running_state = (Run_State_t) get->data_buff[i+4];
+				get->running_mode = (Run_Mode_t) get->data_buff[i+5];
+				get->preview_point_num = (uint16_t)((get->data_buff[i+6] << 8) | get->data_buff[i+7]);
 			}
 			
 			//CHECK REQ POSITION COMMAND
-			else if(rx_buff[i+3] == REQ_DATA_CMD){
+			else if(get->data_buff[i+3] == REQ_DATA_CMD){
 				get->type = REQ_DATA;
-				get->requested_data = (Req_t) rx_buff[i+4];
+				get->requested_data = (Req_t) get->data_buff[i+4];
 			}
 			
 			//CHECK SEND REQ COMMAND
-			else if(rx_buff[i+3] == SEND_REQ_CMD){
+			else if(get->data_buff[i+3] == SEND_REQ_CMD){
 				get->type = SEND_REQ;
 				
-				memcpy(&get->World_pos_req[0], &rx_buff[i+4], sizeof(float));
-				memcpy(&get->World_pos_req[1], &rx_buff[i+8], sizeof(float));
-				memcpy(&get->World_pos_req[2], &rx_buff[i+12], sizeof(float));
+				memcpy(&get->World_pos_req[0], &get->data_buff[i+4], sizeof(float));
+				memcpy(&get->World_pos_req[1], &get->data_buff[i+8], sizeof(float));
+				memcpy(&get->World_pos_req[2], &get->data_buff[i+12], sizeof(float));
 				
-				memcpy(&get->World_rot_req[0], &rx_buff[i+16], sizeof(float));
-				memcpy(&get->World_rot_req[1], &rx_buff[i+20], sizeof(float));
-				memcpy(&get->World_rot_req[2], &rx_buff[i+24], sizeof(float));
+				memcpy(&get->World_rot_req[0], &get->data_buff[i+16], sizeof(float));
+				memcpy(&get->World_rot_req[1], &get->data_buff[i+20], sizeof(float));
+				memcpy(&get->World_rot_req[2], &get->data_buff[i+24], sizeof(float));
 				
-				memcpy(&get->Joint_angle_req[0], &rx_buff[i+28], sizeof(float));
-				memcpy(&get->Joint_angle_req[1], &rx_buff[i+32], sizeof(float));
-				memcpy(&get->Joint_angle_req[2], &rx_buff[i+36], sizeof(float));
-				memcpy(&get->Joint_angle_req[3], &rx_buff[i+40], sizeof(float));
-				memcpy(&get->Joint_angle_req[4], &rx_buff[i+44], sizeof(float));
-				memcpy(&get->Joint_angle_req[5], &rx_buff[i+48], sizeof(float));
+				memcpy(&get->Joint_angle_req[0], &get->data_buff[i+28], sizeof(float));
+				memcpy(&get->Joint_angle_req[1], &get->data_buff[i+32], sizeof(float));
+				memcpy(&get->Joint_angle_req[2], &get->data_buff[i+36], sizeof(float));
+				memcpy(&get->Joint_angle_req[3], &get->data_buff[i+40], sizeof(float));
+				memcpy(&get->Joint_angle_req[4], &get->data_buff[i+44], sizeof(float));
+				memcpy(&get->Joint_angle_req[5], &get->data_buff[i+48], sizeof(float));
 				
-				get->welding_point_num = rx_buff[i+53];
-				get->pattern_type = (Welding_Pattern_t) rx_buff[i+54];
-				get->running_speed = (Speed_t)rx_buff[i+55];	
+				get->welding_point_num = get->data_buff[i+53];
+				get->pattern_type = (Welding_Pattern_t) get->data_buff[i+54];
+				get->running_speed = (Speed_t)get->data_buff[i+55];	
 			}
 			
 			//CHECK MOTOR STATE COMMAND
-			else if(rx_buff[i+3] == MOTOR_STATE_CMD){
+			else if(get->data_buff[i+3] == MOTOR_STATE_CMD){
 				get->type = MOTOR_STATE;
-				get->motor_state = (Motor_State_t) rx_buff[i+4];
+				get->motor_state = (Motor_State_t) get->data_buff[i+4];
 			}
 			
 			//CHECK WELDER STATE COMMAND
-			else if(rx_buff[i+3] == WELDER_STATE_CMD){
+			else if(get->data_buff[i+3] == WELDER_STATE_CMD){
 				get->type = WELDER_STATE;
-				get->welder_state = (Welder_State_t) rx_buff[i+4];
+				get->welder_state = (Welder_State_t) get->data_buff[i+4];
 			}
 			
 			//CHECK FEEDBACK COMMAND
-			else if(rx_buff[i+3] == FEEDBACK_CMD){
+			else if(get->data_buff[i+3] == FEEDBACK_CMD){
 				get->type = FEEDBACK;
-				get->feedback = (Feedback_t) rx_buff[i+4];
-				get->feedback_num = rx_buff[i+5] << 8 | rx_buff[i+6];
+				get->feedback = (Feedback_t) get->data_buff[i+4];
+				get->feedback_num = get->data_buff[i+5] << 8 | get->data_buff[i+6];
 			}
 			
 			//CHECK RESET STATE COMMAND
-			else if(rx_buff[i+3] == RESET_CMD){
+			else if(get->data_buff[i+3] == RESET_CMD){
 				get->type = RESET_STATE;
 			}
-			memcpy(&get->data_buff, rx_buff, sizeof(rx_buff));
+			memcpy(&get->data_buff, get->check_data_buff, sizeof(get->data_buff));
 		}
 	}
-	memset(rx_buff, 0x00, BUFF_SIZE);
+	memset(get->data_buff, 0x00, BUFF_SIZE);
 }
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 

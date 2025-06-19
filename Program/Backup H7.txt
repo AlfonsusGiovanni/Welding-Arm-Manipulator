@@ -199,6 +199,16 @@ typedef enum{
 // -----------------------
 
 
+/* WELDING DATA TYPE */
+// --------------------
+typedef enum{
+	CURRENT_POINT_DATA,
+	NEXT_POINT_DATA,
+	BOTH_POINT_DATA,
+}Welding_Point_t;
+// --------------------
+
+
 /* WELDING POINT DATA STRUCT */
 // ------------------------------------
 typedef struct{
@@ -215,7 +225,9 @@ typedef struct{
 	Welding_Data_Status_t wd_data_status;
 	Axis_Offset_t welding_axis_offset;
 }Welding_Data_t;
-Welding_Data_t welding_data;
+
+Welding_Data_t current_welding_data;
+Welding_Data_t next_welding_data;
 // ------------------------------------
 
 /* USER CODE END PTD */
@@ -225,7 +237,7 @@ Welding_Data_t welding_data;
 
 /* SYSTEM CONFIGURATION */
 //----------------------
-#define USE_OLED
+//#define USE_OLED
 //#define USE_SDCARD
 #define USE_EEPROM
 #define USE_RS232
@@ -235,6 +247,8 @@ Welding_Data_t welding_data;
 //#define USE_PID
 
 //#define USE_DEBUG_PROGRAM
+//#define USE_INTERPOLATION_STEP
+//#define USE_TARGET_PRELOAD
 //#define USE_MISS_STEP_CHECK
 #define USE_LIMIT_CHECK
 
@@ -358,6 +372,8 @@ Welding_Data_t welding_data;
 #define JOINT6_BIT_VAL		0x20
 
 #define FILTER_FACTOR			0.5f
+
+#define MIDDLE_OFFSET			100.0f
 //-------------------------------
 
 
@@ -404,7 +420,8 @@ global_speed;
 
 float
 max_delta_angle,
-input_points[2][6];
+input_linear_pts[2][6],
+input_spline_pts[3][3];
 
 const float
 joint_positive_axisLim[JOINT_NUM] = {
@@ -472,6 +489,7 @@ point_checked = false,
 joint_limit = false,
 joint_miss_step = false,
 joint_error_bypass = false,
+validate_welding_point = false,
 check_welding_point = false,
 calculate_parameter = false,
 calibrated_joint[JOINT_NUM],
@@ -486,8 +504,8 @@ zero_delta[JOINT_NUM];
 
 volatile bool
 robot_run = false,
-end_point_reach = false,
-clear_to_update[JOINT_NUM],
+clear_to_update = false,
+preload_done[JOINT_NUM],
 step_reached[JOINT_NUM];
 
 const uint8_t
@@ -541,7 +559,7 @@ joint_zero_sel,
 invalid_welding_point;
 
 uint16_t
-current_running_point,
+current_welding_point,
 total_valid_points,
 total_mapped_points;
 
@@ -622,11 +640,9 @@ int_j5_out[MAX_UPDATE_STEP],
 int_j6_out[MAX_UPDATE_STEP],
 int_angle_out[JOINT_NUM];
 
-uint8_t
+volatile uint8_t
 independent_point[JOINT_NUM],
-current_point,
-int_counter;
-
+current_int_pt;
 
 
 // STEPPER VARIABLE 
@@ -681,6 +697,7 @@ volatile uint8_t
 step_state[JOINT_NUM];
 
 volatile uint16_t
+preload_target_step[JOINT_NUM],
 target_step[JOINT_NUM];
 
 uint16_t
@@ -947,12 +964,13 @@ void format_mem(EEPROM_ID_t id);
 void save_welding_point(uint16_t point, uint8_t point_type, float *pos_data, float *angle_data);
 void read_welding_point(uint16_t point, uint8_t point_type, float *stored_pos, float *stored_angle);
 void save_welding_pattern(uint16_t point, uint8_t select_pattern);
-void read_welding_pattern(uint16_t point);
+void read_welding_pattern(uint16_t point, Welding_Data_t *select_point);
 void save_welding_speed(uint16_t point, uint8_t select_speed);
-void read_welding_speed(uint16_t point);
+void read_welding_speed(uint16_t point, Welding_Data_t *select_point);
 void save_welding_axis_offset(uint16_t point, uint8_t select_axis);
-void read_welding_axis_offset(uint16_t point);
+void read_welding_axis_offset(uint16_t point, Welding_Data_t *select_point);
 void delete_welding_data(uint16_t point, uint8_t point_type);
+void get_welding_data(uint16_t point, Welding_Point_t point_type);
 Welding_Data_Status_t weldingpoint_validate(uint16_t point);
 //--------------------------------------------------------------------------------------------------
 
@@ -981,6 +999,7 @@ float calc_cubic_spline(float *x_point, float *y_points, int n, float x);
 void calc_spline_parametric(float *t, float points[3][3], int num_points);
 void calc_linear_points(float points[2][6], int steps, Linear_Move_Mode_t mode);
 void calc_spline_points(float points[3][3], int num_points, int steps);
+float get_ang_array(uint8_t select_joint, uint8_t  select_point);
 //-----------------------------------------------------------------------------------------------------
 
 
@@ -989,7 +1008,7 @@ void move_joint(uint8_t select_joint, float input_angle, Speed_t set_speed);
 bool move_all_joint(float *input_angle, Speed_t set_speed);
 bool move_world(uint8_t select_axis, float move_pos, Speed_t set_speed);
 bool linear_move(float *start_pos, float *end_pos, Speed_t speed);
-bool spline_move(float *start_pos, float *mid_pos, float *end_pos, Axis_Offset_t axis_select, float offset, Speed_t speed);
+bool spline_move(float *start_pos, float *end_pos, Axis_Offset_t axis_select, float offset, Speed_t speed);
 void welder_on(void);
 void welder_off(void);
 void welding_preview(void);
@@ -1069,14 +1088,41 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 			}
 		}
 		
-		// Step Reached 
+		#ifdef USE_TARGET_PRELOAD
+		// Preload Next Target Step 
+		if((step_counter[i] >= target_step[i] - 10) && robot_run){
+			preload_target_step[i] = calc_stepper_step(i, get_ang_array(i, independent_point[i]));
+			if(preload_target_step[i] != 0) preload_done[i] = true;
+			else preload_done[i] = false;
+		}
+		
+		// Update Target Step
+		if(step_counter[i] > target_step[i] && (step_cont_run_w[i] || robot_run)){
+			if(robot_run){
+				if(preload_done[i]){
+					step_counter[i] = 0;
+					target_step[i] = preload_target_step[i];
+					preload_done[i] = false;
+				}
+				else step_reached[i] = true;
+			}
+			
+			else{ 
+				step_counter[i] = 0;
+				step_reached[i] = true;
+			}
+		}
+		
+		#else
 		if(step_counter[i] > target_step[i]){
 			if(step_cont_run_w[i]) step_counter[i] = 0;
 			step_reached[i] = true;
 		}
 		
+		#endif
+		
 		// Stop Timer 
-		if(((step_counter[i] >= target_step[i]) && step_limit[i]) || (!step_limit[i] && !step_cont_run_j[i] && !step_cont_run_w[i] && !step_cal_run[i] && !robot_run) || joint_limit || robot_stop || end_point_reach){		
+		if(((step_counter[i] >= target_step[i]) && step_limit[i]) || (!step_limit[i] && !step_cont_run_j[i] && !step_cont_run_w[i] && !step_cal_run[i] && !robot_run) || joint_limit || robot_stop){		
 			port->BSRR = (uint32_t)pin << 16;
 			HAL_TIM_Base_Stop_IT(stepper_tim_handler[i]);
 			timer_counter[i] = 0;
@@ -1234,13 +1280,13 @@ int main(void)
 	
 	
 	/* RS-232 COMMUNICATION SETUP */
-	#ifdef USE_RS232
+	#ifdef USE_RS232	
 	RS232_Init(&huart4);
 	show_menu(COM_INIT_MENU);
-//	while(command.type != FEEDBACK && command.feedback != PENDANT_ONLINE){
-//		receive_data();
-//		Send_feedback(&command, MAIN_ONLINE, 0x00);
-//	}
+	while(command.type != FEEDBACK && command.feedback != PENDANT_ONLINE){
+		receive_data();
+		Send_feedback(&command, MAIN_ONLINE, 0x00);
+	}
 	SSD1306_Clear();
 	command.msg_sent = true;
 	command.msg_get = true;
@@ -1361,8 +1407,14 @@ int main(void)
 
 //	HAL_Delay(500);
 
-	point_status[1] = weldingpoint_validate(1);
-//	calculate_parameter = true;
+//	point_status[1] = weldingpoint_validate(1);
+	get_welding_data(1, BOTH_POINT_DATA);
+	#endif
+	
+	#ifdef TEST_MOTION
+	calculate_parameter = true;
+	kinematics.j5_enc_angle = -90.0f;
+	run_forward_kinematic(&kinematics, home_ang);
 	#endif
 	
 	#ifdef TEST_SDCARD
@@ -1425,48 +1477,10 @@ int main(void)
 		#endif
 		
 		#ifdef TEST_MOTION
-//		linear_move(welding_data.array_pos_start, welding_data.array_pos_end, LOW);
-
-//		joint_rpm = 0.5;
-
-//		target_position[0] = 751.289f;
-//		target_position[1] = 100.0f;
-//		target_position[2] = 432.197f;
-//		target_position[3] = 132.183f;
-//		target_position[4] = 90.0f;
-//		target_position[5] = 132.183f;
-//		
-//		// Calculate Inverse Kinematics
-//		run_inverse_kinematic(&kinematics, target_position);
-//		
-//		float dummy_joint_angle[6] = {0.0f, 20.0f, 20.0f, 0.0f, -40.0f, 0.0f};
-//		
-//		// Calulate Max Delta Angle
-//		for(int i=0; i<JOINT_NUM; i++){
-//			delta_move_ang[i] = kinematics.joint_ang_out[i] - dummy_joint_angle[i];
-//			
-//			delta_angle[i] = fabs(delta_move_ang[i]);
-//			if(delta_angle[i] > max_delta_angle){
-//				max_delta_angle = delta_angle[i];
-//			}
-//		}
-//		
-//		// Calculate Each Joint Speed & Run Stepper
-//		if(max_delta_angle > 0.1f){	
-//			for(int i = 0; i<JOINT_NUM; i++){
-//				if(delta_angle[i] > 0.01f){
-//					sync_joint_rpm[i] = joint_rpm * delta_angle[i] / max_delta_angle;
-//					Joint_Dir_t dir = (delta_move_ang[i] > 0.0f) ? POSITIVE_DIR : NEGATIVE_DIR;
-//					move_stepper(robot_joint[i], calc_stepper_step(i, delta_move_ang[i]), dir, calc_stepper_freq(i, sync_joint_rpm[i]));
-//				}
-//				else{
-//					sync_joint_rpm[i] = 0.0f;
-//				}
-//			}
-//		}
-		
-//		kinematics.j5_enc_angle = 90;
-//		linear_move(home_pos, welding_data.array_pos_start, LOW);
+//		linear_move(welding_data.array_ang_start, welding_data.array_ang_end, LOW);
+		float dummy_start[6] = {750.0f, 100.0f, 10.0f, 180.0f, 90.0f, 180.0f};
+		float dummy_end[6] = {750.0f, -100.0f, 10.0f, 180.0f, 90.0f, 180.0f};
+		spline_move(dummy_start, dummy_end, OFFSET_ON_Z_AXIS, MIDDLE_OFFSET, LOW);
 		#endif
 		
 		#ifdef MAIN_PROGRAM	
@@ -1659,7 +1673,7 @@ int main(void)
 			// Welding mode ---------------------------------------------------------
 			else if(command.running_mode == WELDING_MODE){
 				if(command.running_state == RUNNING_START){
-					check_welding_point = true;
+					validate_welding_point = true;
 					get_welding_cmd = true;
 				}
 				else if(command.running_state == RUNNING_STOP) get_welding_cmd = false;
@@ -1668,7 +1682,7 @@ int main(void)
 			// Preview mode ------------------------------------------------------------------
 			else if(command.running_mode == PREVIEW_MODE){
 				if(command.running_state == RUNNING_START){
-					check_welding_point = true;
+					validate_welding_point = true;
 					get_preview_cmd = true;
 				}
 				else if(command.running_state == RUNNING_STOP){
@@ -2924,10 +2938,10 @@ void save_welding_pattern(uint16_t point, uint8_t select_pattern){
 
 /*--- READ WELDING POINT PATTERN ---*/
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void read_welding_pattern(uint16_t point){
+void read_welding_pattern(uint16_t point, Welding_Data_t *select_point){
 	uint8_t read_pattern[1];
 	EEPROM_ByteRead(&eeprom2, point-1, PATTERN_BYTE_ADDR, read_pattern, sizeof(read_pattern));
-	welding_data.welding_pattern = (Welding_Pattern_t)read_pattern[0];
+	select_point->welding_pattern = (Welding_Pattern_t)read_pattern[0];
 	HAL_Delay(5);
 }
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2944,10 +2958,10 @@ void save_welding_speed(uint16_t point, uint8_t select_speed){
 
 /*--- READ WELDING POINT SPEED ---*/
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void read_welding_speed(uint16_t point){
+void read_welding_speed(uint16_t point, Welding_Data_t *select_point){
 	uint8_t read_speed[1];
 	EEPROM_ByteRead(&eeprom2, point-1, SPEED_BYTE_ADDR, read_speed, sizeof(read_speed));
-	welding_data.welding_speed = (Speed_t)read_speed[0];
+	select_point->welding_speed = (Speed_t)read_speed[0];
 	HAL_Delay(5);
 }
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2964,10 +2978,10 @@ void save_welding_axis_offset(uint16_t point, uint8_t select_axis){
 
 /*--- READ WELDING SPLINE AXIS OFFSET ---*/
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-void read_welding_axis_offset(uint16_t point){
+void read_welding_axis_offset(uint16_t point, Welding_Data_t *select_point){
 	uint8_t read_axis[1];
 	EEPROM_ByteRead(&eeprom2, point-1, OFFSET_BYTE_ADDR, read_axis, sizeof(read_axis));
-	welding_data.welding_axis_offset = (Axis_Offset_t)read_axis[0];
+	select_point->welding_axis_offset = (Axis_Offset_t)read_axis[0];
 	HAL_Delay(5);
 }
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2988,23 +3002,63 @@ void delete_welding_data(uint16_t welding_point, uint8_t point_type){
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-/*--- WELDING POINT VALIDATION ---*/
+/* --- GET WELDING DATA FUNCTION --- */
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-Welding_Data_Status_t weldingpoint_validate(uint16_t welding_point){
-	// Read Welding Point Data
-	read_welding_point(welding_point, START_POINT, welding_data.array_pos_start, welding_data.array_ang_start);
-	read_welding_point(welding_point, END_POINT, welding_data.array_pos_end, welding_data.array_ang_end);
-	read_welding_pattern(welding_point);
-	read_welding_speed(welding_point);
-	read_welding_axis_offset(welding_point);
+void get_welding_data(uint16_t point, Welding_Point_t point_type){
+	if(point_type == CURRENT_POINT_DATA){
+		current_welding_data.welding_point = point;
+		read_welding_point(point, START_POINT, current_welding_data.array_pos_start, current_welding_data.array_ang_start);
+		read_welding_point(point, END_POINT, current_welding_data.array_pos_end, current_welding_data.array_ang_end);
+		read_welding_pattern(point, &current_welding_data);
+		read_welding_speed(point, &current_welding_data);
+		read_welding_axis_offset(point, &current_welding_data);
+	}
+	
+	else if(point_type == NEXT_POINT_DATA){
+		next_welding_data.welding_point = point + 1;
+		read_welding_point(point + 1, START_POINT, next_welding_data.array_pos_start, next_welding_data.array_ang_start);
+		read_welding_point(point + 1, END_POINT, next_welding_data.array_pos_end, next_welding_data.array_ang_end);
+		read_welding_pattern(point + 1, &next_welding_data);
+		read_welding_speed(point + 1, &next_welding_data);
+		read_welding_axis_offset(point + 1, &next_welding_data);
+	}
+	
+	else if(point_type == BOTH_POINT_DATA){
+		current_welding_data.welding_point = point;
+		read_welding_point(point, START_POINT, current_welding_data.array_pos_start, current_welding_data.array_ang_start);
+		read_welding_point(point, END_POINT, current_welding_data.array_pos_end, current_welding_data.array_ang_end);
+		read_welding_pattern(point, &current_welding_data);
+		read_welding_speed(point, &current_welding_data);
+		read_welding_axis_offset(point, &current_welding_data);
+		
+		next_welding_data.welding_point = point + 1;
+		read_welding_point(point + 1, START_POINT, next_welding_data.array_pos_start, next_welding_data.array_ang_start);
+		read_welding_point(point + 1, END_POINT, next_welding_data.array_pos_end, next_welding_data.array_ang_end);
+		read_welding_pattern(point + 1, &next_welding_data);
+		read_welding_speed(point + 1, &next_welding_data);
+		read_welding_axis_offset(point + 1, &next_welding_data);
+	}
+}
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/* --- WELDING POINT VALIDATION --- */
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Welding_Data_Status_t weldingpoint_validate(uint16_t point){
+	// Get Welding Point Data
+	get_welding_data(point, CURRENT_POINT_DATA);
 	
 	// Data Validation
 	if(chcksum_sp_validation != 0 && chcksum_ep_validation != 0){
-		if(chcksum_sp == chcksum_sp_validation && chcksum_ep == chcksum_ep_validation && welding_data.welding_pattern > 0x00 && welding_data.welding_speed > 0x00){
-			return WELDING_DATA_VALID;
+		if(chcksum_sp == chcksum_sp_validation && chcksum_ep == chcksum_ep_validation){
+			if(current_welding_data.welding_pattern > 0x00 && current_welding_data.welding_speed > 0x00){
+				return WELDING_DATA_VALID;
+			}
 		}
-		else if(chcksum_sp != chcksum_sp_validation || chcksum_ep != chcksum_ep_validation || welding_data.welding_pattern == 0x00 || welding_data.welding_speed == 0x00){
-			return WELDING_DATA_INVALID;
+		else if(chcksum_sp != chcksum_sp_validation || chcksum_ep != chcksum_ep_validation){
+			if(current_welding_data.welding_pattern == 0x00 || current_welding_data.welding_speed == 0x00){
+				return WELDING_DATA_INVALID;
+			}
 		}
 	}
 	
@@ -3013,7 +3067,7 @@ Welding_Data_Status_t weldingpoint_validate(uint16_t welding_point){
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-/*--- SDCARD MOUNT ---*/
+/* --- SDCARD MOUNT --- */
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 SD_Status_t mount_sdcard(void){
 	res = f_mount(&fs, "", 1);
@@ -3023,7 +3077,7 @@ SD_Status_t mount_sdcard(void){
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-/*--- SDCARD TXT FILE CREATE FUNCTION ---*/
+/* --- SDCARD TXT FILE CREATE FUNCTION --- */
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 SD_Status_t create_txt_file(char *filename){
 	res = f_open(&file, filename, FA_CREATE_ALWAYS | FA_WRITE);
@@ -3033,7 +3087,7 @@ SD_Status_t create_txt_file(char *filename){
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-/*--- SDCARD SAVE RESPONS DATA FUNCTION ---*/
+/* --- SDCARD SAVE RESPONS DATA FUNCTION --- */
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 SD_Status_t save_respons(float value, int time){
 	char text[64];
@@ -3166,50 +3220,51 @@ void calc_middle_point(float *first_end, float *second_start, Axis_Offset_t axis
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 float calc_cubic_spline(float *x_points, float *y_points, int n, float x){
 	float h[MAX_UPDATE_STEP], A[MAX_UPDATE_STEP], B[MAX_UPDATE_STEP], M[MAX_UPDATE_STEP];
-	
+
 	for(int i=0; i<n; i++){
 		h[i] = x_points[i+1] - x_points[i];
 	}
-	
-	A[0] = 0.0f; 	// Reset Nilai
-	A[n] = 0.0f;	// Reset Nilai
-	
-	for(int i=0; i<n; i++){
-		A[i] = 2.0f * (h[i-1] + h[i]);
-	}
-	
-	for(int i=0; i<=n; i++) B[i] = 0.0f; // Reset Nilai
-	for(int i=0; i<n; i++){
-			B[i] = (6.0f / h[i]) * (y_points[i+1] - y_points[i]) - (6.0f / h[i-1]) * (y_points[i] - y_points[i-1]);
-	}
-	
-	// Eliminasi Maju Menggunakan Algoritma Thomas
+
+	// Natural spline boundary condition
+	A[0] = 1.0f; 
+	A[n] = 1.0f;
+	M[0] = 0.0f;
+	M[n] = 0.0f;
+	B[0] = 0.0f;
+	B[n] = 0.0f;
+
 	for(int i=1; i<n; i++){
-		float temp = h[i-1] / A[i];
-		A[i+1] -= temp * h[i-1];
-		B[i+1] -= temp * B[i];
+		A[i] = 2.0f * (h[i-1] + h[i]);
+		B[i] = (6.0f / h[i]) * (y_points[i+1] - y_points[i]) - (6.0f / h[i-1]) * (y_points[i] - y_points[i-1]);
 	}
-	
-	// Subtitusi Mundur
-	for(int i=0; i<=n ; i++) M[i] = 0.0f; // Reset Nilai
-	for(int i=n-1; i>0; i++){
+
+	// Thomas algorithm: forward elimination
+	for(int i=1; i<n; i++){
+		float temp = h[i-1] / A[i-1];
+		A[i] -= temp * h[i-1];
+		B[i] -= temp * B[i-1];
+	}
+
+	// Back substitution
+	for(int i=1; i <n; i++) M[i] = 0.0f;
+	for(int i=n-1; i>=1; i--){
 		M[i] = (B[i] - h[i] * M[i+1]) / A[i];
 	}
-	
-	// Mencari Interval
+
+	// Spline interpolation
 	for(int i=0; i<n; i++){
-		if(x_points[i] <= x && x <= x_points[i+1]){
+		if(x >= x_points[i] && x <= x_points[i+1]){
 			float dx = x - x_points[i];
 			float a = (M[i+1] - M[i]) / (6.0f * h[i]);
 			float b = M[i] / 2.0f;
 			float c = (y_points[i+1] - y_points[i]) / h[i] - (M[i+1] + 2.0f * M[i]) * h[i] / 6.0f;
 			float d = y_points[i];
-			
-			return a*pow(dx, 3) + b*pow(dx, 2) + c*dx + d;
+
+			return a * dx * dx * dx + b * dx * dx + c * dx + d;
 		}
 	}
-	
-	return 0.0f;
+
+	return 0.0f; // If x is out of bounds
 }
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -3225,6 +3280,22 @@ void calc_spline_parametric(float *t, float points[3][3], int num_points){
 		float dist = sqrtf(dx * dx + dy * dy + dz * dz);
 		t[i] = t[i-1] + dist;
 	}
+}
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/* --- INTERPOLATION ANGLE ACCESS --- */
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+float get_ang_array(uint8_t select_joint, uint8_t  select_point){
+	switch(select_joint){
+		case 0: return int_j1_out[select_point];
+		case 1: return int_j2_out[select_point];
+		case 2: return int_j3_out[select_point];
+		case 3: return int_j4_out[select_point];
+		case 4: return int_j5_out[select_point];
+		case 5: return int_j6_out[select_point];
+	}
+	return 0.0f;
 }
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -3318,8 +3389,8 @@ void calc_linear_points(float points[2][6], int steps, Linear_Move_Mode_t mode){
 /* SPLINE MOVE POINTS CALCULATION */
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void calc_spline_points(float points[3][3], int num_points, int steps){
-	float t[MAX_UPDATE_STEP];
-	float xs[MAX_UPDATE_STEP], ys[MAX_UPDATE_STEP], zs[MAX_UPDATE_STEP];
+	float t[steps];
+	float xs[steps], ys[steps], zs[steps];
 	
 	calc_spline_parametric(t, points, num_points);
 	
@@ -3331,7 +3402,7 @@ void calc_spline_points(float points[3][3], int num_points, int steps){
 	
 	float t_min = t[0];
 	float t_max = t[num_points-1];
-	int total_steps = steps * (num_points-1);
+	int total_steps = steps;
 	
 	for(int i=0; i<=total_steps; i++){
 		float ti = t_min + (float)i * (t_max - t_min) / total_steps;
@@ -3434,7 +3505,7 @@ bool move_all_joint(float *input_angle, Speed_t set_speed){
 		
 		// Calulate Max Delta Angle - Run Once
 		for(int i=0; i<JOINT_NUM; i++){
-			if(step_reached[i]){
+			if(step_reached[i] && clear_to_update){
 				delta_move_ang[i] = input_angle[i] - filtered_joint_angle[i];
 				delta_angle[i] = fabs(delta_move_ang[i]);
 				
@@ -3449,7 +3520,7 @@ bool move_all_joint(float *input_angle, Speed_t set_speed){
 		max_delta_angle = max_delta;
 		if(max_delta > 0.02f){
 			for(int i=0; i<JOINT_NUM; i++){
-				if(delta_angle[i] >= joint_ang_res[i] && step_reached[i]){
+				if(delta_angle[i] >= joint_ang_res[i] && step_reached[i] && clear_to_update){
 					step_reached[i] = false;
 					step_counter[i] = 0;
 					sync_joint_rpm[i] = joint_rpm * (delta_angle[i] / max_delta);
@@ -3544,77 +3615,137 @@ bool linear_move(float *start_pos, float *end_pos, Speed_t speed){
 	
 	if(calculate_parameter){
 		for(int i=0; i<JOINT_NUM; i++){
-			input_points[0][i] = start_pos[i];
-			input_points[1][i] = end_pos[i];
-			step_limit[i] = true;
+			input_linear_pts[0][i] = start_pos[i];
+			input_linear_pts[1][i] = end_pos[i];
 		}
-		calc_linear_points(input_points, steps, ALL_ANGLE);
+		calc_linear_points(input_linear_pts, steps, ALL_ANGLE);
 		
-		current_point = 0;
+		current_int_pt = 0;
+		robot_run = true;
 		calculate_parameter = false;
-	}
-
-	if(current_point == 0){
-		move_all_joint(end_pos, speed);
-		current_point = 1;
+		clear_to_update = true;
 	}
 	
-	else if(current_point == 1){
+	#ifdef USE_INTERPOLATION_STEP
+	else if(current_int_pt < steps){		
+		int_angle_out[0] = int_j1_out[current_int_pt + 1];
+		int_angle_out[1] = int_j2_out[current_int_pt + 1];
+		int_angle_out[2] = int_j3_out[current_int_pt + 1];
+		int_angle_out[3] = int_j4_out[current_int_pt + 1];
+		int_angle_out[4] = int_j5_out[current_int_pt + 1];
+		int_angle_out[5] = int_j6_out[current_int_pt + 1];
+		
+		if(clear_to_update){
+			move_all_joint(int_angle_out, speed);
+			clear_to_update = false;
+		}
+		
+		else if(!clear_to_update){
+			if(step_reached[0] && step_reached[1] && step_reached[2] && step_reached[3] && step_reached[4]){
+				current_int_pt++;
+				clear_to_update = true;
+			}
+		}
+	}
+	
+	else if(current_int_pt == steps){
+		robot_run = false;
+		calculate_parameter = true;
+		return true;
+	}
+
+	#else
+	if(current_int_pt == 0){
+		for(int i=0; i<JOINT_NUM; i++){
+			step_limit[i] = true;
+		}
+	
+		move_all_joint(end_pos, speed);
+		clear_to_update = false;
+		current_int_pt = 1;
+	}
+	
+	else if(current_int_pt == 1){
 		if(step_state[0] == 0x01 && step_state[1] == 0x01 && step_state[2] == 0x01 && step_state[3] == 0x01 && step_state[4] == 0x01){
+		robot_run = false;
 		calculate_parameter = true;
 		return true;
 		}
 	}
+	#endif
 	
 	return false;
 }
-
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 /* --- SPLINE MOVE FUNCTION ---- */
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-bool spline_move(float *start_pos, float *mid_pos, float *end_pos, Axis_Offset_t axis_select, float offset, Speed_t speed){
-	uint8_t steps = (speed == LOW) ? 50 :	
-									(speed == MED) ? 30 : 10;
+bool spline_move(float *start_pos, float *end_pos, Axis_Offset_t axis_select, float offset, Speed_t speed){
+	uint8_t steps = (speed == LOW) ? 20 :	
+									(speed == MED) ? 15 : 10;
 	
-	static float rot_points[2][6];
-	for(int i=0; i<AXIS_NUM; i++){
-		rot_points[0][i] = start_pos[i];
-		rot_points[1][i] = end_pos[i];
+	if(calculate_parameter){
+		// Calculate Tool Rotation Angle
+		for(int i=0; i<AXIS_NUM; i++){
+			input_linear_pts[0][i] = start_pos[i];
+			input_linear_pts[1][i] = end_pos[i];
+		}
+		calc_linear_points(input_linear_pts, steps, ROT_AXES);
+		
+		// Calculate Middle Points
+		calc_middle_point(start_pos, end_pos, axis_select, offset);
+		
+		// Calculate Spline Points
+		for(int i=0; i<3; i++){
+			input_spline_pts[0][i] = start_pos[i];
+			input_spline_pts[1][i] = middle_point[i];
+			input_spline_pts[2][i] = end_pos[i];
+		}
+		calc_spline_points(input_spline_pts, 3, steps);
+		
+		// Get Interpolation Angle
+		for(int i=0; i<steps; i++){
+			float interpolation_points[6] = {int_x_out[i], int_y_out[i], int_z_out[i], int_rx_out[i], int_ry_out[i], int_rz_out[i]};
+			run_inverse_kinematic(&kinematics, interpolation_points);
+			int_j1_out[i] = kinematics.joint_ang_out[0];
+			int_j2_out[i] = kinematics.joint_ang_out[1];
+			int_j3_out[i] = kinematics.joint_ang_out[2];
+			int_j4_out[i] = kinematics.joint_ang_out[3];
+			int_j5_out[i] = kinematics.joint_ang_out[4];
+			int_j6_out[i] = kinematics.joint_ang_out[5];
+		}
+		
+		current_int_pt = 0;
+		robot_run = true;
+		calculate_parameter = false;
+		clear_to_update = true;
 	}
 	
-	calc_middle_point(start_pos, end_pos, axis_select, offset);
-	calc_linear_points(rot_points, steps, ROT_AXES);
-	
-	static float points[3][3];
-	for(int i=0; i<AXIS_NUM; i++){
-		points[0][i] = start_pos[i];
-		points[1][i] = middle_point[i];
-		points[2][i] = end_pos[i];
-	}
-	
-	calc_spline_points(points, 3, steps);
-	
-	if(current_point <= steps){
-		int_axes_out[0] = int_x_out[current_point];
-		int_axes_out[1] = int_y_out[current_point];
-		int_axes_out[2] = int_z_out[current_point];
-		int_axes_out[3] = int_rx_out[current_point];
-		int_axes_out[4] = int_ry_out[current_point];
-		int_axes_out[5] = int_rz_out[current_point];
+	else if(current_int_pt < steps){		
+		int_angle_out[0] = int_j1_out[current_int_pt + 1];
+		int_angle_out[1] = int_j2_out[current_int_pt + 1];
+		int_angle_out[2] = int_j3_out[current_int_pt + 1];
+		int_angle_out[3] = int_j4_out[current_int_pt + 1];
+		int_angle_out[4] = int_j5_out[current_int_pt + 1];
+		int_angle_out[5] = int_j6_out[current_int_pt + 1];
 		
-		run_inverse_kinematic(&kinematics, int_axes_out);
-		end_point_reach = false;
+		if(clear_to_update){
+			move_all_joint(int_angle_out, speed);
+			clear_to_update = false;
+		}
 		
-		if(move_all_joint(kinematics.joint_ang_out, speed) == true){
-			for(int i=0; i<JOINT_NUM; i++) step_counter[i] = 0;
-			current_point++;
+		else if(!clear_to_update){
+			if(step_reached[0] && step_reached[1] && step_reached[2] && step_reached[3] && step_reached[4]){
+				current_int_pt++;
+				clear_to_update = true;
+			}
 		}
 	}
-	else{
-		end_point_reach = true;
-		current_point = 0;
+	
+	else if(current_int_pt == steps){
+		robot_run = false;
+		calculate_parameter = true;
 		return true;
 	}
 	
@@ -3643,7 +3774,7 @@ void welder_off(void){
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void welding_preview(void){
 	// Check Welding Point
-	if(check_welding_point){
+	if(validate_welding_point){
 		point_status[command.preview_point_num] = weldingpoint_validate(command.preview_point_num);
 		if(point_status[command.preview_point_num] == WELDING_DATA_VALID) total_valid_points = 1;
 		
@@ -3658,32 +3789,37 @@ void welding_preview(void){
 				Send_feedback(&command, POINT_INVALID, invalid_welding_point);
 			}
 		}
-		check_welding_point = false;
+		validate_welding_point = false;
 	}
 	
 	// Run Preview
 	if(preview_run){
 		// Move to home
 		if(running_step == MOVE_TO_HOME){
-			HAL_Delay(1000);
-			calculate_parameter = true;
-			running_step = MOVE_TO_START_POINT;
+			if(joint_calibrate(HOMING_ONLY, true, true, true, true, true, false) == true){
+				HAL_Delay(1000);
+				calculate_parameter = true;
+				running_step = MOVE_TO_START_POINT;
+			}
 		}
 		
 		// Move to start point
 		if(running_step == MOVE_TO_START_POINT){
-			if(linear_move(home_ang, welding_data.array_ang_start, HIGH) == true){
+			if(linear_move(home_ang, current_welding_data.array_ang_start, HIGH) == true){
 				running_step = MOVE_TO_END_POINT;
 			}
 		}
 		
 		// From start point move to end point
 		else if(running_step == MOVE_TO_END_POINT){
-			if(welding_data.welding_pattern == DOT){
+			if(current_welding_data.welding_pattern == DOT){
 				// Do Nothing
 			}
-			else if(welding_data.welding_pattern == LINEAR){
-				if(linear_move(welding_data.array_ang_start, welding_data.array_ang_end, welding_data.welding_speed) == true){
+			else if(current_welding_data.welding_pattern == LINEAR){
+				if(linear_move(current_welding_data.array_ang_start, current_welding_data.array_ang_end, current_welding_data.welding_speed) == true){
+					for(int i=0; i<20; i++){
+						Send_feedback(&command, RUNNING_DONE, 0);
+					}
 					running_step = MOVE_STOP;
 				}
 			}
@@ -3691,10 +3827,9 @@ void welding_preview(void){
 		
 		// Move stop
 		else if(running_step == MOVE_STOP){
-			if(linear_move(welding_data.array_ang_end, home_ang, HIGH) == true){
+			if(linear_move(current_welding_data.array_ang_end, home_ang, HIGH) == true){
 				preview_run = false;
 				get_preview_cmd = false;
-				end_point_reach = false;
 				robot_run = false;
 				running_step = NO_STEP;
 			}
@@ -3706,35 +3841,91 @@ void welding_preview(void){
 /* --- WELDING START FUNCTION ---*/
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void welding_start(void){	
-	// Count valid welding points data
-	for(int i=1; i<=MAX_POINTS; i++){		
-		point_status[i-1] = weldingpoint_validate(i);
-		if(point_status[i-1] == WELDING_DATA_VALID) total_valid_points++;
-	}
-	
-	// Check welding points data align
-	for(int i=0; i<MAX_POINTS; i++){
-		if(point_status[i] != WELDING_DATA_VALID){
-			invalid_welding_point = i+1;
-			break;
+	if(validate_welding_point){
+		// Count valid welding points data
+		for(int i=1; i<=MAX_POINTS; i++){		
+			point_status[i-1] = weldingpoint_validate(i);
+			if(point_status[i-1] == WELDING_DATA_VALID) total_valid_points++;
 		}
-		else total_mapped_points++;
-	}
-	
-	// Check welding run state
-	if(total_valid_points != total_mapped_points){
-		welding_run = false;
-		for(int i=0; i<10; i++){
-			Send_feedback(&command, POINT_INVALID, invalid_welding_point);
+		
+		// Check welding points data align
+		for(int i=0; i<MAX_POINTS; i++){
+			if(point_status[i] != WELDING_DATA_VALID){
+				invalid_welding_point = i+1;
+				break;
+			}
+			else total_mapped_points++;
 		}
-	}
-	else{
-		welding_run = true;
+		
+		// Check welding run state
+		if(total_valid_points != total_mapped_points){
+			welding_run = false;
+			get_welding_cmd = false;
+			total_mapped_points = 0;
+			for(int i=0; i<10; i++){
+				Send_feedback(&command, POINT_INVALID, invalid_welding_point);
+			}
+		}
+		else{
+			welding_run = true;
+			current_welding_point = 1;
+			get_welding_data(current_welding_point, BOTH_POINT_DATA);
+		}
+		
+		validate_welding_point = false;
+		check_welding_point = true;
 	}
 
-	// Start welding algorithm when all mapped welding point is valid
-	if(welding_run){
+	// Start Welding
+	if(welding_run){		
+		// Move To home
+		if(running_step == MOVE_TO_HOME){
+			if(joint_calibrate(HOMING_ONLY, true, true, true, true, true, false) == true){
+				HAL_Delay(1000);
+				calculate_parameter = true;
+				running_step = MOVE_TO_START_POINT;
+			}
+		}
 		
+		// Move To Start Point
+		else if(running_step == MOVE_TO_START_POINT){
+			if(linear_move(home_ang, current_welding_data.array_ang_start, HIGH) == true){
+				running_step = MOVE_TO_END_POINT;
+			}
+		}
+		
+		// Move To End Point
+		else if(running_step == MOVE_TO_END_POINT){
+			if(current_welding_data.welding_pattern == DOT){
+				// Do Nothing
+			}
+			else if(current_welding_data.welding_pattern == LINEAR){
+				if(linear_move(current_welding_data.array_ang_start, current_welding_data.array_ang_end, current_welding_data.welding_speed) == true){
+					if(total_mapped_points > 1) running_step = CHANGE_POINT;
+					else running_step = MOVE_STOP;
+				}
+			}
+		}
+		
+		// Change Point
+		else if(running_step == CHANGE_POINT){
+			if(spline_move(current_welding_data.array_ang_end, next_welding_data.array_ang_start, current_welding_data.welding_axis_offset, 
+				MIDDLE_OFFSET, current_welding_data.welding_speed) == true){
+				current_welding_point++;
+				get_welding_data(current_welding_point, BOTH_POINT_DATA);
+				running_step = MOVE_TO_END_POINT;
+			}
+		}
+		
+		// Move Stop
+		else if(running_step == MOVE_STOP){
+			if(linear_move(current_welding_data.array_ang_end, home_ang, HIGH) == true){
+				welding_run = false;
+				get_welding_cmd = false;
+				robot_run = false;
+				running_step = NO_STEP;
+			}
+		}
 	}
 }
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -4291,9 +4482,9 @@ void send_ang_pos_data(void){
 	tx_angle[5] = filtered_joint_angle[5];
 	#endif
 	
-	if(HAL_GetTick() - prev_time_send > 20 && HAL_UART_GetState(&huart4) != HAL_UART_STATE_BUSY_TX){
+	if(HAL_GetTick() - prev_time_send > 100 && HAL_UART_GetState(&huart4) != HAL_UART_STATE_BUSY_TX){
 		command.msg_sent = false;
-		Send_requested_data(&command, tx_pos, tx_rot, tx_angle, welding_data.welding_point, welding_data.welding_pattern, welding_data.welding_speed);
+		Send_requested_data(&command, tx_pos, tx_rot, tx_angle, current_welding_data.welding_point, current_welding_data.welding_pattern, current_welding_data.welding_speed);
 		prev_time_send = HAL_GetTick();
 	}
 }

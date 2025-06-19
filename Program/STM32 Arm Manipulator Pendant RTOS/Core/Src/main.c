@@ -187,7 +187,9 @@ const osEventFlagsAttr_t getData_attributes = {
 uint16_t
 prev_getdata;
 
-bool 
+bool
+in_home_menu			= false,	
+in_mapping_menu		= false,
 saved_dist    		= true,
 saved_prev				= true,
 prep_done 				= false,
@@ -283,7 +285,7 @@ string_max_dist1[] 	= "500      ",
 string_max_dist2[] 	= "90       ",
 string_max_point[] 	= "360      ";
 
-uint16_t 
+int16_t 
 ctrl_mode_counter,			// Counter Mode Kontrol - (World, Joint)
 move_mode_counter,			// Counter Mode Gerak - (Continuous, Distance, Step)
 move_var_counter,				// Counter Variabel Gerak - (X, Y, Z, Rx, Ry, Rz, J1-J6)
@@ -804,7 +806,8 @@ void ui_handler(void){
 				Send_state_reset(&command);
 				osDelay(5);
 			}
-			change_menu(HOME_MENU);
+			if(in_home_menu) change_menu(HOME_MENU);
+			else if(in_mapping_menu) change_menu(MAPPING_MENU);
 		}
 	}
 	
@@ -948,6 +951,8 @@ void ui_handler(void){
 	
 	/* HOME MENU HANDLER *////////////////////////////////////////////////////////////////
 	else if(select_menu == HOME_MENU){
+		in_home_menu = true;
+		
 		// SETTING MENU *********************
 		if(keys == 'Q' && prev_keys != keys){
 			change_menu(SETTING_MENU);
@@ -1207,17 +1212,15 @@ void ui_handler(void){
 		// **************************************************************************
 		
 		
-		// WELDING PREPARATION MENU *******************************
+		// WELDING PREPARATION MENU **********************************
 		else if(run_mode_counter == 2){			
 			// WELDING RUN
 			if(keys == '#' && prev_keys != keys){
-				Send_running(&command, RUNNING_START, WELDING_MODE, 0);
-				
+				for(int i=0; i<20; i++){
+					Send_running(&command, RUNNING_START, WELDING_MODE, 0);
+					HAL_Delay(5);
+				}
 				change_menu(WELDING_MENU);
-				
-				move_var_counter = 0;
-				mapping_menu_counter = 0;
-				ctrl_mode_counter = 0;
 				
 				preview_point = command.welding_point_num;
 				preview_pattern = command.pattern_type;
@@ -1481,7 +1484,7 @@ void ui_handler(void){
 		// *******************************************************************************************
 		
 		
-		// MAPPING MENU 3 ********************************************************************************************************************
+		// MAPPING MENU 3 *******************************************************************************
 		else if(mapping_menu_counter == 2){
 			// CHANGE PATTERN
 			if(keys == 'W' && prev_keys != keys){
@@ -1536,14 +1539,14 @@ void ui_handler(void){
 				}
 			}
 		}
-		// ***********************************************************************************************************************************
+		// ********************************************************************************************
 	}
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	
 	
-	/* PREVIEW MENU HANDLER */////////////////////////////////////////////////////////////////////////////////////////////////
+	/* PREVIEW MENU HANDLER *////////////////////////////////////////////////
 	else if(select_menu == PREVIEW_MENU){
-		if(command.feedback == CURRENT_POINT_DONE){
+		if(command.feedback == RUNNING_DONE){
 			move_mode_counter = 0;
 			ctrl_mode_counter = 0;
 			move_var_counter = 0;
@@ -1559,7 +1562,7 @@ void ui_handler(void){
 			change_menu(STOP_MENU);
 		}
 	}
-	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////
 	
 	
 	/* WELDING MENU HANDLER *//////////////////////////////////
@@ -1568,6 +1571,14 @@ void ui_handler(void){
 		preview_pattern = command.pattern_type;
 		preview_speed = command.running_speed;
 		current_running_mode = WELDING_MODE;
+		
+		if(command.feedback == RUNNING_DONE){
+			move_mode_counter = 0;
+			ctrl_mode_counter = 0;
+			move_var_counter = 0;
+			command.feedback = NO_FEEDBACK;
+			change_menu(HOME_MENU);
+		}
 		
 		// PAUSE MENU ***********************
 		if(keys == 'Q' && prev_keys != keys){
@@ -2538,6 +2549,8 @@ void show_menu(LCD_Menu_t menu){
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void reset_counter(LCD_Menu_t menu){
 	if(menu == HOME_MENU){
+		in_home_menu = true;
+		in_mapping_menu = false;
 		ctrl_mode_counter = 0;
 		move_mode_counter = 0;
 		move_var_counter = 0;
@@ -2546,19 +2559,31 @@ void reset_counter(LCD_Menu_t menu){
 	}
 	
 	else if(menu == PREP_MENU){
+		in_home_menu = false;
+		in_mapping_menu = false;
 		run_mode_counter = 0;
 		mapped_point_counter = 0;  
 		strcpy(string_preview, "-");
 	}
 	
 	else if(menu == MAPPING_MENU){
+		in_home_menu = false; 
+		in_mapping_menu = true;
 		mapping_menu_counter = 0;
 		axis_offset_counter = 0;
 		pattern_sel_counter = 0;
 		speed_mode_counter = 0;
 	}
 	
+	else if(menu == WELDING_MENU){
+		move_var_counter = 0;
+		mapping_menu_counter = 0;
+		ctrl_mode_counter = 0;
+	}
+	
 	else if(menu == SETTING_MENU){
+		in_home_menu = false; 
+		in_mapping_menu = false;
 		cal_mode_counter = 0; 			
 		setting_menu_counter = 0;
 		joint_sel_counter = 0;
@@ -2703,7 +2728,9 @@ void StartReceiveTask(void *argument)
   for(;;)
   {
 		uint32_t flags = osEventFlagsWait(getDataHandle, 0x01, osFlagsWaitAny, 0);
-		Start_get_command(&command);
+		if(HAL_UART_GetState(&huart1) != HAL_UART_STATE_BUSY_RX){
+			Start_get_command(&command);
+		}
 		
 		if(flags & 0x01){
 			Get_command(&command);
@@ -2747,7 +2774,7 @@ void StartReceiveTask(void *argument)
 			}
 		}
 		
-		if(HAL_GetTick() - prev_getdata > 250){
+		if(((flags & 0x01) != 0x01) && (HAL_GetTick() - prev_getdata > 250)){
 			Reset_command(&command);
 			prev_getdata = HAL_GetTick();
 		}
