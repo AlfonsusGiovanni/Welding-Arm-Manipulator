@@ -278,7 +278,7 @@
         <Ww>
           <count>25</count>
           <WinNumber>1</WinNumber>
-          <ItemText>current_int_pt</ItemText>
+          <ItemText>current_int_pt,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>26</count>
@@ -368,7 +368,12 @@
         <Ww>
           <count>43</count>
           <WinNumber>1</WinNumber>
-          <ItemText>point_status</ItemText>
+          <ItemText>current_welding_point,0x0A</ItemText>
+        </Ww>
+        <Ww>
+          <count>44</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>independent_point</ItemText>
         </Ww>
       </WatchWindow1>
       <WatchWindow2>
@@ -554,7 +559,7 @@
       <DebugFlag>
         <trace>0</trace>
         <periodic>1</periodic>
-        <aLwin>1</aLwin>
+        <aLwin>0</aLwin>
         <aCover>0</aCover>
         <aSer1>0</aSer1>
         <aSer2>0</aSer2>

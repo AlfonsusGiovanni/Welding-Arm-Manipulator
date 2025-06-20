@@ -237,23 +237,24 @@ Welding_Data_t next_welding_data;
 
 /* SYSTEM CONFIGURATION */
 //----------------------
-//#define USE_OLED
+#define USE_OLED
 //#define USE_SDCARD
 #define USE_EEPROM
-//#define USE_RS232
-//#define USE_STEPPER
-//#define USE_ENCODER
-//#define USE_KINEMATICS
+#define USE_RS232
+#define USE_STEPPER
+#define USE_ENCODER
+#define USE_KINEMATICS
 //#define USE_PID
 
 //#define USE_DEBUG_PROGRAM
-//#define USE_INTERPOLATION_STEP
+//#define USE_INTERPOLATION_STEP_LINEAR
+#define USE_INTERPOLATION_STEP_SPLINE
 //#define USE_TARGET_PRELOAD
 //#define USE_MISS_STEP_CHECK
-//#define USE_LIMIT_CHECK
+#define USE_LIMIT_CHECK
 
 //#define TEST_SDCARD
-#define TEST_EEPROM
+//#define TEST_EEPROM
 //#define TEST_RS232
 //#define TEST_OLED
 //#define TEST_STEPPER
@@ -264,7 +265,7 @@ Welding_Data_t next_welding_data;
 
 //#define RECORD_RESPONS_DATA
 
-//#define MAIN_PROGRAM
+#define MAIN_PROGRAM
 //----------------------
 
 /* EEPROM ADDRESS SET */
@@ -759,6 +760,9 @@ unsigned long
 prev_time_send,
 prev_time_get;
 
+bool
+interrupt_send = false;
+
 float
 tx_pos[3],
 tx_rot[3],
@@ -1102,11 +1106,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 				if(preload_done[i]){
 					step_counter[i] = 0;
 					target_step[i] = preload_target_step[i];
+					independent_point[i]+=1;
 					preload_done[i] = false;
 				}
 				else step_reached[i] = true;
 			}
-			
 			else{ 
 				step_counter[i] = 0;
 				step_reached[i] = true;
@@ -1115,7 +1119,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		
 		#else
 		if(step_counter[i] > target_step[i]){
-			if(step_cont_run_w[i]) step_counter[i] = 0;
+			if(step_cont_run_w[i]){
+				step_counter[i] = 0;
+			}
 			step_reached[i] = true;
 		}
 		
@@ -1283,10 +1289,10 @@ int main(void)
 	#ifdef USE_RS232	
 	RS232_Init(&huart4);
 	show_menu(COM_INIT_MENU);
-	while(command.type != FEEDBACK && command.feedback != PENDANT_ONLINE){
-		receive_data();
-		Send_feedback(&command, MAIN_ONLINE, 0x00);
-	}
+//	while(command.type != FEEDBACK && command.feedback != PENDANT_ONLINE){
+//		receive_data();
+//		Send_feedback(&command, MAIN_ONLINE, 0x00);
+//	}
 	SSD1306_Clear();
 	command.msg_sent = true;
 	command.msg_get = true;
@@ -1545,8 +1551,10 @@ int main(void)
 				robot_stop = false;
 				if(joint_calibrate(command.calibration_mode, true, true, true, true, true, false) == true){
 					for(int i=0; i<50; i++){
-						Send_feedback(&command, CALIBRATION_DONE, 0x00);
-						HAL_Delay(10);
+						if(HAL_UART_GetState(&huart4) != HAL_UART_STATE_BUSY_TX){
+							Send_feedback(&command, CALIBRATION_DONE, 0x00);
+						}
+						HAL_Delay(5);
 					}
 					HAL_Delay(250);
 					home = true;
@@ -1566,19 +1574,23 @@ int main(void)
 				HAL_Delay(500);
 				
 				for(int i=0; i<50; i++){
-					Send_feedback(&command, ZEROING_DONE, 0x00);
-					HAL_Delay(10);
+					if(HAL_UART_GetState(&huart4) != HAL_UART_STATE_BUSY_TX){
+							Send_feedback(&command, ZEROING_DONE, 0x00);
+						}
+						HAL_Delay(5);
 				}
 			}
 			
-			// Joint speed setting command ----------------------
+			// Joint speed setting command ------------------------------
 			else if(command.setting_mode == JOINT_SPEED){
 				global_speed = command.running_speed;
 				HAL_Delay(500);
 				
 				for(int i=0; i<50; i++){
-					Send_feedback(&command, SPEED_CHANGE_DONE, 0x00);
-					HAL_Delay(10);
+					if(HAL_UART_GetState(&huart4) != HAL_UART_STATE_BUSY_TX){
+						Send_feedback(&command, SPEED_CHANGE_DONE, 0x00);
+					}
+					HAL_Delay(5);
 				}
 			}
 		}
@@ -1768,7 +1780,7 @@ int main(void)
 		
 		// RUN WELDING -----
 		if(get_welding_cmd){
-			
+			welding_start();
 		}
 		
 		// RUN PREVIEW -----
@@ -3250,53 +3262,59 @@ void calc_middle_point(float *first_end, float *second_start, Axis_Offset_t axis
 /* --- CUBIC SPLINE CALCULATION */
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 float calc_cubic_spline(float *x_points, float *y_points, int n, float x){
-	float h[MAX_UPDATE_STEP], A[MAX_UPDATE_STEP], B[MAX_UPDATE_STEP], M[MAX_UPDATE_STEP];
+    float h[MAX_UPDATE_STEP], A[MAX_UPDATE_STEP], B[MAX_UPDATE_STEP], M[MAX_UPDATE_STEP];
 
-	for(int i=0; i<n; i++){
-		h[i] = x_points[i+1] - x_points[i];
-	}
+    for(int i = 0; i < n; i++){
+        h[i] = x_points[i+1] - x_points[i];
+    }
 
-	// Natural spline boundary condition
-	A[0] = 1.0f; 
-	A[n] = 1.0f;
-	M[0] = 0.0f;
-	M[n] = 0.0f;
-	B[0] = 0.0f;
-	B[n] = 0.0f;
+    // Natural spline boundary condition
+    A[0] = 1.0f;
+    A[n] = 1.0f;
+    M[0] = 0.0f;
+    M[n] = 0.0f;
+    B[0] = 0.0f;
+    B[n] = 0.0f;
 
-	for(int i=1; i<n; i++){
-		A[i] = 2.0f * (h[i-1] + h[i]);
-		B[i] = (6.0f / h[i]) * (y_points[i+1] - y_points[i]) - (6.0f / h[i-1]) * (y_points[i] - y_points[i-1]);
-	}
+    for(int i = 1; i < n; i++){
+        A[i] = 2.0f * (h[i-1] + h[i]);
+        B[i] = (6.0f / h[i]) * (y_points[i+1] - y_points[i]) - (6.0f / h[i-1]) * (y_points[i] - y_points[i-1]);
+    }
 
-	// Thomas algorithm: forward elimination
-	for(int i=1; i<n; i++){
-		float temp = h[i-1] / A[i-1];
-		A[i] -= temp * h[i-1];
-		B[i] -= temp * B[i-1];
-	}
+    // Thomas algorithm: forward elimination
+    for(int i = 1; i < n; i++){
+        float temp = h[i-1] / A[i-1];
+        A[i] -= temp * h[i-1];
+        B[i] -= temp * B[i-1];
+    }
 
-	// Back substitution
-	for(int i=1; i <n; i++) M[i] = 0.0f;
-	for(int i=n-1; i>=1; i--){
-		M[i] = (B[i] - h[i] * M[i+1]) / A[i];
-	}
+    // Back substitution
+    for(int i = 1; i < n; i++) M[i] = 0.0f;
+    for(int i = n - 1; i >= 1; i--){
+        M[i] = (B[i] - h[i] * M[i+1]) / A[i];
+    }
+    M[n] = 0.0f;  // re-enforce boundary condition
 
-	// Spline interpolation
-	for(int i=0; i<n; i++){
-		if(x >= x_points[i] && x <= x_points[i+1]){
-			float dx = x - x_points[i];
-			float a = (M[i+1] - M[i]) / (6.0f * h[i]);
-			float b = M[i] / 2.0f;
-			float c = (y_points[i+1] - y_points[i]) / h[i] - (M[i+1] + 2.0f * M[i]) * h[i] / 6.0f;
-			float d = y_points[i];
+    // Clamp x to avoid floating point overflow
+    if(x < x_points[0]) x = x_points[0];
+    if(x > x_points[n]) x = x_points[n];
 
-			return a * dx * dx * dx + b * dx * dx + c * dx + d;
-		}
-	}
+    // Spline interpolation
+    for(int i = 0; i < n; i++){
+        if(x >= x_points[i] && x <= x_points[i+1]){
+            float dx = x - x_points[i];
+            float a = (M[i+1] - M[i]) / (6.0f * h[i]);
+            float b = M[i] / 2.0f;
+            float c = (y_points[i+1] - y_points[i]) / h[i] - (M[i+1] + 2.0f * M[i]) * h[i] / 6.0f;
+            float d = y_points[i];
 
-	return 0.0f; // If x is out of bounds
+            return a * dx * dx * dx + b * dx * dx + c * dx + d;
+        }
+    }
+
+    return 0.0f; // fallback if not in range
 }
+
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -3420,26 +3438,26 @@ void calc_linear_points(float points[2][6], int steps, Linear_Move_Mode_t mode){
 /* SPLINE MOVE POINTS CALCULATION */
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void calc_spline_points(float points[3][3], int num_points, int steps){
-	float t[steps];
-	float xs[steps], ys[steps], zs[steps];
-	
+	float t[3]; 
+	float xs[3], ys[3], zs[3]; 
+
 	calc_spline_parametric(t, points, num_points);
-	
+
 	for(int i=0; i<num_points; i++){
 		xs[i] = points[i][0];
 		ys[i] = points[i][1];
 		zs[i] = points[i][2];
 	}
-	
+
 	float t_min = t[0];
-	float t_max = t[num_points-1];
+	float t_max = t[num_points - 1];
 	int total_steps = steps;
-	
-	for(int i=0; i<=total_steps; i++){
+
+	for(int i=1; i<=total_steps+1; i++){
 		float ti = t_min + (float)i * (t_max - t_min) / total_steps;
-		int_x_out[i] = calc_cubic_spline(t, xs, num_points - 1, ti);
-		int_y_out[i] = calc_cubic_spline(t, ys, num_points - 1, ti);
-		int_z_out[i] = calc_cubic_spline(t, zs, num_points - 1, ti);
+		int_x_out[i-1] = calc_cubic_spline(t, xs, num_points - 1, ti);
+		int_y_out[i-1] = calc_cubic_spline(t, ys, num_points - 1, ti);
+		int_z_out[i-1] = calc_cubic_spline(t, zs, num_points - 1, ti);
 	}
 }
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -3526,7 +3544,7 @@ bool move_all_joint(float *input_angle, Speed_t set_speed){
 		}
 	}
 	
-	else{		
+	else{				
 		// Reset Step Reached When Stopping
 		for(int i=0; i<JOINT_NUM; i++){
 			if(step_state[i] == STOPPING){
@@ -3649,6 +3667,18 @@ bool linear_move(float *start_pos, float *end_pos, Speed_t speed){
 			input_linear_pts[0][i] = start_pos[i];
 			input_linear_pts[1][i] = end_pos[i];
 		}
+		
+		// Reset Interpolation Output
+		for(int i=0; i<MAX_UPDATE_STEP; i++){
+			int_j1_out[i] = kinematics.joint_ang_out[0];
+			int_j2_out[i] = kinematics.joint_ang_out[1];
+			int_j3_out[i] = kinematics.joint_ang_out[2];
+			int_j4_out[i] = kinematics.joint_ang_out[3];
+			int_j5_out[i] = kinematics.joint_ang_out[4];
+			int_j6_out[i] = kinematics.joint_ang_out[5];
+		}
+		
+		// Calculate Linear Interpolation Points
 		calc_linear_points(input_linear_pts, steps, ALL_ANGLE);
 		
 		current_int_pt = 0;
@@ -3657,7 +3687,7 @@ bool linear_move(float *start_pos, float *end_pos, Speed_t speed){
 		clear_to_update = true;
 	}
 	
-	#ifdef USE_INTERPOLATION_STEP
+	#ifdef USE_INTERPOLATION_STEP_LINEAR
 	else if(current_int_pt < steps){		
 		int_angle_out[0] = int_j1_out[current_int_pt + 1];
 		int_angle_out[1] = int_j2_out[current_int_pt + 1];
@@ -3686,21 +3716,23 @@ bool linear_move(float *start_pos, float *end_pos, Speed_t speed){
 	}
 
 	#else
-	if(current_int_pt == 0){
-		for(int i=0; i<JOINT_NUM; i++){
-			step_limit[i] = true;
+	else{                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+		if(current_int_pt == 0){
+			for(int i=0; i<JOINT_NUM; i++){
+				step_limit[i] = true;
+			}
+		
+			move_all_joint(end_pos, speed);
+			clear_to_update = false;
+			current_int_pt = 1;
 		}
-	
-		move_all_joint(end_pos, speed);
-		clear_to_update = false;
-		current_int_pt = 1;
-	}
-	
-	else if(current_int_pt == 1){
-		if(step_state[0] == 0x01 && step_state[1] == 0x01 && step_state[2] == 0x01 && step_state[3] == 0x01 && step_state[4] == 0x01){
-		robot_run = false;
-		calculate_parameter = true;
-		return true;
+		
+		else if(current_int_pt == 1){
+			if(step_state[0] == 0x01 && step_state[1] == 0x01 && step_state[2] == 0x01 && step_state[3] == 0x01 && step_state[4] == 0x01 && step_state[5] == 0x01){
+				robot_run = false;
+				calculate_parameter = true;
+				return true;
+			}
 		}
 	}
 	#endif
@@ -3713,8 +3745,7 @@ bool linear_move(float *start_pos, float *end_pos, Speed_t speed){
 /* --- SPLINE MOVE FUNCTION ---- */
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 bool spline_move(float *start_pos, float *end_pos, Axis_Offset_t axis_select, float offset, Speed_t speed){
-	uint8_t steps = (speed == LOW) ? 20 :	
-									(speed == MED) ? 15 : 10;
+	uint8_t steps = 10;
 	
 	if(calculate_parameter){
 		// Calculate Tool Rotation Angle
@@ -3735,7 +3766,18 @@ bool spline_move(float *start_pos, float *end_pos, Axis_Offset_t axis_select, fl
 		}
 		calc_spline_points(input_spline_pts, 3, steps);
 		
+		// Reset Interpolation Output
+		for(int i=0; i<MAX_UPDATE_STEP; i++){
+			int_j1_out[i] = kinematics.joint_ang_out[0];
+			int_j2_out[i] = kinematics.joint_ang_out[1];
+			int_j3_out[i] = kinematics.joint_ang_out[2];
+			int_j4_out[i] = kinematics.joint_ang_out[3];
+			int_j5_out[i] = kinematics.joint_ang_out[4];
+			int_j6_out[i] = kinematics.joint_ang_out[5];
+		}
+		
 		// Get Interpolation Angle
+		kinematics.j5_enc_angle = filtered_joint_angle[4];
 		for(int i=0; i<steps; i++){
 			float interpolation_points[6] = {int_x_out[i], int_y_out[i], int_z_out[i], int_rx_out[i], int_ry_out[i], int_rz_out[i]};
 			run_inverse_kinematic(&kinematics, interpolation_points);
@@ -3747,19 +3789,24 @@ bool spline_move(float *start_pos, float *end_pos, Axis_Offset_t axis_select, fl
 			int_j6_out[i] = kinematics.joint_ang_out[5];
 		}
 		
+		for(int i=0; i<JOINT_NUM; i++){
+			step_limit[i] = false;
+		}
+		
 		current_int_pt = 0;
 		robot_run = true;
 		calculate_parameter = false;
 		clear_to_update = true;
 	}
 	
-	else if(current_int_pt < steps){		
-		int_angle_out[0] = int_j1_out[current_int_pt + 1];
-		int_angle_out[1] = int_j2_out[current_int_pt + 1];
-		int_angle_out[2] = int_j3_out[current_int_pt + 1];
-		int_angle_out[3] = int_j4_out[current_int_pt + 1];
-		int_angle_out[4] = int_j5_out[current_int_pt + 1];
-		int_angle_out[5] = int_j6_out[current_int_pt + 1];
+	#ifdef USE_INTERPOLATION_STEP_SPLINE
+	else if(current_int_pt < steps){	
+		int_angle_out[0] = int_j1_out[current_int_pt];
+		int_angle_out[1] = int_j2_out[current_int_pt];
+		int_angle_out[2] = int_j3_out[current_int_pt];
+		int_angle_out[3] = int_j4_out[current_int_pt];
+		int_angle_out[4] = int_j5_out[current_int_pt];
+		int_angle_out[5] = int_j6_out[current_int_pt];
 		
 		if(clear_to_update){
 			move_all_joint(int_angle_out, speed);
@@ -3767,7 +3814,7 @@ bool spline_move(float *start_pos, float *end_pos, Axis_Offset_t axis_select, fl
 		}
 		
 		else if(!clear_to_update){
-			if(step_reached[0] && step_reached[1] && step_reached[2] && step_reached[3] && step_reached[4]){
+			if(step_reached[0] && step_reached[1] && step_reached[2] && step_reached[3] && step_reached[4] && step_reached[5]){
 				current_int_pt++;
 				clear_to_update = true;
 			}
@@ -3779,6 +3826,40 @@ bool spline_move(float *start_pos, float *end_pos, Axis_Offset_t axis_select, fl
 		calculate_parameter = true;
 		return true;
 	}
+	#else
+	if(current_int_pt == 0){
+		for(int i=0; i<JOINT_NUM; i++){
+			step_limit[i] = true;
+		}
+		float middle_angle[6] = {int_j1_out[steps/2], int_j2_out[steps/2], int_j3_out[steps/2], int_j4_out[steps/2], int_j5_out[steps/2], int_j6_out[steps/2]};
+		move_all_joint(middle_angle, speed);
+		clear_to_update = false;
+	}
+	
+	else if(current_int_pt == 1){
+		for(int i=0; i<JOINT_NUM; i++){
+			step_limit[i] = true;
+		}
+		float end_angle[6] = {int_j1_out[steps-1], int_j2_out[steps-1], int_j3_out[steps-1], int_j4_out[steps-1], int_j5_out[steps-1], int_j6_out[steps-1]};
+		move_all_joint(end_angle, speed);
+		clear_to_update = false;
+	}
+	
+	else if(current_int_pt == 2){
+		robot_run = false;
+		calculate_parameter = true;
+		current_int_pt = 0;
+		return true;
+	}
+	
+	if(!clear_to_update){
+		if(step_state[0] == 0x01 && step_state[1] == 0x01 && step_state[2] == 0x01 && step_state[3] == 0x01 && step_state[4] == 0x01 && step_state[5] == 0x01){
+			current_int_pt++;
+			clear_to_update = true;
+		}
+	}
+	
+	#endif
 	
 	return false;
 }
@@ -3849,8 +3930,11 @@ void welding_preview(void){
 			}
 			else if(current_welding_data.welding_pattern == LINEAR){
 				if(linear_move(current_welding_data.array_ang_start, current_welding_data.array_ang_end, current_welding_data.welding_speed) == true){
-					for(int i=0; i<20; i++){
-						Send_feedback(&command, RUNNING_DONE, 0);
+					for(int i=0; i<50; i++){
+						if(HAL_UART_GetState(&huart4) != HAL_UART_STATE_BUSY_TX){
+							Send_feedback(&command, RUNNING_DONE, 0);
+						}
+						HAL_Delay(5);
 					}
 					running_step = MOVE_STOP;
 				}
@@ -3902,6 +3986,7 @@ void welding_start(void){
 			welding_run = true;
 			current_welding_point = 1;
 			get_welding_data(current_welding_point, BOTH_POINT_DATA);
+			running_step = MOVE_TO_HOME;
 		}
 		
 		validate_welding_point = false;
@@ -3922,7 +4007,7 @@ void welding_start(void){
 		// Move To Start Point
 		else if(running_step == MOVE_TO_START_POINT){
 			if(linear_move(home_ang, current_welding_data.array_ang_start, HIGH) == true){
-				HAL_Delay(500);
+				HAL_Delay(2000);
 				running_step = MOVE_TO_END_POINT;
 			}
 		}
@@ -3934,20 +4019,28 @@ void welding_start(void){
 			}
 			else if(current_welding_data.welding_pattern == LINEAR){
 				if(linear_move(current_welding_data.array_ang_start, current_welding_data.array_ang_end, current_welding_data.welding_speed) == true){
-					HAL_Delay(500);
-					if(total_mapped_points > 1) running_step = CHANGE_POINT;
-					else running_step = MOVE_STOP;
+					HAL_Delay(2000);
+					if(current_welding_point < total_mapped_points) running_step = CHANGE_POINT;
+					else{
+						for(int i=0; i<50; i++){
+							if(HAL_UART_GetState(&huart4) != HAL_UART_STATE_BUSY_TX){
+								Send_feedback(&command, RUNNING_DONE, 0);
+							}
+							HAL_Delay(5);
+						}
+						running_step = MOVE_STOP;
+					}
 				}
 			}
 		}
 		
 		// Change Point
 		else if(running_step == CHANGE_POINT){
-			if(spline_move(current_welding_data.array_ang_end, next_welding_data.array_ang_start, current_welding_data.welding_axis_offset, 
+			if(spline_move(current_welding_data.array_pos_end, next_welding_data.array_pos_start, current_welding_data.welding_axis_offset, 
 				MIDDLE_OFFSET, current_welding_data.welding_speed) == true){
 				current_welding_point++;
 				get_welding_data(current_welding_point, BOTH_POINT_DATA);
-				HAL_Delay(500);
+				HAL_Delay(2000);
 				running_step = MOVE_TO_END_POINT;
 			}
 		}
@@ -4517,9 +4610,11 @@ void send_ang_pos_data(void){
 	tx_angle[5] = filtered_joint_angle[5];
 	#endif
 	
-	if(HAL_GetTick() - prev_time_send > 100 && HAL_UART_GetState(&huart4) != HAL_UART_STATE_BUSY_TX){
+	if(HAL_GetTick() - prev_time_send > 100 && HAL_UART_GetState(&huart4) != HAL_UART_STATE_BUSY_TX && !interrupt_send){
 		command.msg_sent = false;
-		Send_requested_data(&command, tx_pos, tx_rot, tx_angle, current_welding_data.welding_point, current_welding_data.welding_pattern, current_welding_data.welding_speed);
+		for(int i=0; i<2; i++){
+			Send_requested_data(&command, tx_pos, tx_rot, tx_angle, current_welding_data.welding_point, current_welding_data.welding_pattern, current_welding_data.welding_speed);
+		}
 		prev_time_send = HAL_GetTick();
 	}
 }
